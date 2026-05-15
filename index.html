@@ -278,6 +278,67 @@
     border-top: 1px solid #e8e8e1; flex-wrap: wrap;
   }
   .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+
+  /* ═══ ФОРМА ДНЯ ═══ */
+  .day-type-chips { display: flex; gap: 6px; margin-bottom: 4px; }
+  .day-chip {
+    padding: 6px 14px; border: 1px solid #d0d0c5; border-radius: 100px;
+    background: white; font-size: 13px; font-weight: 500; color: #5c5c55;
+    transition: all 0.15s;
+  }
+  .day-chip:hover { border-color: #5c5c55; }
+  .day-chip.active { background: #1a1a17; color: white; border-color: #1a1a17; }
+
+  .section-block {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 18px 0 10px; padding-top: 16px; border-top: 1px solid #e8e8e1;
+  }
+  .section-block:first-child { border-top: none; padding-top: 0; margin-top: 0; }
+  .section-block h3 { font-size: 14px; font-weight: 600; }
+
+  .interval-row {
+    display: grid; gap: 8px; align-items: center;
+    padding: 10px 12px; background: #fafaf7; border: 1px solid #e8e8e1;
+    border-radius: 6px; margin-bottom: 6px;
+    grid-template-columns: auto auto auto 1.5fr 30px;
+  }
+  .interval-row.break-row {
+    background: #f9f1dc; border-color: rgba(184, 134, 31, 0.2);
+    grid-template-columns: auto auto auto 1fr 30px;
+  }
+  .interval-row input[type="time"] {
+    padding: 5px 8px; border: 1px solid #d0d0c5; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 95px;
+  }
+  .interval-row select, .interval-row .break-note {
+    padding: 5px 8px; border: 1px solid #d0d0c5; border-radius: 4px;
+    font-size: 12px; background: white; width: 100%;
+  }
+  .interval-row .arrow { color: #93938a; font-size: 13px; }
+  .interval-row .remove-btn {
+    color: #93938a; font-size: 16px; width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center; border-radius: 4px;
+  }
+  .interval-row .remove-btn:hover { background: #f5e3df; color: #a0392c; }
+
+  .day-summary {
+    margin-top: 18px; padding: 12px 16px;
+    background: #fafaf7; border-left: 3px solid #1a1a17; border-radius: 6px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  }
+  .day-summary-cell {}
+  .day-summary-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #93938a; margin-bottom: 4px;
+  }
+  .day-summary-value {
+    font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600;
+  }
+  .day-summary-value.green { color: #2d6a3e; }
+
+  .modal-hint {
+    font-size: 11px; color: #93938a; padding: 8px 0;
+  }
 </style>
 </head>
 <body>
@@ -463,6 +524,76 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeAddModal()">Отмена</button>
       <button id="btn-save-translator" class="btn" onclick="saveTranslator()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div id="day-modal" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="day-modal-title">Внести часы</div>
+        <div style="font-size: 12px; color: #93938a; margin-top: 2px;" id="day-modal-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeDayModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="day-error" class="error hidden"></div>
+
+      <!-- Тип дня -->
+      <div class="field-label" style="margin-bottom: 6px;">Тип дня</div>
+      <div class="day-type-chips">
+        <button class="day-chip active" id="chip-working" onclick="setDayType('working')">Рабочий</button>
+        <button class="day-chip" id="chip-absent" onclick="setDayType('absent')">Отгул</button>
+      </div>
+
+      <!-- Содержимое для рабочего дня -->
+      <div id="working-content">
+        <!-- Рабочие интервалы -->
+        <div class="section-block">
+          <h3>Рабочие интервалы</h3>
+          <button class="btn btn-ghost btn-sm" onclick="addIntervalRow()">+ Интервал</button>
+        </div>
+        <div id="intervals-list"></div>
+        <div class="modal-hint">Время начала и окончания, выберите языковую пару. Можно несколько интервалов в день.</div>
+
+        <!-- Брейки -->
+        <div class="section-block">
+          <h3>Брейки (перерывы)</h3>
+          <button class="btn btn-ghost btn-sm" onclick="addBreakRow()">+ Брейк</button>
+        </div>
+        <div id="breaks-list"></div>
+        <div class="modal-hint">Перерывы автоматически вычитаются из рабочего времени. Заметка не обязательна.</div>
+
+        <!-- Сводка -->
+        <div class="day-summary">
+          <div class="day-summary-cell">
+            <div class="day-summary-label">Время в работе</div>
+            <div class="day-summary-value" id="sum-gross">0ч 00м</div>
+          </div>
+          <div class="day-summary-cell">
+            <div class="day-summary-label">Брейки</div>
+            <div class="day-summary-value" id="sum-breaks">−0ч 00м</div>
+          </div>
+          <div class="day-summary-cell">
+            <div class="day-summary-label">Чистое время</div>
+            <div class="day-summary-value green" id="sum-net">0ч 00м</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Содержимое для отгула -->
+      <div id="absent-content" class="hidden">
+        <div style="padding: 24px; text-align: center; color: #5c5c55; background: #e1ebf5; border-radius: 8px; margin-top: 8px;">
+          <div style="font-size: 14px; font-weight: 500; color: #2c4a6b; margin-bottom: 4px;">Отгул</div>
+          <div style="font-size: 12px;">Этот день будет помечен как отгул. Часы и оплата не начисляются.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-delete-day" class="btn btn-ghost hidden" onclick="deleteDay()" style="color: #a0392c; margin-right: auto;">Удалить запись</button>
+      <button class="btn btn-ghost" onclick="closeDayModal()">Отмена</button>
+      <button id="btn-save-day" class="btn" onclick="saveDay()">Сохранить</button>
     </div>
   </div>
 </div>
@@ -796,11 +927,331 @@
   }
 
   function onDayClick(dateStr) {
-    // В этапе 3.2 здесь откроется форма ввода часов. Пока — заглушка.
-    alert(
-      'Дата: ' + dateStr + '\n\n' +
-      'Форма ввода рабочего дня появится в следующем этапе (3.2).'
-    );
+    openDayModal(dateStr);
+  }
+
+  // ====================================================================
+  // МОДАЛКА: ВВОД РАБОЧЕГО ДНЯ
+  // ====================================================================
+  let currentDayDate = null;
+  let currentDayId = null;
+  let currentDayType = 'working';
+  let intervalRowCounter = 0;
+  let breakRowCounter = 0;
+  let myLanguagePairs = []; // [{ language_pair_id, code, rate_per_hour }]
+
+  async function ensureMyLanguagePairs() {
+    if (myLanguagePairs.length > 0) return;
+    const { data } = await sb
+      .from('translator_pairs')
+      .select(`
+        language_pair_id, rate_per_hour, is_primary,
+        language_pairs ( code, display_name )
+      `)
+      .eq('user_id', currentUser.id);
+    myLanguagePairs = (data || [])
+      .sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
+      .map(p => ({
+        language_pair_id: p.language_pair_id,
+        code: p.language_pairs.code,
+        rate_per_hour: p.rate_per_hour
+      }));
+  }
+
+  async function openDayModal(dateStr) {
+    await ensureMyLanguagePairs();
+    if (myLanguagePairs.length === 0) {
+      alert('У вас нет назначенных языковых пар. Обратитесь к менеджеру.');
+      return;
+    }
+
+    currentDayDate = dateStr;
+    currentDayId = null;
+    currentDayType = 'working';
+    intervalRowCounter = 0;
+    breakRowCounter = 0;
+
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
+    const monthName = MONTH_NAMES_RU[date.getMonth()];
+    document.getElementById('day-modal-title').textContent =
+      `${date.getDate()} ${monthName.toLowerCase()}`;
+    document.getElementById('day-modal-subtitle').textContent = dayName;
+
+    document.getElementById('intervals-list').innerHTML = '';
+    document.getElementById('breaks-list').innerHTML = '';
+    document.getElementById('btn-delete-day').classList.add('hidden');
+    hideError('day-error');
+    setDayType('working');
+
+    // Существующая запись?
+    const { data: existingDay } = await sb
+      .from('work_days')
+      .select(`
+        id, day_type, note,
+        work_intervals ( id, language_pair_id, start_at, end_at, duration_minutes ),
+        breaks ( id, start_at, end_at, duration_minutes, note )
+      `)
+      .eq('user_id', currentUser.id)
+      .eq('work_date', dateStr)
+      .maybeSingle();
+
+    if (existingDay) {
+      currentDayId = existingDay.id;
+      setDayType(existingDay.day_type);
+      document.getElementById('btn-delete-day').classList.remove('hidden');
+
+      for (const interv of (existingDay.work_intervals || [])) {
+        addIntervalRow({
+          languagePairId: interv.language_pair_id,
+          startTime: formatTimeHM(interv.start_at),
+          endTime: formatTimeHM(interv.end_at),
+        });
+      }
+      for (const br of (existingDay.breaks || [])) {
+        addBreakRow({
+          startTime: formatTimeHM(br.start_at),
+          endTime: formatTimeHM(br.end_at),
+          note: br.note || '',
+        });
+      }
+      if ((existingDay.work_intervals || []).length === 0 && existingDay.day_type === 'working') {
+        addIntervalRow();
+      }
+    } else {
+      addIntervalRow();
+    }
+
+    updateDaySummary();
+    document.getElementById('day-modal').classList.add('open');
+  }
+
+  function closeDayModal() {
+    document.getElementById('day-modal').classList.remove('open');
+  }
+
+  function setDayType(type) {
+    currentDayType = type;
+    document.getElementById('chip-working').classList.toggle('active', type === 'working');
+    document.getElementById('chip-absent').classList.toggle('active', type === 'absent');
+    document.getElementById('working-content').classList.toggle('hidden', type !== 'working');
+    document.getElementById('absent-content').classList.toggle('hidden', type !== 'absent');
+  }
+
+  function addIntervalRow(prefill = null) {
+    intervalRowCounter++;
+    const id = 'iv-' + intervalRowCounter;
+    const options = myLanguagePairs.map(p =>
+      `<option value="${p.language_pair_id}" ${prefill && prefill.languagePairId === p.language_pair_id ? 'selected' : ''}>${p.code} ($${Number(p.rate_per_hour).toFixed(2)}/ч)</option>`
+    ).join('');
+    const div = document.createElement('div');
+    div.className = 'interval-row';
+    div.id = id;
+    div.innerHTML = `
+      <input type="time" class="iv-start" value="${prefill ? prefill.startTime : '09:00'}">
+      <span class="arrow">→</span>
+      <input type="time" class="iv-end" value="${prefill ? prefill.endTime : '18:00'}">
+      <select class="iv-pair">${options}</select>
+      <button class="remove-btn" onclick="removeIntervalRow('${id}')">×</button>
+    `;
+    document.getElementById('intervals-list').appendChild(div);
+    div.querySelectorAll('input, select').forEach(el => {
+      el.addEventListener('input', updateDaySummary);
+      el.addEventListener('change', updateDaySummary);
+    });
+    updateDaySummary();
+  }
+
+  function removeIntervalRow(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+    updateDaySummary();
+  }
+
+  function addBreakRow(prefill = null) {
+    breakRowCounter++;
+    const id = 'br-' + breakRowCounter;
+    const div = document.createElement('div');
+    div.className = 'interval-row break-row';
+    div.id = id;
+    div.innerHTML = `
+      <input type="time" class="br-start" value="${prefill ? prefill.startTime : '13:00'}">
+      <span class="arrow">→</span>
+      <input type="time" class="br-end" value="${prefill ? prefill.endTime : '13:30'}">
+      <input type="text" class="break-note" maxlength="200" placeholder="Заметка (необязательно)" value="${prefill ? escapeAttr(prefill.note) : ''}">
+      <button class="remove-btn" onclick="removeBreakRow('${id}')">×</button>
+    `;
+    document.getElementById('breaks-list').appendChild(div);
+    div.querySelectorAll('input').forEach(el => {
+      el.addEventListener('input', updateDaySummary);
+    });
+    updateDaySummary();
+  }
+
+  function removeBreakRow(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+    updateDaySummary();
+  }
+
+  function updateDaySummary() {
+    let grossMin = 0, breaksMin = 0;
+    document.querySelectorAll('#intervals-list .interval-row').forEach(row => {
+      const s = row.querySelector('.iv-start').value;
+      const e = row.querySelector('.iv-end').value;
+      const dur = minutesBetween(s, e);
+      if (dur > 0) grossMin += dur;
+    });
+    document.querySelectorAll('#breaks-list .interval-row').forEach(row => {
+      const s = row.querySelector('.br-start').value;
+      const e = row.querySelector('.br-end').value;
+      const dur = minutesBetween(s, e);
+      if (dur > 0) breaksMin += dur;
+    });
+    const netMin = Math.max(0, grossMin - breaksMin);
+    document.getElementById('sum-gross').textContent = formatHoursMinutes(grossMin);
+    document.getElementById('sum-breaks').textContent = '−' + formatHoursMinutes(breaksMin);
+    document.getElementById('sum-net').textContent = formatHoursMinutes(netMin);
+  }
+
+  function minutesBetween(startHM, endHM) {
+    if (!startHM || !endHM) return 0;
+    const [sh, sm] = startHM.split(':').map(Number);
+    const [eh, em] = endHM.split(':').map(Number);
+    let startMin = sh * 60 + sm;
+    let endMin = eh * 60 + em;
+    if (endMin <= startMin) endMin += 24 * 60; // переход через полночь
+    return endMin - startMin;
+  }
+
+  async function saveDay() {
+    hideError('day-error');
+    const btn = document.getElementById('btn-save-day');
+    btn.disabled = true; btn.textContent = 'Сохранение…';
+    try {
+      if (currentDayType === 'absent') {
+        await upsertDay({ day_type: 'absent', intervals: [], breaks: [] });
+        closeDayModal();
+        await loadCalendar();
+        return;
+      }
+      const intervals = [];
+      let basicValid = true;
+      document.querySelectorAll('#intervals-list .interval-row').forEach(row => {
+        const s = row.querySelector('.iv-start').value;
+        const e = row.querySelector('.iv-end').value;
+        const langId = row.querySelector('.iv-pair').value;
+        const dur = minutesBetween(s, e);
+        if (!s || !e || !langId) basicValid = false;
+        if (dur <= 0) basicValid = false;
+        intervals.push({ start: s, end: e, language_pair_id: langId, duration: dur });
+      });
+      const breaks = [];
+      document.querySelectorAll('#breaks-list .interval-row').forEach(row => {
+        const s = row.querySelector('.br-start').value;
+        const e = row.querySelector('.br-end').value;
+        const note = row.querySelector('.break-note').value.trim() || null;
+        const dur = minutesBetween(s, e);
+        if (!s || !e) basicValid = false;
+        if (dur <= 0) basicValid = false;
+        breaks.push({ start: s, end: e, duration: dur, note });
+      });
+      if (intervals.length === 0) {
+        showError('day-error', 'Добавьте хотя бы один рабочий интервал, либо отметьте день как отгул.');
+        return;
+      }
+      if (!basicValid) {
+        showError('day-error', 'Проверьте поля: время и языковая пара заполнены, длительность > 0.');
+        return;
+      }
+      await upsertDay({ day_type: 'working', intervals, breaks });
+      closeDayModal();
+      await loadCalendar();
+    } catch (e) {
+      showError('day-error', 'Ошибка: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Сохранить';
+    }
+  }
+
+  async function upsertDay({ day_type, intervals, breaks }) {
+    let workDayId = currentDayId;
+    if (!workDayId) {
+      const { data: newDay, error: insertErr } = await sb
+        .from('work_days')
+        .insert({ user_id: currentUser.id, work_date: currentDayDate, day_type })
+        .select('id').single();
+      if (insertErr) throw new Error(insertErr.message);
+      workDayId = newDay.id;
+    } else {
+      const { error: updErr } = await sb
+        .from('work_days').update({ day_type }).eq('id', workDayId);
+      if (updErr) throw new Error(updErr.message);
+      await sb.from('work_intervals').delete().eq('work_day_id', workDayId);
+      await sb.from('breaks').delete().eq('work_day_id', workDayId);
+    }
+
+    if (day_type === 'absent') return;
+
+    if (intervals.length > 0) {
+      const intervalRows = intervals.map(i => ({
+        work_day_id: workDayId,
+        language_pair_id: i.language_pair_id,
+        start_at: toUtcISO(currentDayDate, i.start),
+        end_at:   toUtcEndISO(currentDayDate, i.start, i.end),
+        duration_minutes: i.duration,
+      }));
+      const { error } = await sb.from('work_intervals').insert(intervalRows);
+      if (error) throw new Error(error.message);
+    }
+    if (breaks.length > 0) {
+      const breakRows = breaks.map(b => ({
+        work_day_id: workDayId,
+        start_at: toUtcISO(currentDayDate, b.start),
+        end_at:   toUtcEndISO(currentDayDate, b.start, b.end),
+        duration_minutes: b.duration,
+        note: b.note,
+      }));
+      const { error } = await sb.from('breaks').insert(breakRows);
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  async function deleteDay() {
+    if (!currentDayId) return;
+    if (!confirm('Удалить запись за этот день? Все интервалы и брейки будут стёрты.')) return;
+    const { error } = await sb.from('work_days').delete().eq('id', currentDayId);
+    if (error) {
+      showError('day-error', 'Ошибка удаления: ' + error.message);
+      return;
+    }
+    closeDayModal();
+    await loadCalendar();
+  }
+
+  // Локальное "HH:MM" на дату currentDayDate → UTC ISO для записи в БД
+  function toUtcISO(dateStr, hm) {
+    const [h, m] = hm.split(':').map(Number);
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    return new Date(y, mo - 1, d, h, m, 0).toISOString();
+  }
+  function toUtcEndISO(dateStr, startHM, endHM) {
+    const [sh, sm] = startHM.split(':').map(Number);
+    const [eh, em] = endHM.split(':').map(Number);
+    const [y, mo, d] = dateStr.split('-').map(Number);
+    const sDate = new Date(y, mo - 1, d, sh, sm, 0);
+    let eDate = new Date(y, mo - 1, d, eh, em, 0);
+    if (eDate <= sDate) eDate = new Date(y, mo - 1, d + 1, eh, em, 0);
+    return eDate.toISOString();
+  }
+
+  function formatTimeHM(isoString) {
+    const d = new Date(isoString);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  function escapeAttr(s) {
+    return String(s || '').replace(/"/g, '&quot;');
   }
 
   function changeMonth(delta) {
@@ -1004,6 +1455,9 @@
   });
   document.getElementById('add-modal').addEventListener('click', e => {
     if (e.target.id === 'add-modal') closeAddModal();
+  });
+  document.getElementById('day-modal').addEventListener('click', e => {
+    if (e.target.id === 'day-modal') closeDayModal();
   });
 
   document.getElementById('cal-prev').addEventListener('click', () => changeMonth(-1));
