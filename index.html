@@ -1142,14 +1142,22 @@
     `;
     document.getElementById('payroll-snapshot-note').classList.add('hidden');
 
-    // Кнопка закрытия — только если месяц уже завершился (1+ день след. месяца)
-    const today = new Date();
-    const periodEnd = new Date(payrollYear, payrollMonth + 1, 0); // последний день
-    const canClose = today > periodEnd;
-    const btnClose = document.getElementById('btn-close-period');
-    btnClose.classList.toggle('hidden', !canClose);
-    btnClose.textContent = 'Закрыть период';
+    // По умолчанию скрываем кнопку — покажем после расчёта, если есть данные
+    document.getElementById('btn-close-period').classList.add('hidden');
     document.getElementById('btn-reopen-period').classList.add('hidden');
+  }
+
+  // Решение, показывать ли кнопку «Закрыть период» — после того как данные посчитаны.
+  // Условия:
+  //   1) месяц должен быть полностью завершён (today > последний день месяца)
+  //   2) в периоде есть хотя бы один переводчик с часами
+  function updateCloseButtonVisibility(hasData) {
+    if (currentPeriod && currentPeriod.status === 'closed') return;
+    const today = new Date();
+    const periodEnd = new Date(payrollYear, payrollMonth + 1, 0);
+    const monthFinished = today > periodEnd;
+    const btn = document.getElementById('btn-close-period');
+    btn.classList.toggle('hidden', !(monthFinished && hasData));
   }
 
   function renderPayrollClosed(period) {
@@ -1329,6 +1337,7 @@
     document.getElementById('payroll-kpi-count').textContent = '0';
     document.getElementById('payroll-kpi-hours').textContent = '0ч 00м';
     document.getElementById('payroll-kpi-amount').textContent = '$0.00';
+    updateCloseButtonVisibility(false);
   }
 
   function renderPayrollTable(rows) {
@@ -1337,6 +1346,9 @@
       renderPayrollEmpty('Никто не работал в этом месяце.');
       return;
     }
+
+    // Кнопка «Закрыть период» — показать только если есть данные и период не закрыт
+    updateCloseButtonVisibility(true);
 
     // KPI
     const totalAmount = rows.reduce((s, r) => s + r.totalAmount, 0);
