@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinguaTime</title>
+
+<!-- ============================================================== -->
+<!-- ВАЖНО: перед использованием замените две константы ниже         -->
+<!-- (раздел <script> в самом верху JS-блока) на ваши значения       -->
+<!-- из Supabase: Project Settings → API → Project URL и anon key    -->
+<!-- ============================================================== -->
+
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter Tight', sans-serif;
+    background: #fafaf7;
+    color: #1a1a17;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .card {
+    background: white;
+    border: 1px solid #e8e8e1;
+    border-radius: 12px;
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+
+  .brand {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .brand-tag {
+    text-align: center;
+    font-size: 12px;
+    color: #93938a;
+    margin-bottom: 32px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field-label {
+    display: block;
+    font-size: 12px;
+    color: #5c5c55;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid #d0d0c5;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .input:focus { outline: none; border-color: #1a1a17; }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    background: #1a1a17;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #000; }
+  .btn:disabled { background: #93938a; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent;
+    color: #5c5c55;
+    border: 1px solid #d0d0c5;
+  }
+  .btn-ghost:hover { background: #fafaf7; color: #1a1a17; }
+
+  .error {
+    background: #f5e3df;
+    color: #a0392c;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    border-left: 3px solid #a0392c;
+  }
+  .hidden { display: none !important; }
+
+  /* Welcome screen */
+  .welcome-name {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .welcome-role {
+    color: #5c5c55;
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  .role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #1a1a17;
+    color: white;
+    border-radius: 100px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .role-badge.translator { background: #2d6a3e; }
+  .role-badge.manager { background: #c9622b; }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #e8e8e1;
+    font-size: 13px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: #5c5c55; }
+  .info-value { font-weight: 500; }
+
+  .loading {
+    text-align: center;
+    color: #93938a;
+    padding: 40px 0;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- ============ ЗАГРУЗКА ============ -->
+  <div id="screen-loading">
+    <div class="brand">LinguaTime</div>
+    <div class="brand-tag">CRM</div>
+    <div class="loading">Загрузка…</div>
+  </div>
+
+  <!-- ============ ФОРМА ВХОДА ============ -->
+  <div id="screen-login" class="hidden">
+    <div class="brand">LinguaTime</div>
+    <div class="brand-tag">Вход в систему</div>
+
+    <div id="login-error" class="error hidden"></div>
+
+    <div class="field">
+      <label class="field-label" for="email">Email</label>
+      <input type="email" id="email" class="input" placeholder="you@example.com" autocomplete="email">
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="password">Пароль</label>
+      <input type="password" id="password" class="input" placeholder="••••••••" autocomplete="current-password">
+    </div>
+
+    <button id="btn-login" class="btn">Войти</button>
+  </div>
+
+  <!-- ============ ПРИВЕТСТВИЕ ============ -->
+  <div id="screen-welcome" class="hidden">
+    <div class="brand">LinguaTime</div>
+    <div class="brand-tag">Добро пожаловать</div>
+
+    <div class="welcome-name" id="welcome-name">—</div>
+    <div class="welcome-role">
+      Ваша роль: <span class="role-badge" id="welcome-role-badge">—</span>
+    </div>
+
+    <div style="margin-top: 24px; margin-bottom: 24px;">
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value" id="info-email">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Часовой пояс</span>
+        <span class="info-value" id="info-timezone">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Статус</span>
+        <span class="info-value" id="info-status">—</span>
+      </div>
+    </div>
+
+    <button id="btn-logout" class="btn btn-ghost">Выйти</button>
+  </div>
+
+</div>
+
+<!-- Supabase JS SDK через CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  // ====================================================================
+  // КОНФИГУРАЦИЯ — ЗАМЕНИТЕ НА СВОИ ЗНАЧЕНИЯ ПЕРЕД ЗАЛИВКОЙ НА VERCEL
+  // ====================================================================
+  // Где взять:
+  //   1. Зайдите в свой проект Supabase
+  //   2. Левое меню → Project Settings (шестерёнка внизу) → API
+  //   3. Скопируйте "Project URL" → вставьте в SUPABASE_URL ниже
+  //   4. Скопируйте "anon public" ключ → вставьте в SUPABASE_ANON_KEY ниже
+  //
+  // ВАЖНО: anon ключ ПУБЛИЧНЫЙ — его безопасно класть в HTML.
+  // RLS в БД защищает данные на уровне строк.
+  // НЕ путайте с "service_role" — тот секретный, его НЕЛЬЗЯ класть в HTML.
+  // ====================================================================
+  const SUPABASE_URL = 'https://srpiqxfeosusayqqfvrq.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNycGlxeGZlb3N1c2F5cXFmdnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjAzMTQsImV4cCI6MjA5NDM5NjMxNH0.PyOLqLn93h7I0_VYL-vE9O8VTEgdyDmS7UWxSAKA3Ss';
+
+  // Инициализация клиента
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ====================================================================
+  // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+  // ====================================================================
+  function showScreen(id) {
+    document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+    document.getElementById('screen-' + id).classList.remove('hidden');
+  }
+
+  function showError(message) {
+    const err = document.getElementById('login-error');
+    err.textContent = message;
+    err.classList.remove('hidden');
+  }
+
+  function hideError() {
+    document.getElementById('login-error').classList.add('hidden');
+  }
+
+  // ====================================================================
+  // ОСНОВНАЯ ЛОГИКА
+  // ====================================================================
+
+  // Проверка сессии при загрузке страницы
+  async function checkSession() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await loadUserProfile(session.user.id);
+    } else {
+      showScreen('login');
+    }
+  }
+
+  // Загрузка профиля пользователя из таблицы public.users
+  async function loadUserProfile(userId) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('email, name, role, timezone, is_active')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      // Профиля нет в таблице users — значит пользователь авторизован в auth,
+      // но не привязан к профилю. Это ошибка конфигурации.
+      console.error('Profile load error:', error);
+      await supabase.auth.signOut();
+      showScreen('login');
+      showError('Профиль не найден. Обратитесь к менеджеру для активации учётной записи.');
+      return;
+    }
+
+    if (!data.is_active) {
+      await supabase.auth.signOut();
+      showScreen('login');
+      showError('Учётная запись деактивирована. Обратитесь к менеджеру.');
+      return;
+    }
+
+    // Заполняем экран приветствия
+    document.getElementById('welcome-name').textContent = data.name;
+    const roleBadge = document.getElementById('welcome-role-badge');
+    roleBadge.textContent = data.role === 'manager' ? 'Менеджер' : 'Переводчик';
+    roleBadge.className = 'role-badge ' + data.role;
+
+    document.getElementById('info-email').textContent = data.email;
+    document.getElementById('info-timezone').textContent = data.timezone;
+    document.getElementById('info-status').textContent = data.is_active ? 'Активен' : 'Неактивен';
+
+    showScreen('welcome');
+  }
+
+  // Обработчик кнопки "Войти"
+  async function handleLogin() {
+    hideError();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('btn-login');
+
+    if (!email || !password) {
+      showError('Введите email и пароль.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Входим…';
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Войти';
+
+    if (error) {
+      // Распространённые ошибки Supabase Auth
+      if (error.message.includes('Invalid login credentials')) {
+        showError('Неверный email или пароль.');
+      } else if (error.message.includes('Email not confirmed')) {
+        showError('Email не подтверждён. Обратитесь к менеджеру.');
+      } else {
+        showError('Ошибка входа: ' + error.message);
+      }
+      return;
+    }
+
+    await loadUserProfile(data.user.id);
+  }
+
+  // Обработчик кнопки "Выйти"
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    document.getElementById('email').value = '';
+    document.getElementById('password').value = '';
+    hideError();
+    showScreen('login');
+  }
+
+  // ====================================================================
+  // СОБЫТИЯ
+  // ====================================================================
+  document.getElementById('btn-login').addEventListener('click', handleLogin);
+  document.getElementById('btn-logout').addEventListener('click', handleLogout);
+
+  // Enter в полях логина = клик по "Войти"
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin();
+  });
+  document.getElementById('email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('password').focus();
+  });
+
+  // Запуск
+  checkSession();
+</script>
+
+</body>
+</html>
