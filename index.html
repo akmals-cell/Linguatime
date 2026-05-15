@@ -455,6 +455,57 @@
     padding: 10px 14px; border-radius: 6px; margin-bottom: 16px;
     font-size: 12px; color: #8a6515;
   }
+
+  /* ═══ РЕДАКТИРОВАНИЕ ПЕРЕВОДЧИКА ═══ */
+  .edit-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .pair-editor.existing {
+    background: white;
+    grid-template-columns: 1.4fr 0.9fr 0.9fr 0.85fr 30px;
+  }
+  .pair-editor.existing.removed {
+    opacity: 0.4; background: #f5e3df;
+  }
+  .pair-editor.existing.removed input,
+  .pair-editor.existing.removed select {
+    text-decoration: line-through;
+  }
+  .pair-effective-date {
+    padding: 6px 8px; border: 1px solid #d0d0c5; border-radius: 4px;
+    font-size: 12px; font-family: 'JetBrains Mono', monospace;
+  }
+  .rate-history-block {
+    margin-top: 16px; padding: 12px; background: #fafaf7;
+    border-radius: 6px; border: 1px solid #e8e8e1;
+  }
+  .rate-history-toggle {
+    font-size: 12px; color: #5c5c55; padding: 4px 0;
+    cursor: pointer; user-select: none;
+  }
+  .rate-history-toggle:hover { color: #1a1a17; }
+  .rate-history-list {
+    margin-top: 10px; max-height: 200px; overflow-y: auto;
+  }
+  .rate-history-item {
+    display: grid; grid-template-columns: auto 1fr auto;
+    gap: 10px; align-items: center;
+    padding: 6px 0; font-size: 12px;
+    border-bottom: 1px solid #e8e8e1;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .rate-history-item:last-child { border-bottom: none; }
+  .rate-history-date { color: #93938a; }
+  .rate-history-change {}
+  .rate-history-old { color: #a0392c; text-decoration: line-through; }
+  .rate-history-new { color: #2d6a3e; font-weight: 600; }
+  .rate-history-arrow { color: #93938a; margin: 0 4px; }
+
+  .deactivate-warning {
+    background: #f9f1dc; border-left: 3px solid #b8861f;
+    padding: 10px 14px; border-radius: 6px; margin: 8px 0;
+    font-size: 12px; color: #8a6515;
+  }
 </style>
 </head>
 <body>
@@ -629,6 +680,10 @@
             <div class="emp-detail-name" id="td-name">—</div>
             <div class="emp-detail-email" id="td-email">—</div>
             <div class="emp-detail-pairs" id="td-pairs"></div>
+            <div class="edit-actions">
+              <button class="btn btn-ghost btn-sm" onclick="openEditModal()">✎ Редактировать</button>
+              <button id="btn-toggle-active" class="btn btn-ghost btn-sm" onclick="toggleActive()">Деактивировать</button>
+            </div>
           </div>
         </div>
         <div>
@@ -823,6 +878,62 @@
   </div>
 </div>
 
+<div id="edit-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 640px;">
+    <div class="modal-header">
+      <div class="modal-title">Редактирование переводчика</div>
+      <button class="modal-close" onclick="closeEditModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="edit-error" class="error hidden"></div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Имя</label>
+          <input type="text" id="edit-name" class="input">
+        </div>
+        <div class="field">
+          <label class="field-label">Часовой пояс</label>
+          <select id="edit-timezone" class="select">
+            <option value="Asia/Tashkent">Asia/Tashkent (UTC+5)</option>
+            <option value="Asia/Almaty">Asia/Almaty (UTC+5)</option>
+            <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
+            <option value="Europe/Kyiv">Europe/Kyiv (UTC+2)</option>
+            <option value="Europe/London">Europe/London (UTC+0)</option>
+            <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
+            <option value="Asia/Seoul">Asia/Seoul (UTC+9)</option>
+            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+            <option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</option>
+            <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
+            <option value="America/New_York">America/New_York (UTC-5)</option>
+            <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div class="field-label" style="margin: 0;">Языковые пары и ставки</div>
+        <button class="btn btn-ghost btn-sm" onclick="addEditPairRow()">+ Пара</button>
+      </div>
+      <div id="edit-pairs-list"></div>
+      <div style="font-size: 11px; color: #93938a; margin-top: 6px;">
+        Изменение ставки требует даты вступления в силу (по умолчанию — сегодня). Удаление пары — мягкое: историческая ставка сохраняется в rate_history.
+      </div>
+
+      <div class="rate-history-block">
+        <div class="rate-history-toggle" onclick="toggleRateHistory()">
+          <span id="rate-history-arrow">▶</span> История изменений ставок (<span id="rate-history-count">0</span>)
+        </div>
+        <div id="rate-history-list" class="rate-history-list hidden"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEditModal()">Отмена</button>
+      <button id="btn-save-edit" class="btn" onclick="saveEditTranslator()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <div id="day-view-modal" class="modal-backdrop">
   <div class="modal">
     <div class="modal-header">
@@ -1004,6 +1115,9 @@
     const statsByUser = {}; // user_id -> { minutes, amount }
     for (const u of data) statsByUser[u.id] = { minutes: 0, amount: 0 };
 
+    // Подгружаем историю ставок для всех переводчиков
+    const allHistoryByUser = await loadRateHistoryForUsers(userIds);
+
     for (const d of daysData) {
       if (d.day_type !== 'working') continue;
       const user = data.find(u => u.id === d.user_id);
@@ -1012,19 +1126,10 @@
       for (const p of (user.translator_pairs || [])) {
         rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
       }
-      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
-      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
-      const netMin = Math.max(0, intervalsSum - breaksSum);
-
-      let dayAmount = 0;
-      for (const interv of (d.work_intervals || [])) {
-        const rate = rateByPair[interv.language_pair_id] || 0;
-        dayAmount += (interv.duration_minutes / 60) * rate;
-      }
-      if (intervalsSum > 0) dayAmount = dayAmount * (netMin / intervalsSum);
-
-      statsByUser[d.user_id].minutes += netMin;
-      statsByUser[d.user_id].amount += dayAmount;
+      const userHistory = allHistoryByUser[d.user_id] || {};
+      const calc = calcDayWithHistory(d, userHistory, rateByPair);
+      statsByUser[d.user_id].minutes += calc.netMinutes;
+      statsByUser[d.user_id].amount += calc.amount;
     }
 
     for (const u of data) {
@@ -1252,6 +1357,9 @@
       return;
     }
 
+    // Загружаем историю ставок для всех переводчиков сразу
+    const allHistoryByUser = await loadRateHistoryForUsers(userIds);
+
     // 3) Считаем по каждому переводчику
     const result = []; // [{ user, totalMinutes, totalAmount, breakdown: { code: {hours, rate, amount} } }]
     for (const u of users) {
@@ -1261,40 +1369,25 @@
         rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
         codeByPair[p.language_pair_id] = p.language_pairs.code;
       }
+      const userHistory = allHistoryByUser[u.id] || {};
 
       const userDays = (days || []).filter(d => d.user_id === u.id);
       const breakdown = {}; // code -> { minutes, rate, amount }
       let totalMinutes = 0;
-      let totalAmount = 0;
 
       for (const d of userDays) {
-        if (d.day_type !== 'working') continue;
-        const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
-        const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
-        const dayNetMin = Math.max(0, intervalsSum - breaksSum);
-        if (dayNetMin <= 0) continue;
-
-        // Брейки распределяем пропорционально между интервалами
-        const breakRatio = intervalsSum > 0 ? (dayNetMin / intervalsSum) : 0;
-        for (const interv of (d.work_intervals || [])) {
-          const langId = interv.language_pair_id;
-          const code = codeByPair[langId] || '—';
-          const rate = rateByPair[langId] || 0;
-          const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
-          const intervalAmount = (intervalNetMin / 60) * rate;
-          if (!breakdown[code]) {
-            breakdown[code] = { minutes: 0, rate, amount: 0 };
-          }
-          breakdown[code].minutes += intervalNetMin;
-          breakdown[code].amount += intervalAmount;
+        const c = calcDayWithBreakdown(d, userHistory, rateByPair, codeByPair);
+        if (c.netMinutes <= 0) continue;
+        totalMinutes += c.netMinutes;
+        for (const [code, b] of Object.entries(c.breakdown)) {
+          if (!breakdown[code]) breakdown[code] = { minutes: 0, amount: 0, rate: b.rate };
+          breakdown[code].minutes += b.minutes;
+          breakdown[code].amount += b.amount;
+          breakdown[code].rate = b.rate;
         }
-        totalMinutes += dayNetMin;
-        totalAmount += (Object.values(breakdown).reduce((s, b) => s + b.amount, 0));
-        // последняя строка добавляет повторно — пересчитаем totalAmount внизу
       }
 
-      // Финальный totalAmount — сумма всех breakdown.amount
-      totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
+      const totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
 
       if (totalMinutes > 0) {
         result.push({ user: u, totalMinutes, totalAmount, breakdown });
@@ -1463,13 +1556,16 @@
       const { data: days } = await sb
         .from('work_days')
         .select(`
-          user_id, day_type,
+          user_id, work_date, day_type,
           work_intervals ( duration_minutes, language_pair_id ),
           breaks ( duration_minutes )
         `)
         .in('user_id', userIds)
         .gte('work_date', periodStart)
         .lte('work_date', periodEnd);
+
+      // Загружаем историю ставок для всех переводчиков сразу
+      const allHistoryByUser = await loadRateHistoryForUsers(userIds);
 
       const entriesToInsert = [];
       for (const u of (users || [])) {
@@ -1479,27 +1575,24 @@
           rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
           codeByPair[p.language_pair_id] = p.language_pairs.code;
         }
+        const userHistory = allHistoryByUser[u.id] || {};
         const userDays = (days || []).filter(d => d.user_id === u.id);
         const breakdown = {};
         let totalMinutes = 0;
+
         for (const d of userDays) {
-          if (d.day_type !== 'working') continue;
-          const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
-          const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
-          const dayNetMin = Math.max(0, intervalsSum - breaksSum);
-          if (dayNetMin <= 0) continue;
-          const breakRatio = intervalsSum > 0 ? (dayNetMin / intervalsSum) : 0;
-          for (const interv of (d.work_intervals || [])) {
-            const langId = interv.language_pair_id;
-            const code = codeByPair[langId] || '—';
-            const rate = rateByPair[langId] || 0;
-            const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
-            if (!breakdown[code]) breakdown[code] = { minutes: 0, rate, amount: 0 };
-            breakdown[code].minutes += intervalNetMin;
-            breakdown[code].amount += (intervalNetMin / 60) * rate;
+          const c = calcDayWithBreakdown(d, userHistory, rateByPair, codeByPair);
+          if (c.netMinutes <= 0) continue;
+          totalMinutes += c.netMinutes;
+          // Сливаем breakdown
+          for (const [code, b] of Object.entries(c.breakdown)) {
+            if (!breakdown[code]) breakdown[code] = { minutes: 0, amount: 0, rate: b.rate };
+            breakdown[code].minutes += b.minutes;
+            breakdown[code].amount += b.amount;
+            breakdown[code].rate = b.rate; // последняя использованная ставка
           }
-          totalMinutes += dayNetMin;
         }
+
         const totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
         if (totalMinutes > 0) {
           entriesToInsert.push({
@@ -1789,11 +1882,365 @@
   let tdCalYear = new Date().getFullYear();
   let tdCalMonth = new Date().getMonth();
   let tdRateByPair = {};      // language_pair_id -> rate
+  let tdHistoryByPair = {};   // language_pair_id -> [history items DESC]
   let tdMyPairs = [];         // массив для отображения
 
   function backToTranslators() {
     showPage('translators');
     loadTranslators();
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // РЕДАКТИРОВАНИЕ ПЕРЕВОДЧИКА
+  // ────────────────────────────────────────────────────────────────
+  let editPairRowCounter = 0;
+  let editExistingPairs = [];   // оригинальные пары переводчика для сравнения
+
+  async function openEditModal() {
+    if (!tdUser) return;
+
+    editPairRowCounter = 0;
+    document.getElementById('edit-name').value = tdUser.name || '';
+    document.getElementById('edit-timezone').value = tdUser.timezone || 'Asia/Tashkent';
+    document.getElementById('edit-pairs-list').innerHTML = '';
+    hideError('edit-error');
+
+    // Запомним текущие пары (для сравнения при сохранении)
+    editExistingPairs = (tdUser.translator_pairs || []).map(p => ({
+      language_pair_id: p.language_pair_id,
+      rate_per_hour: Number(p.rate_per_hour),
+      is_primary: p.is_primary,
+      code: p.language_pairs.code,
+      display_name: p.language_pairs.display_name,
+    }));
+
+    // Сортируем: основная сверху
+    editExistingPairs.sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
+
+    // Рендерим существующие пары
+    for (const p of editExistingPairs) {
+      addEditPairRow(p);
+    }
+    if (editExistingPairs.length === 0) {
+      addEditPairRow();
+    }
+
+    // История ставок
+    await loadRateHistory();
+
+    document.getElementById('edit-modal').classList.add('open');
+  }
+
+  function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('open');
+  }
+
+  function addEditPairRow(existing = null) {
+    editPairRowCounter++;
+    const id = 'ep-' + editPairRowCounter;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Опции пар: все активные пары
+    const options = languagePairs.map(p => {
+      const selected = existing && existing.language_pair_id === p.id ? 'selected' : '';
+      return `<option value="${p.id}" ${selected}>${p.code} — ${p.display_name}</option>`;
+    }).join('');
+
+    const div = document.createElement('div');
+    div.className = 'pair-editor' + (existing ? ' existing' : '');
+    div.id = id;
+    div.dataset.originalRate = existing ? existing.rate_per_hour : '';
+    div.dataset.originalLangId = existing ? existing.language_pair_id : '';
+    div.dataset.wasPrimary = existing && existing.is_primary ? '1' : '0';
+
+    if (existing) {
+      // Существующая пара
+      div.innerHTML = `
+        <select class="pair-lang" disabled>${options}</select>
+        <div class="pair-rate-input">
+          <span style="color:#5c5c55;">$</span>
+          <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" value="${existing.rate_per_hour.toFixed(2)}">
+          <span style="color:#5c5c55;font-size:12px;">/ч</span>
+        </div>
+        <input type="date" class="pair-effective-date" value="${today}" title="Действует с (для новой ставки)">
+        <label class="primary-check">
+          <input type="radio" name="edit-primary-pair" value="${id}" ${existing.is_primary ? 'checked' : ''}>
+          Основная
+        </label>
+        <button class="pair-remove" onclick="markPairRemoved('${id}')" title="Удалить пару">×</button>
+      `;
+    } else {
+      // Новая пара
+      div.innerHTML = `
+        <select class="pair-lang">${options}</select>
+        <div class="pair-rate-input">
+          <span style="color:#5c5c55;">$</span>
+          <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" placeholder="25.00">
+          <span style="color:#5c5c55;font-size:12px;">/ч</span>
+        </div>
+        <input type="date" class="pair-effective-date" value="${today}" title="Действует с">
+        <label class="primary-check">
+          <input type="radio" name="edit-primary-pair" value="${id}">
+          Основная
+        </label>
+        <button class="pair-remove" onclick="document.getElementById('${id}').remove()" title="Убрать строку">×</button>
+      `;
+    }
+
+    document.getElementById('edit-pairs-list').appendChild(div);
+  }
+
+  function markPairRemoved(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.classList.contains('removed')) {
+      // Отмена удаления
+      el.classList.remove('removed');
+      el.querySelector('.pair-remove').textContent = '×';
+      el.querySelector('.pair-remove').title = 'Удалить пару';
+    } else {
+      if (!confirm('Удалить эту языковую пару? Она исчезнет из доступных переводчику. Историческая ставка останется в rate_history.')) return;
+      el.classList.add('removed');
+      el.querySelector('.pair-remove').textContent = '↺';
+      el.querySelector('.pair-remove').title = 'Отменить удаление';
+    }
+  }
+
+  async function loadRateHistory() {
+    const { data, error } = await sb
+      .from('rate_history')
+      .select(`
+        id, old_rate, new_rate, changed_at, reason,
+        language_pairs (code)
+      `)
+      .eq('user_id', tdUser.id)
+      .order('changed_at', { ascending: false });
+
+    const block = document.getElementById('rate-history-list');
+    const count = document.getElementById('rate-history-count');
+    count.textContent = (data && data.length) || 0;
+
+    if (!data || data.length === 0) {
+      block.innerHTML = '<div style="color:#93938a; font-size: 12px; padding: 6px 0;">История пуста.</div>';
+      return;
+    }
+
+    block.innerHTML = data.map(h => `
+      <div class="rate-history-item">
+        <span class="rate-history-date">${new Date(h.changed_at).toLocaleDateString('ru-RU')}</span>
+        <span class="rate-history-change">
+          <span class="badge badge-neutral">${h.language_pairs.code}</span>
+          ${h.old_rate !== null
+            ? `<span class="rate-history-old">$${Number(h.old_rate).toFixed(2)}</span><span class="rate-history-arrow">→</span>`
+            : ''}
+          <span class="rate-history-new">$${Number(h.new_rate).toFixed(2)}</span>
+        </span>
+        <span style="font-size: 11px; color: #93938a;">${escapeHtml(h.reason || '')}</span>
+      </div>
+    `).join('');
+  }
+
+  function toggleRateHistory() {
+    const list = document.getElementById('rate-history-list');
+    const arrow = document.getElementById('rate-history-arrow');
+    if (list.classList.contains('hidden')) {
+      list.classList.remove('hidden');
+      arrow.textContent = '▼';
+    } else {
+      list.classList.add('hidden');
+      arrow.textContent = '▶';
+    }
+  }
+
+  async function saveEditTranslator() {
+    hideError('edit-error');
+    const btn = document.getElementById('btn-save-edit');
+
+    const name = document.getElementById('edit-name').value.trim();
+    const timezone = document.getElementById('edit-timezone').value;
+
+    if (!name) {
+      showError('edit-error', 'Имя не может быть пустым.');
+      return;
+    }
+
+    // Собираем пары из формы
+    const rows = document.querySelectorAll('#edit-pairs-list .pair-editor');
+    if (rows.length === 0) {
+      showError('edit-error', 'Должна быть хотя бы одна языковая пара.');
+      return;
+    }
+
+    const formPairs = []; // { rowId, langId, rate, effectiveDate, isPrimary, isExisting, originalRate, removed }
+    let primaryFound = false;
+    let validationError = null;
+
+    rows.forEach(row => {
+      const removed = row.classList.contains('removed');
+      const langId = row.querySelector('.pair-lang').value;
+      const rate = parseFloat(row.querySelector('.pair-rate-input-field').value);
+      const effectiveDate = row.querySelector('.pair-effective-date').value;
+      const isPrimary = row.querySelector('input[type="radio"]').checked;
+      const isExisting = row.classList.contains('existing');
+      const originalRate = row.dataset.originalRate ? Number(row.dataset.originalRate) : null;
+      const originalLangId = row.dataset.originalLangId || null;
+
+      if (removed) {
+        formPairs.push({ rowId: row.id, langId: originalLangId || langId, removed: true, isExisting });
+        return;
+      }
+
+      if (!langId) { validationError = 'Выберите языковую пару во всех строках.'; return; }
+      if (!rate || rate < 0.5 || rate > 500) { validationError = 'Все ставки должны быть от $0.50 до $500.00.'; return; }
+      if (!effectiveDate) { validationError = 'Укажите дату начала действия ставки.'; return; }
+      if (isPrimary) primaryFound = true;
+
+      formPairs.push({
+        rowId: row.id, langId, rate, effectiveDate, isPrimary, isExisting,
+        originalRate, originalLangId
+      });
+    });
+
+    if (validationError) { showError('edit-error', validationError); return; }
+
+    // Проверки: должна остаться хотя бы одна не-удалённая пара
+    const activePairs = formPairs.filter(p => !p.removed);
+    if (activePairs.length === 0) {
+      showError('edit-error', 'Должна остаться хотя бы одна языковая пара.');
+      return;
+    }
+    if (!primaryFound) {
+      showError('edit-error', 'Отметьте одну пару как основную.');
+      return;
+    }
+
+    // Уникальность пар
+    const langIds = activePairs.map(p => p.langId);
+    if (new Set(langIds).size !== langIds.length) {
+      showError('edit-error', 'Одна и та же языковая пара указана несколько раз.');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Сохранение…';
+
+    try {
+      // 1) Обновляем имя и часовой пояс
+      const { error: profileErr } = await sb
+        .from('users')
+        .update({ name, timezone })
+        .eq('id', tdUser.id);
+      if (profileErr) throw new Error('Профиль: ' + profileErr.message);
+
+      // 2) Обрабатываем пары
+      const rateHistoryInserts = [];
+
+      // Сначала: сбрасываем is_primary у всех (потом установим у одной)
+      await sb.from('translator_pairs')
+        .update({ is_primary: false })
+        .eq('user_id', tdUser.id);
+
+      for (const p of formPairs) {
+        if (p.removed && p.isExisting) {
+          // Удаляем пару
+          await sb.from('translator_pairs')
+            .delete()
+            .eq('user_id', tdUser.id)
+            .eq('language_pair_id', p.langId);
+          continue;
+        }
+        if (p.removed) continue;
+
+        if (p.isExisting) {
+          // Существующая пара. Если ставка изменилась — пишем в rate_history.
+          const rateChanged = Math.abs(p.rate - p.originalRate) > 0.001;
+          if (rateChanged) {
+            rateHistoryInserts.push({
+              user_id: tdUser.id,
+              language_pair_id: p.langId,
+              old_rate: p.originalRate,
+              new_rate: p.rate,
+              changed_by: currentUser.id,
+              reason: `Изменение ставки с ${p.effectiveDate}`,
+            });
+          }
+          // Обновляем translator_pairs
+          await sb.from('translator_pairs')
+            .update({
+              rate_per_hour: p.rate,
+              is_primary: p.isPrimary,
+              effective_from: p.effectiveDate,
+            })
+            .eq('user_id', tdUser.id)
+            .eq('language_pair_id', p.langId);
+        } else {
+          // Новая пара
+          await sb.from('translator_pairs').insert({
+            user_id: tdUser.id,
+            language_pair_id: p.langId,
+            rate_per_hour: p.rate,
+            is_primary: p.isPrimary,
+            effective_from: p.effectiveDate,
+          });
+          rateHistoryInserts.push({
+            user_id: tdUser.id,
+            language_pair_id: p.langId,
+            old_rate: null,
+            new_rate: p.rate,
+            changed_by: currentUser.id,
+            reason: `Добавлена пара с ${p.effectiveDate}`,
+          });
+        }
+      }
+
+      // 3) Запись истории
+      if (rateHistoryInserts.length > 0) {
+        await sb.from('rate_history').insert(rateHistoryInserts);
+      }
+
+      // 4) Закрываем модалку и перезагружаем профиль
+      closeEditModal();
+      await openTranslatorDetail(tdUser.id);
+    } catch (e) {
+      showError('edit-error', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Сохранить';
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // ДЕАКТИВАЦИЯ / АКТИВАЦИЯ
+  // ────────────────────────────────────────────────────────────────
+  async function toggleActive() {
+    if (!tdUser) return;
+    const newState = !tdUser.is_active;
+    const action = newState ? 'активировать' : 'деактивировать';
+
+    const message = newState
+      ? `Активировать ${tdUser.name}? Переводчик снова сможет входить в систему.`
+      : `Деактивировать ${tdUser.name}?\n\n` +
+        `Переводчик не сможет войти в систему.\n` +
+        `Все его данные и история сохранятся.\n` +
+        `Активировать обратно можно в любое время.`;
+
+    if (!confirm(message)) return;
+
+    try {
+      const updateData = newState
+        ? { is_active: true, deactivated_at: null }
+        : { is_active: false, deactivated_at: new Date().toISOString() };
+
+      const { error } = await sb
+        .from('users')
+        .update(updateData)
+        .eq('id', tdUser.id);
+
+      if (error) throw new Error(error.message);
+
+      // Перезагружаем профиль
+      await openTranslatorDetail(tdUser.id);
+    } catch (e) {
+      alert('Ошибка ' + action + ': ' + e.message);
+    }
   }
 
   async function openTranslatorDetail(userId) {
@@ -1818,6 +2265,9 @@
     for (const p of tdMyPairs) {
       tdRateByPair[p.language_pair_id] = Number(p.rate_per_hour);
     }
+    // Загружаем историю ставок этого переводчика
+    const historyByUser = await loadRateHistoryForUsers([user.id]);
+    tdHistoryByPair = historyByUser[user.id] || {};
 
     // Текущий месяц по умолчанию
     tdCalYear = new Date().getFullYear();
@@ -1831,6 +2281,16 @@
     document.getElementById('td-pairs').innerHTML = tdMyPairs.map(p =>
       `<span class="badge badge-neutral">${p.language_pairs.code} · $${Number(p.rate_per_hour).toFixed(2)}/ч</span>`
     ).join('');
+
+    // Кнопка деактивации
+    const btnToggle = document.getElementById('btn-toggle-active');
+    if (user.is_active) {
+      btnToggle.textContent = 'Деактивировать';
+      btnToggle.style.color = '#a0392c';
+    } else {
+      btnToggle.textContent = 'Активировать';
+      btnToggle.style.color = '#2d6a3e';
+    }
 
     // Заполняем селектор месяцев (последние 12 месяцев + текущий)
     fillMonthSelector();
@@ -1893,19 +2353,11 @@
         absentDays++;
         continue;
       }
-      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
-      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
-      const netMin = Math.max(0, intervalsSum - breaksSum);
-      let dayAmount = 0;
-      for (const interv of (d.work_intervals || [])) {
-        const rate = tdRateByPair[interv.language_pair_id] || 0;
-        dayAmount += (interv.duration_minutes / 60) * rate;
-      }
-      if (intervalsSum > 0) dayAmount = dayAmount * (netMin / intervalsSum);
-      if (netMin > 0) {
-        dayMap[d.work_date] = { type: 'working', minutes: netMin, amount: dayAmount };
-        totalMinutes += netMin;
-        totalAmount += dayAmount;
+      const calc = calcDayWithHistory(d, tdHistoryByPair, tdRateByPair);
+      if (calc.netMinutes > 0) {
+        dayMap[d.work_date] = { type: 'working', minutes: calc.netMinutes, amount: calc.amount };
+        totalMinutes += calc.netMinutes;
+        totalAmount += calc.amount;
         workingDays++;
       }
     }
@@ -2041,11 +2493,15 @@
     const breaksMin = breaks.reduce((s, b) => s + (b.duration_minutes || 0), 0);
     const netMin = Math.max(0, grossMin - breaksMin);
 
+    // Для каждого интервала ищем актуальную ставку на дату dateStr
+    const intervalRates = intervals.map(i =>
+      getRateForDate(dateStr, i.language_pair_id, tdHistoryByPair, tdRateByPair)
+    );
+
     let dayAmount = 0;
-    for (const interv of intervals) {
-      const rate = tdRateByPair[interv.language_pair_id] || 0;
-      dayAmount += (interv.duration_minutes / 60) * rate;
-    }
+    intervals.forEach((interv, idx) => {
+      dayAmount += (interv.duration_minutes / 60) * intervalRates[idx];
+    });
     if (grossMin > 0) dayAmount = dayAmount * (netMin / grossMin);
 
     let html = `
@@ -2053,10 +2509,10 @@
         <div class="day-readonly-title">Рабочие интервалы</div>
         ${intervals.length === 0
           ? '<div class="day-readonly-empty">Нет интервалов.</div>'
-          : intervals.map(i => `
+          : intervals.map((i, idx) => `
             <div class="day-readonly-item">
               <span class="day-readonly-time">${formatTimeHM(i.start_at)} → ${formatTimeHM(i.end_at)}</span>
-              <span class="day-readonly-meta">${i.language_pairs.code} · $${(tdRateByPair[i.language_pair_id] || 0).toFixed(2)}/ч</span>
+              <span class="day-readonly-meta">${i.language_pairs.code} · $${intervalRates[idx].toFixed(2)}/ч</span>
               <span class="day-readonly-dur">${formatHoursMinutes(i.duration_minutes)}</span>
             </div>
           `).join('')}
@@ -2103,6 +2559,110 @@
   }
 
   // ====================================================================
+  // ИСТОРИЧЕСКИЕ СТАВКИ
+  // ====================================================================
+  // Для расчётов нужна актуальная ставка на конкретную дату.
+  //
+  // Логика: смотрим rate_history для (user_id, language_pair_id),
+  // берём запись с changed_at::date <= work_date с самой свежей датой.
+  // Если такой нет — используем текущую ставку из translator_pairs.
+  //
+  // Эта функция работает с УЖЕ ЗАГРУЖЕННЫМИ данными — её вызывают после
+  // того, как вытянули и пары, и историю одним запросом, чтобы не делать
+  // запрос на каждую минуту.
+  //
+  // Параметры:
+  //   workDate      — строка 'YYYY-MM-DD'
+  //   pairId        — language_pair_id
+  //   historyByPair — { pair_id: [{ new_rate, changed_at }, ...] (отсорт. по убыв.) }
+  //   currentRates  — { pair_id: rate } (текущие, fallback)
+  function getRateForDate(workDate, pairId, historyByPair, currentRates) {
+    const history = historyByPair[pairId] || [];
+    // История уже отсортирована по changed_at DESC.
+    // Ищем первую запись, у которой changed_at <= workDate.
+    for (const h of history) {
+      const changeDateOnly = h.changed_at.split('T')[0]; // YYYY-MM-DD
+      if (changeDateOnly <= workDate) {
+        return Number(h.new_rate);
+      }
+    }
+    // Не нашли в истории — fallback на текущую ставку
+    return Number(currentRates[pairId] || 0);
+  }
+
+  // Загружает историю ставок для набора пользователей и группирует по парам.
+  // Возвращает { user_id: { pair_id: [history items DESC] } }
+  async function loadRateHistoryForUsers(userIds) {
+    if (userIds.length === 0) return {};
+    const { data } = await sb
+      .from('rate_history')
+      .select('user_id, language_pair_id, new_rate, changed_at')
+      .in('user_id', userIds)
+      .order('changed_at', { ascending: false });
+
+    const byUser = {};
+    for (const h of (data || [])) {
+      if (!byUser[h.user_id]) byUser[h.user_id] = {};
+      if (!byUser[h.user_id][h.language_pair_id]) byUser[h.user_id][h.language_pair_id] = [];
+      byUser[h.user_id][h.language_pair_id].push(h);
+    }
+    return byUser;
+  }
+
+  // Универсальная функция расчёта дня с учётом исторических ставок.
+  // Возвращает { netMinutes, amount }.
+  function calcDayWithHistory(day, historyByPair, currentRates) {
+    if (day.day_type !== 'working') return { netMinutes: 0, amount: 0 };
+    const intervals = day.work_intervals || [];
+    const breaks = day.breaks || [];
+    const intervalsSum = intervals.reduce((s, i) => s + (i.duration_minutes || 0), 0);
+    const breaksSum = breaks.reduce((s, b) => s + (b.duration_minutes || 0), 0);
+    const netMin = Math.max(0, intervalsSum - breaksSum);
+    if (netMin <= 0) return { netMinutes: 0, amount: 0 };
+
+    // Брейки распределяются пропорционально
+    const breakRatio = intervalsSum > 0 ? (netMin / intervalsSum) : 0;
+    let amount = 0;
+    for (const interv of intervals) {
+      const rate = getRateForDate(day.work_date, interv.language_pair_id, historyByPair, currentRates);
+      const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
+      amount += (intervalNetMin / 60) * rate;
+    }
+    return { netMinutes: netMin, amount };
+  }
+
+  // Универсальная функция расчёта дня с разбивкой по парам (для ведомости).
+  // Возвращает { netMinutes, amount, breakdown: { code: { minutes, amount, rate (последняя)} } }
+  function calcDayWithBreakdown(day, historyByPair, currentRates, codeByPair) {
+    if (day.day_type !== 'working') return { netMinutes: 0, amount: 0, breakdown: {} };
+    const intervals = day.work_intervals || [];
+    const breaks = day.breaks || [];
+    const intervalsSum = intervals.reduce((s, i) => s + (i.duration_minutes || 0), 0);
+    const breaksSum = breaks.reduce((s, b) => s + (b.duration_minutes || 0), 0);
+    const netMin = Math.max(0, intervalsSum - breaksSum);
+    if (netMin <= 0) return { netMinutes: 0, amount: 0, breakdown: {} };
+
+    const breakRatio = intervalsSum > 0 ? (netMin / intervalsSum) : 0;
+    const breakdown = {};
+    let totalAmount = 0;
+
+    for (const interv of intervals) {
+      const langId = interv.language_pair_id;
+      const code = codeByPair[langId] || '—';
+      const rate = getRateForDate(day.work_date, langId, historyByPair, currentRates);
+      const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
+      const intervalAmount = (intervalNetMin / 60) * rate;
+
+      if (!breakdown[code]) breakdown[code] = { minutes: 0, amount: 0, rate };
+      breakdown[code].minutes += intervalNetMin;
+      breakdown[code].amount += intervalAmount;
+      breakdown[code].rate = rate; // запоминаем последнюю использованную (для отображения)
+      totalAmount += intervalAmount;
+    }
+    return { netMinutes: netMin, amount: totalAmount, breakdown };
+  }
+
+  // ====================================================================
   // КАЛЕНДАРЬ (для переводчика)
   // ====================================================================
   let calYear = new Date().getFullYear();
@@ -2141,7 +2701,7 @@
       return;
     }
 
-    // Ставки переводчика для расчёта суммы
+    // Ставки переводчика (текущие — fallback) + история ставок
     const { data: myPairs } = await sb
       .from('translator_pairs')
       .select('language_pair_id, rate_per_hour')
@@ -2150,6 +2710,8 @@
     for (const p of (myPairs || [])) {
       rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
     }
+    const historyByUser = await loadRateHistoryForUsers([currentUser.id]);
+    const historyByPair = historyByUser[currentUser.id] || {};
 
     const dayMap = {};
     let totalMinutes = 0;
@@ -2163,28 +2725,11 @@
         absentDays++;
         continue;
       }
-      const intervalsSum = (d.work_intervals || []).reduce(
-        (s, i) => s + (i.duration_minutes || 0), 0
-      );
-      const breaksSum = (d.breaks || []).reduce(
-        (s, b) => s + (b.duration_minutes || 0), 0
-      );
-      const netMinutes = Math.max(0, intervalsSum - breaksSum);
-
-      let dayAmount = 0;
-      for (const interv of (d.work_intervals || [])) {
-        const rate = rateByPair[interv.language_pair_id] || 0;
-        dayAmount += (interv.duration_minutes / 60) * rate;
-      }
-      // Пропорциональный вычет брейков
-      if (intervalsSum > 0) {
-        dayAmount = dayAmount * (netMinutes / intervalsSum);
-      }
-
-      if (netMinutes > 0) {
-        dayMap[d.work_date] = { type: 'working', minutes: netMinutes, amount: dayAmount };
-        totalMinutes += netMinutes;
-        totalAmount += dayAmount;
+      const calc = calcDayWithHistory(d, historyByPair, rateByPair);
+      if (calc.netMinutes > 0) {
+        dayMap[d.work_date] = { type: 'working', minutes: calc.netMinutes, amount: calc.amount };
+        totalMinutes += calc.netMinutes;
+        totalAmount += calc.amount;
         workingDays++;
       }
     }
@@ -2955,6 +3500,9 @@
   document.getElementById('td-cal-next').addEventListener('click', () => changeTdMonth(1));
   document.getElementById('day-view-modal').addEventListener('click', e => {
     if (e.target.id === 'day-view-modal') closeDayViewModal();
+  });
+  document.getElementById('edit-modal').addEventListener('click', e => {
+    if (e.target.id === 'edit-modal') closeEditModal();
   });
 
   checkSession();
