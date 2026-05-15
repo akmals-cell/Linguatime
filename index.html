@@ -402,6 +402,59 @@
     padding: 16px; text-align: center; color: #93938a;
     font-size: 13px; background: #fafaf7; border-radius: 6px;
   }
+
+  /* ═══ ЗАРПЛАТА ═══ */
+  .payroll-status {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .payroll-status.status-open {
+    background: #e8f0e8; color: #2d6a3e; border-left: 3px solid #2d6a3e;
+  }
+  .payroll-status.status-closed {
+    background: #fafaf7; color: #5c5c55; border-left: 3px solid #93938a;
+  }
+  .payroll-status-icon {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor; flex-shrink: 0;
+  }
+  .payroll-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; gap: 12px;
+  }
+  .payroll-month-select {
+    padding: 8px 14px; border: 1px solid #d0d0c5; border-radius: 6px;
+    font-size: 14px; background: white; min-width: 200px;
+  }
+  .payroll-pair-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 2px 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .payroll-pair-hours { font-weight: 500; min-width: 60px; }
+  .payroll-pair-rate { color: #93938a; }
+  .payroll-pair-amount { color: #2d6a3e; font-weight: 500; margin-left: auto; }
+
+  .payroll-total-row {
+    background: #1a1a17; color: white;
+  }
+  .payroll-total-row td {
+    border-bottom: none !important;
+    font-weight: 600 !important;
+    padding-top: 18px !important; padding-bottom: 18px !important;
+  }
+  .payroll-total-row td:hover { background: #1a1a17 !important; }
+  .payroll-grand-total {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px; color: #2d6a3e; font-weight: 600;
+  }
+
+  .payroll-snapshot-note {
+    background: #f9f1dc; border-left: 3px solid #b8861f;
+    padding: 10px 14px; border-radius: 6px; margin-bottom: 16px;
+    font-size: 12px; color: #8a6515;
+  }
 </style>
 </head>
 <body>
@@ -439,6 +492,7 @@
     <div id="nav-manager" class="sb-section hidden">
       <div class="sb-label">Управление</div>
       <button class="sb-item active" data-page="translators">Переводчики</button>
+      <button class="sb-item" data-page="payroll">Зарплата</button>
     </div>
 
     <div id="nav-translator" class="sb-section hidden">
@@ -511,6 +565,51 @@
           <span><span class="legend-dot" style="background: #e1ebf5; border: 1px solid #2c4a6b;"></span>Отгул</span>
           <span><span class="legend-dot" style="background: #fafaf7; border: 1px solid #e8e8e1;"></span>Выходной</span>
           <span><span class="legend-dot" style="background: white; border: 2px solid #c9622b;"></span>Сегодня</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-payroll" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Зарплата</div>
+          <div class="page-subtitle" id="payroll-subtitle">—</div>
+        </div>
+        <div class="payroll-toolbar">
+          <select class="payroll-month-select" id="payroll-month-select"></select>
+          <button id="btn-close-period" class="btn hidden" onclick="closePeriod()">Закрыть период</button>
+          <button id="btn-reopen-period" class="btn btn-ghost hidden" onclick="reopenPeriod()">Открыть период</button>
+        </div>
+      </div>
+
+      <div id="payroll-error" class="error hidden"></div>
+
+      <div id="payroll-status-block" class="payroll-status hidden"></div>
+      <div id="payroll-snapshot-note" class="payroll-snapshot-note hidden">
+        Период закрыт — показаны зафиксированные данные. Изменения часов или ставок после закрытия не учитываются в этой ведомости.
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Переводчиков</div>
+          <div class="kpi-value" id="payroll-kpi-count">—</div>
+          <div class="kpi-meta">с активностью в этом месяце</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Всего часов</div>
+          <div class="kpi-value" id="payroll-kpi-hours">—</div>
+          <div class="kpi-meta">чистого времени</div>
+        </div>
+        <div class="kpi kpi-green">
+          <div class="kpi-label">К выплате</div>
+          <div class="kpi-value" id="payroll-kpi-amount">—</div>
+          <div class="kpi-meta">по всей команде</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div id="payroll-content">
+          <div class="loading-state">Загрузка…</div>
         </div>
       </div>
     </div>
@@ -957,6 +1056,492 @@
     }
     html += '</tbody></table>';
     content.innerHTML = html;
+  }
+
+  // ====================================================================
+  // СТРАНИЦА: ЗАРПЛАТА (для менеджера)
+  // ====================================================================
+  // Состояние страницы зарплаты
+  let payrollYear = new Date().getFullYear();
+  let payrollMonth = new Date().getMonth();
+  let currentPeriod = null; // запись из payroll_periods
+  let currentPeriodEntries = []; // payroll_entries для закрытого периода
+
+  function payrollMonthLabel(y, m) {
+    return MONTH_NAMES_RU[m] + ' ' + y;
+  }
+  function payrollLabel(y, m) {
+    // YYYY-MM для period_label
+    return `${y}-${String(m + 1).padStart(2, '0')}`;
+  }
+
+  async function loadPayroll() {
+    hideError('payroll-error');
+
+    // Заполнить селектор (один раз достаточно, но безопасно)
+    fillPayrollMonthSelector();
+
+    document.getElementById('payroll-subtitle').textContent =
+      'Ведомость за ' + payrollMonthLabel(payrollYear, payrollMonth);
+
+    // Загружаем период (если существует) и его статус
+    const label = payrollLabel(payrollYear, payrollMonth);
+    const { data: period } = await sb
+      .from('payroll_periods')
+      .select('id, period_label, period_start, period_end, status, closed_at, closed_by')
+      .eq('period_label', label)
+      .maybeSingle();
+
+    currentPeriod = period || null;
+    currentPeriodEntries = [];
+
+    // Если период закрыт — берём данные из payroll_entries (снимок)
+    if (period && period.status === 'closed') {
+      const { data: entries } = await sb
+        .from('payroll_entries')
+        .select('user_id, total_hours, total_amount, breakdown_by_pair')
+        .eq('period_id', period.id);
+      currentPeriodEntries = entries || [];
+      renderPayrollClosed(period);
+    } else {
+      renderPayrollOpen(period);
+    }
+
+    await renderPayrollContent();
+  }
+
+  function fillPayrollMonthSelector() {
+    const sel = document.getElementById('payroll-month-select');
+    if (sel.options.length > 0) {
+      sel.value = `${payrollYear}-${payrollMonth}`;
+      return;
+    }
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const opt = document.createElement('option');
+      opt.value = `${d.getFullYear()}-${d.getMonth()}`;
+      opt.textContent = payrollMonthLabel(d.getFullYear(), d.getMonth());
+      sel.appendChild(opt);
+    }
+    sel.value = `${payrollYear}-${payrollMonth}`;
+    sel.onchange = () => {
+      const [y, m] = sel.value.split('-').map(Number);
+      payrollYear = y; payrollMonth = m;
+      loadPayroll();
+    };
+  }
+
+  function renderPayrollOpen(period) {
+    const block = document.getElementById('payroll-status-block');
+    block.className = 'payroll-status status-open';
+    block.classList.remove('hidden');
+    block.innerHTML = `
+      <span class="payroll-status-icon"></span>
+      Период <strong>открыт</strong>. Данные рассчитываются на лету по текущим часам и ставкам.
+    `;
+    document.getElementById('payroll-snapshot-note').classList.add('hidden');
+
+    // Кнопка закрытия — только если месяц уже завершился (1+ день след. месяца)
+    const today = new Date();
+    const periodEnd = new Date(payrollYear, payrollMonth + 1, 0); // последний день
+    const canClose = today > periodEnd;
+    const btnClose = document.getElementById('btn-close-period');
+    btnClose.classList.toggle('hidden', !canClose);
+    btnClose.textContent = 'Закрыть период';
+    document.getElementById('btn-reopen-period').classList.add('hidden');
+  }
+
+  function renderPayrollClosed(period) {
+    const block = document.getElementById('payroll-status-block');
+    block.className = 'payroll-status status-closed';
+    block.classList.remove('hidden');
+    const closedAt = period.closed_at
+      ? new Date(period.closed_at).toLocaleDateString('ru-RU')
+      : '—';
+    block.innerHTML = `
+      <span class="payroll-status-icon"></span>
+      Период <strong>закрыт</strong> ${closedAt}. Данные ниже — зафиксированный снимок.
+    `;
+    document.getElementById('payroll-snapshot-note').classList.remove('hidden');
+
+    // Кнопки
+    document.getElementById('btn-close-period').classList.add('hidden');
+    // Открыть обратно — только если прошло ≤ 30 дней с закрытия
+    const closedDate = period.closed_at ? new Date(period.closed_at) : null;
+    const daysSinceClose = closedDate
+      ? Math.floor((Date.now() - closedDate.getTime()) / (1000 * 60 * 60 * 24))
+      : 999;
+    const canReopen = daysSinceClose <= 30;
+    document.getElementById('btn-reopen-period').classList.toggle('hidden', !canReopen);
+  }
+
+  async function renderPayrollContent() {
+    const content = document.getElementById('payroll-content');
+    content.innerHTML = '<div class="loading-state">Расчёт…</div>';
+
+    // Если период закрыт — рендерим из payroll_entries
+    if (currentPeriod && currentPeriod.status === 'closed') {
+      await renderPayrollFromSnapshot();
+      return;
+    }
+
+    // Иначе считаем на лету
+    await renderPayrollLive();
+  }
+
+  // Расчёт «на лету» из текущих work_days, intervals, breaks, ставок
+  async function renderPayrollLive() {
+    const periodStart = formatDate(new Date(payrollYear, payrollMonth, 1));
+    const periodEnd = formatDate(new Date(payrollYear, payrollMonth + 1, 0));
+
+    // 1) Все активные переводчики и их пары
+    const { data: users, error: usersError } = await sb
+      .from('users')
+      .select(`
+        id, name, email, is_active,
+        translator_pairs ( language_pair_id, rate_per_hour, is_primary,
+                            language_pairs (code) )
+      `)
+      .eq('role', 'translator')
+      .order('name');
+
+    if (usersError) {
+      showError('payroll-error', 'Ошибка загрузки переводчиков: ' + usersError.message);
+      return;
+    }
+
+    const userIds = users.map(u => u.id);
+    if (userIds.length === 0) {
+      renderPayrollEmpty('Нет переводчиков в системе.');
+      return;
+    }
+
+    // 2) Дни и интервалы за период
+    const { data: days, error: daysError } = await sb
+      .from('work_days')
+      .select(`
+        user_id, work_date, day_type,
+        work_intervals ( duration_minutes, language_pair_id ),
+        breaks ( duration_minutes )
+      `)
+      .in('user_id', userIds)
+      .gte('work_date', periodStart)
+      .lte('work_date', periodEnd);
+
+    if (daysError) {
+      showError('payroll-error', 'Ошибка загрузки дней: ' + daysError.message);
+      return;
+    }
+
+    // 3) Считаем по каждому переводчику
+    const result = []; // [{ user, totalMinutes, totalAmount, breakdown: { code: {hours, rate, amount} } }]
+    for (const u of users) {
+      const rateByPair = {};
+      const codeByPair = {};
+      for (const p of (u.translator_pairs || [])) {
+        rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
+        codeByPair[p.language_pair_id] = p.language_pairs.code;
+      }
+
+      const userDays = (days || []).filter(d => d.user_id === u.id);
+      const breakdown = {}; // code -> { minutes, rate, amount }
+      let totalMinutes = 0;
+      let totalAmount = 0;
+
+      for (const d of userDays) {
+        if (d.day_type !== 'working') continue;
+        const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
+        const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
+        const dayNetMin = Math.max(0, intervalsSum - breaksSum);
+        if (dayNetMin <= 0) continue;
+
+        // Брейки распределяем пропорционально между интервалами
+        const breakRatio = intervalsSum > 0 ? (dayNetMin / intervalsSum) : 0;
+        for (const interv of (d.work_intervals || [])) {
+          const langId = interv.language_pair_id;
+          const code = codeByPair[langId] || '—';
+          const rate = rateByPair[langId] || 0;
+          const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
+          const intervalAmount = (intervalNetMin / 60) * rate;
+          if (!breakdown[code]) {
+            breakdown[code] = { minutes: 0, rate, amount: 0 };
+          }
+          breakdown[code].minutes += intervalNetMin;
+          breakdown[code].amount += intervalAmount;
+        }
+        totalMinutes += dayNetMin;
+        totalAmount += (Object.values(breakdown).reduce((s, b) => s + b.amount, 0));
+        // последняя строка добавляет повторно — пересчитаем totalAmount внизу
+      }
+
+      // Финальный totalAmount — сумма всех breakdown.amount
+      totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
+
+      if (totalMinutes > 0) {
+        result.push({ user: u, totalMinutes, totalAmount, breakdown });
+      }
+    }
+
+    renderPayrollTable(result);
+  }
+
+  // Рендер из снимка (закрытый период)
+  async function renderPayrollFromSnapshot() {
+    // Нужны имена переводчиков → запрос
+    const userIds = currentPeriodEntries.map(e => e.user_id);
+    if (userIds.length === 0) {
+      renderPayrollEmpty('Период закрыт, но в нём нет записей.');
+      return;
+    }
+    const { data: users } = await sb
+      .from('users')
+      .select('id, name, email')
+      .in('id', userIds);
+    const usersById = {};
+    for (const u of (users || [])) usersById[u.id] = u;
+
+    const result = currentPeriodEntries.map(e => {
+      const breakdown = {};
+      const breakdownArr = e.breakdown_by_pair || [];
+      for (const b of breakdownArr) {
+        breakdown[b.pair_code] = {
+          minutes: Math.round((Number(b.hours) || 0) * 60),
+          rate: Number(b.rate) || 0,
+          amount: Number(b.amount) || 0,
+        };
+      }
+      return {
+        user: usersById[e.user_id] || { name: '—', email: '' },
+        totalMinutes: Math.round((Number(e.total_hours) || 0) * 60),
+        totalAmount: Number(e.total_amount) || 0,
+        breakdown,
+      };
+    });
+    renderPayrollTable(result);
+  }
+
+  function renderPayrollEmpty(msg) {
+    const content = document.getElementById('payroll-content');
+    content.innerHTML = `<div class="empty-state">
+      <div class="empty-state-text">${escapeHtml(msg)}</div>
+    </div>`;
+    document.getElementById('payroll-kpi-count').textContent = '0';
+    document.getElementById('payroll-kpi-hours').textContent = '0ч 00м';
+    document.getElementById('payroll-kpi-amount').textContent = '$0.00';
+  }
+
+  function renderPayrollTable(rows) {
+    const content = document.getElementById('payroll-content');
+    if (rows.length === 0) {
+      renderPayrollEmpty('Никто не работал в этом месяце.');
+      return;
+    }
+
+    // KPI
+    const totalAmount = rows.reduce((s, r) => s + r.totalAmount, 0);
+    const totalMinutes = rows.reduce((s, r) => s + r.totalMinutes, 0);
+    document.getElementById('payroll-kpi-count').textContent = String(rows.length);
+    document.getElementById('payroll-kpi-hours').textContent = formatHoursMinutes(totalMinutes);
+    document.getElementById('payroll-kpi-amount').textContent = '$' + totalAmount.toFixed(2);
+
+    // Таблица
+    let html = `<table><thead><tr>
+      <th>Переводчик</th>
+      <th>Разбивка по парам</th>
+      <th style="text-align:right;">Часы</th>
+      <th style="text-align:right;">К выплате</th>
+    </tr></thead><tbody>`;
+
+    for (const r of rows) {
+      const initials = (r.user.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+      const breakdownHtml = Object.entries(r.breakdown)
+        .sort()
+        .map(([code, b]) => `
+          <div class="payroll-pair-row">
+            <span class="badge badge-neutral">${code}</span>
+            <span class="payroll-pair-hours">${formatHoursMinutes(Math.round(b.minutes))}</span>
+            <span class="payroll-pair-rate">× $${b.rate.toFixed(2)}/ч</span>
+            <span class="payroll-pair-amount">= $${b.amount.toFixed(2)}</span>
+          </div>
+        `).join('');
+
+      html += `<tr>
+        <td><div class="emp-cell">
+          <div class="emp-avatar">${initials}</div>
+          <div><div class="emp-name">${escapeHtml(r.user.name)}</div>
+               <div class="emp-email">${escapeHtml(r.user.email)}</div></div>
+        </div></td>
+        <td>${breakdownHtml}</td>
+        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${formatHoursMinutes(r.totalMinutes)}</td>
+        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #2d6a3e;">$${r.totalAmount.toFixed(2)}</td>
+      </tr>`;
+    }
+
+    html += `<tr class="payroll-total-row">
+      <td colspan="2" style="text-align: right; color: #93938a; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;">Итого по команде</td>
+      <td style="text-align:right; font-family: 'JetBrains Mono', monospace;">${formatHoursMinutes(totalMinutes)}</td>
+      <td style="text-align:right;" class="payroll-grand-total">$${totalAmount.toFixed(2)}</td>
+    </tr>`;
+
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  }
+
+  // ──── Закрытие/открытие периода ────────────────────────────────────────
+  async function closePeriod() {
+    if (!confirm('Закрыть период ' + payrollMonthLabel(payrollYear, payrollMonth) +
+                 '?\n\nПосле закрытия данные за этот месяц станут зафиксированными. ' +
+                 'Изменения часов или ставок не повлияют на расчёт.')) return;
+
+    const btn = document.getElementById('btn-close-period');
+    btn.disabled = true; btn.textContent = 'Закрываем…';
+
+    try {
+      const label = payrollLabel(payrollYear, payrollMonth);
+      const periodStart = formatDate(new Date(payrollYear, payrollMonth, 1));
+      const periodEnd = formatDate(new Date(payrollYear, payrollMonth + 1, 0));
+
+      // 1) Создаём или обновляем запись периода
+      let periodId = currentPeriod?.id;
+      if (!periodId) {
+        const { data: newPeriod, error: pErr } = await sb
+          .from('payroll_periods')
+          .insert({
+            period_label: label,
+            period_start: periodStart,
+            period_end: periodEnd,
+            status: 'open',
+          })
+          .select('id').single();
+        if (pErr) throw new Error('Создание периода: ' + pErr.message);
+        periodId = newPeriod.id;
+      }
+
+      // 2) Рассчитываем актуальную ведомость и создаём записи payroll_entries
+      // Используем тот же расчёт, что и renderPayrollLive
+      const { data: users } = await sb
+        .from('users')
+        .select(`
+          id, name,
+          translator_pairs ( language_pair_id, rate_per_hour,
+                              language_pairs (code) )
+        `)
+        .eq('role', 'translator');
+
+      const userIds = (users || []).map(u => u.id);
+      const { data: days } = await sb
+        .from('work_days')
+        .select(`
+          user_id, day_type,
+          work_intervals ( duration_minutes, language_pair_id ),
+          breaks ( duration_minutes )
+        `)
+        .in('user_id', userIds)
+        .gte('work_date', periodStart)
+        .lte('work_date', periodEnd);
+
+      const entriesToInsert = [];
+      for (const u of (users || [])) {
+        const rateByPair = {};
+        const codeByPair = {};
+        for (const p of (u.translator_pairs || [])) {
+          rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
+          codeByPair[p.language_pair_id] = p.language_pairs.code;
+        }
+        const userDays = (days || []).filter(d => d.user_id === u.id);
+        const breakdown = {};
+        let totalMinutes = 0;
+        for (const d of userDays) {
+          if (d.day_type !== 'working') continue;
+          const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
+          const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
+          const dayNetMin = Math.max(0, intervalsSum - breaksSum);
+          if (dayNetMin <= 0) continue;
+          const breakRatio = intervalsSum > 0 ? (dayNetMin / intervalsSum) : 0;
+          for (const interv of (d.work_intervals || [])) {
+            const langId = interv.language_pair_id;
+            const code = codeByPair[langId] || '—';
+            const rate = rateByPair[langId] || 0;
+            const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
+            if (!breakdown[code]) breakdown[code] = { minutes: 0, rate, amount: 0 };
+            breakdown[code].minutes += intervalNetMin;
+            breakdown[code].amount += (intervalNetMin / 60) * rate;
+          }
+          totalMinutes += dayNetMin;
+        }
+        const totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
+        if (totalMinutes > 0) {
+          entriesToInsert.push({
+            period_id: periodId,
+            user_id: u.id,
+            total_hours: Number((totalMinutes / 60).toFixed(2)),
+            total_amount: Number(totalAmount.toFixed(2)),
+            breakdown_by_pair: Object.entries(breakdown).map(([code, b]) => ({
+              pair_code: code,
+              hours: Number((b.minutes / 60).toFixed(2)),
+              rate: b.rate,
+              amount: Number(b.amount.toFixed(2)),
+            })),
+            analytics_breakdown: null, // в этап 8 наполним
+          });
+        }
+      }
+
+      // 3) Удалим старые записи (на случай повторного закрытия) и вставим новые
+      await sb.from('payroll_entries').delete().eq('period_id', periodId);
+      if (entriesToInsert.length > 0) {
+        const { error: eErr } = await sb.from('payroll_entries').insert(entriesToInsert);
+        if (eErr) throw new Error('Сохранение записей: ' + eErr.message);
+      }
+
+      // 4) Меняем статус периода на closed
+      const { error: updErr } = await sb
+        .from('payroll_periods')
+        .update({
+          status: 'closed',
+          closed_at: new Date().toISOString(),
+          closed_by: currentUser.id,
+        })
+        .eq('id', periodId);
+      if (updErr) throw new Error('Обновление статуса: ' + updErr.message);
+
+      // Перезагружаем
+      await loadPayroll();
+    } catch (e) {
+      showError('payroll-error', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Закрыть период';
+    }
+  }
+
+  async function reopenPeriod() {
+    if (!confirm('Открыть период обратно?\n\nДанные снова станут редактируемыми, ' +
+                 'но старый снимок ведомости будет удалён. После повторного закрытия ' +
+                 'снимок пересоздастся с актуальными значениями.')) return;
+
+    const btn = document.getElementById('btn-reopen-period');
+    btn.disabled = true; btn.textContent = 'Открываем…';
+
+    try {
+      if (!currentPeriod) return;
+      // Удаляем записи и сбрасываем статус
+      await sb.from('payroll_entries').delete().eq('period_id', currentPeriod.id);
+      const { error } = await sb
+        .from('payroll_periods')
+        .update({
+          status: 'open',
+          closed_at: null,
+          closed_by: null,
+        })
+        .eq('id', currentPeriod.id);
+      if (error) throw new Error(error.message);
+      await loadPayroll();
+    } catch (e) {
+      showError('payroll-error', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Открыть период';
+    }
   }
 
   // ====================================================================
@@ -2113,10 +2698,10 @@
     b.addEventListener('click', async () => {
       const page = b.dataset.page;
       showPage(page);
-      // подгружаем данные нужной страницы
       if (page === 'translators') await loadTranslators();
       else if (page === 'my-profile') await loadMyProfile();
       else if (page === 'calendar') await loadCalendar();
+      else if (page === 'payroll') await loadPayroll();
     });
   });
   document.getElementById('add-modal').addEventListener('click', e => {
