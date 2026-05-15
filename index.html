@@ -5,12 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LinguaTime</title>
 
-<!-- ============================================================== -->
-<!-- ВАЖНО: перед использованием замените две константы ниже         -->
-<!-- (раздел <script> в самом верху JS-блока) на ваши значения       -->
-<!-- из Supabase: Project Settings → API → Project URL и anon key    -->
-<!-- ============================================================== -->
-
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 
 <style>
@@ -20,356 +14,661 @@
     background: #fafaf7;
     color: #1a1a17;
     min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  .card {
-    background: white;
-    border: 1px solid #e8e8e1;
-    border-radius: 12px;
-    padding: 40px;
-    width: 100%;
-    max-width: 420px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
-  }
-
-  .brand {
-    font-family: 'Inter Tight', sans-serif;
-    font-size: 28px;
-    font-weight: 600;
-    text-align: center;
-    margin-bottom: 8px;
-    letter-spacing: -0.02em;
-  }
-  .brand-tag {
-    text-align: center;
-    font-size: 12px;
-    color: #93938a;
-    margin-bottom: 32px;
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .field { margin-bottom: 16px; }
-  .field-label {
-    display: block;
-    font-size: 12px;
-    color: #5c5c55;
-    margin-bottom: 6px;
-    font-weight: 500;
-  }
-  .input {
-    width: 100%;
-    padding: 10px 14px;
-    border: 1px solid #d0d0c5;
-    border-radius: 6px;
     font-size: 14px;
-    font-family: inherit;
-    transition: border-color 0.15s;
   }
-  .input:focus { outline: none; border-color: #1a1a17; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input, select { font-family: inherit; font-size: inherit; color: inherit; }
+  .hidden { display: none !important; }
+
+  .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .auth-card {
+    background: white; border: 1px solid #e8e8e1; border-radius: 12px; padding: 40px;
+    width: 100%; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+  .brand { font-size: 28px; font-weight: 600; text-align: center; margin-bottom: 8px; letter-spacing: -0.02em; }
+  .brand-tag {
+    text-align: center; font-size: 12px; color: #93938a; margin-bottom: 32px;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field-label {
+    display: block; font-size: 11px; color: #5c5c55; margin-bottom: 5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.05em; font-family: 'JetBrains Mono', monospace;
+  }
+  .input, .select {
+    width: 100%; padding: 9px 12px; border: 1px solid #d0d0c5; border-radius: 6px;
+    font-size: 14px; background: white; transition: border-color 0.15s;
+  }
+  .input:focus, .select:focus { outline: none; border-color: #1a1a17; }
 
   .btn {
-    width: 100%;
-    padding: 12px;
-    background: #1a1a17;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background 0.15s;
+    padding: 9px 16px; background: #1a1a17; color: white; border-radius: 6px;
+    font-size: 13px; font-weight: 500; transition: background 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
   }
   .btn:hover { background: #000; }
   .btn:disabled { background: #93938a; cursor: not-allowed; }
-  .btn-ghost {
-    background: transparent;
-    color: #5c5c55;
-    border: 1px solid #d0d0c5;
-  }
+  .btn-block { width: 100%; padding: 11px; font-size: 14px; justify-content: center; }
+  .btn-ghost { background: transparent; color: #5c5c55; border: 1px solid #d0d0c5; }
   .btn-ghost:hover { background: #fafaf7; color: #1a1a17; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
 
   .error {
-    background: #f5e3df;
-    color: #a0392c;
-    padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    margin-bottom: 16px;
-    border-left: 3px solid #a0392c;
+    background: #f5e3df; color: #a0392c; padding: 10px 14px; border-radius: 6px;
+    font-size: 13px; margin-bottom: 16px; border-left: 3px solid #a0392c;
   }
-  .hidden { display: none !important; }
+  .success {
+    background: #e8f0e8; color: #2d6a3e; padding: 10px 14px; border-radius: 6px;
+    font-size: 13px; margin-bottom: 16px; border-left: 3px solid #2d6a3e;
+  }
 
-  /* Welcome screen */
-  .welcome-name {
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 8px;
-  }
-  .welcome-role {
-    color: #5c5c55;
-    font-size: 14px;
-    margin-bottom: 24px;
-  }
-  .role-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    background: #1a1a17;
-    color: white;
-    border-radius: 100px;
-    font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-  .role-badge.translator { background: #2d6a3e; }
-  .role-badge.manager { background: #c9622b; }
+  .app-wrap { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
 
-  .info-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #e8e8e1;
-    font-size: 13px;
+  .sidebar {
+    background: white; border-right: 1px solid #e8e8e1; padding: 24px 16px;
+    display: flex; flex-direction: column;
   }
-  .info-row:last-child { border-bottom: none; }
-  .info-label { color: #5c5c55; }
-  .info-value { font-weight: 500; }
+  .sb-brand { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; padding: 0 10px; margin-bottom: 4px; }
+  .sb-brand-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #93938a;
+    letter-spacing: 0.1em; text-transform: uppercase; padding: 0 10px; margin-bottom: 24px;
+  }
+  .sb-section { margin-bottom: 20px; }
+  .sb-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.12em; color: #93938a; margin-bottom: 8px; padding: 0 10px;
+  }
+  .sb-item {
+    display: block; padding: 8px 10px; border-radius: 6px; color: #5c5c55;
+    font-weight: 500; width: 100%; text-align: left; margin-bottom: 2px; transition: all 0.15s;
+  }
+  .sb-item:hover { background: #fafaf7; color: #1a1a17; }
+  .sb-item.active { background: #1a1a17; color: white; }
 
-  .loading {
-    text-align: center;
-    color: #93938a;
-    padding: 40px 0;
-    font-size: 13px;
+  .sb-user { margin-top: auto; padding: 16px 10px 0; border-top: 1px solid #e8e8e1; font-size: 12px; }
+  .sb-user-name { font-weight: 500; margin-bottom: 2px; }
+  .sb-user-email { color: #93938a; margin-bottom: 8px; word-break: break-all; }
+
+  .main { padding: 32px 40px; overflow-x: auto; }
+
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e8e8e1;
   }
+  .page-title { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+  .page-subtitle { color: #5c5c55; font-size: 13px; margin-top: 4px; }
+
+  .section {
+    background: white; border: 1px solid #e8e8e1; border-radius: 10px; overflow: hidden;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #93938a; text-align: left; padding: 12px 20px;
+    border-bottom: 1px solid #e8e8e1; font-weight: 500; background: #fafaf7;
+  }
+  td { padding: 14px 20px; border-bottom: 1px solid #e8e8e1; vertical-align: middle; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafaf7; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+    border-radius: 100px; font-size: 11px; font-weight: 500;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em;
+  }
+  .badge-good { background: #e8f0e8; color: #2d6a3e; }
+  .badge-warn { background: #f9f1dc; color: #b8861f; }
+  .badge-neutral { background: #fafaf7; color: #5c5c55; border: 1px solid #e8e8e1; }
+
+  .emp-cell { display: flex; align-items: center; gap: 10px; }
+  .emp-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: #1a1a17; color: white;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;
+  }
+  .emp-name { font-weight: 500; }
+  .emp-email { font-size: 11px; color: #93938a; font-family: 'JetBrains Mono', monospace; }
+
+  .pair-list { display: flex; flex-direction: column; gap: 3px; }
+  .pair-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .pair-rate { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+
+  .empty-state { padding: 60px 20px; text-align: center; color: #93938a; }
+  .empty-state-title { font-size: 16px; color: #5c5c55; margin-bottom: 8px; font-weight: 500; }
+  .empty-state-text { font-size: 13px; margin-bottom: 20px; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(26, 26, 23, 0.5); backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: white; border-radius: 10px; width: 100%; max-width: 580px;
+    max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+  }
+  .modal-header {
+    padding: 18px 24px; border-bottom: 1px solid #e8e8e1;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+  .modal-close {
+    color: #93938a; font-size: 22px; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center; border-radius: 6px;
+  }
+  .modal-close:hover { background: #fafaf7; color: #1a1a17; }
+  .modal-body { padding: 24px; }
+  .modal-footer {
+    padding: 14px 24px; border-top: 1px solid #e8e8e1;
+    display: flex; justify-content: flex-end; gap: 8px; background: #fafaf7;
+  }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .pair-editor {
+    border: 1px solid #e8e8e1; border-radius: 6px; padding: 10px;
+    margin-bottom: 8px; background: #fafaf7;
+    display: grid; grid-template-columns: 1.5fr 1fr 0.9fr 30px; gap: 8px; align-items: center;
+  }
+  .pair-editor select, .pair-editor .pair-rate-input-field {
+    padding: 6px 8px; border: 1px solid #d0d0c5; border-radius: 4px; font-size: 13px;
+  }
+  .pair-rate-input { display: flex; align-items: center; gap: 4px; }
+  .pair-rate-input-field { width: 100%; font-family: 'JetBrains Mono', monospace; }
+  .primary-check { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #5c5c55; cursor: pointer; }
+  .pair-remove {
+    color: #93938a; font-size: 16px; width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center; border-radius: 4px;
+  }
+  .pair-remove:hover { background: #f5e3df; color: #a0392c; }
+
+  .loading-state { text-align: center; color: #93938a; padding: 60px 0; font-size: 13px; }
 </style>
 </head>
 <body>
 
-<div class="card">
-
-  <!-- ============ ЗАГРУЗКА ============ -->
-  <div id="screen-loading">
+<div id="screen-loading" class="auth-wrap">
+  <div class="auth-card">
     <div class="brand">LinguaTime</div>
     <div class="brand-tag">CRM</div>
-    <div class="loading">Загрузка…</div>
+    <div class="loading-state">Загрузка…</div>
   </div>
+</div>
 
-  <!-- ============ ФОРМА ВХОДА ============ -->
-  <div id="screen-login" class="hidden">
+<div id="screen-login" class="auth-wrap hidden">
+  <div class="auth-card">
     <div class="brand">LinguaTime</div>
     <div class="brand-tag">Вход в систему</div>
-
     <div id="login-error" class="error hidden"></div>
-
     <div class="field">
       <label class="field-label" for="email">Email</label>
       <input type="email" id="email" class="input" placeholder="you@example.com" autocomplete="email">
     </div>
-
     <div class="field">
       <label class="field-label" for="password">Пароль</label>
       <input type="password" id="password" class="input" placeholder="••••••••" autocomplete="current-password">
     </div>
-
-    <button id="btn-login" class="btn">Войти</button>
+    <button id="btn-login" class="btn btn-block">Войти</button>
   </div>
-
-  <!-- ============ ПРИВЕТСТВИЕ ============ -->
-  <div id="screen-welcome" class="hidden">
-    <div class="brand">LinguaTime</div>
-    <div class="brand-tag">Добро пожаловать</div>
-
-    <div class="welcome-name" id="welcome-name">—</div>
-    <div class="welcome-role">
-      Ваша роль: <span class="role-badge" id="welcome-role-badge">—</span>
-    </div>
-
-    <div style="margin-top: 24px; margin-bottom: 24px;">
-      <div class="info-row">
-        <span class="info-label">Email</span>
-        <span class="info-value" id="info-email">—</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Часовой пояс</span>
-        <span class="info-value" id="info-timezone">—</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">Статус</span>
-        <span class="info-value" id="info-status">—</span>
-      </div>
-    </div>
-
-    <button id="btn-logout" class="btn btn-ghost">Выйти</button>
-  </div>
-
 </div>
 
-<!-- Supabase JS SDK через CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<div id="screen-app" class="app-wrap hidden">
+  <aside class="sidebar">
+    <div class="sb-brand">LinguaTime</div>
+    <div class="sb-brand-tag">CRM</div>
 
+    <div id="nav-manager" class="sb-section hidden">
+      <div class="sb-label">Управление</div>
+      <button class="sb-item active" data-page="translators">Переводчики</button>
+    </div>
+
+    <div id="nav-translator" class="sb-section hidden">
+      <div class="sb-label">Моё время</div>
+      <button class="sb-item active" data-page="my-profile">Мой профиль</button>
+    </div>
+
+    <div class="sb-user">
+      <div class="sb-user-name" id="sb-user-name">—</div>
+      <div class="sb-user-email" id="sb-user-email">—</div>
+      <button id="btn-logout" class="btn btn-ghost btn-sm" style="width:100%; justify-content: center;">Выйти</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="page-translators" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Переводчики</div>
+          <div class="page-subtitle" id="translators-count">Загрузка…</div>
+        </div>
+        <button class="btn" onclick="openAddModal()">+ Добавить переводчика</button>
+      </div>
+      <div id="translators-error" class="error hidden"></div>
+      <div class="section">
+        <div id="translators-content">
+          <div class="loading-state">Загрузка…</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-my-profile" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Мой профиль</div>
+          <div class="page-subtitle">Языковые пары и ставки</div>
+        </div>
+      </div>
+      <div class="section">
+        <div id="my-profile-content">
+          <div class="loading-state">Загрузка…</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="add-modal" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Добавить переводчика</div>
+      <button class="modal-close" onclick="closeAddModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="add-error" class="error hidden"></div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Имя</label>
+          <input type="text" id="new-name" class="input" placeholder="Анна Соколова">
+        </div>
+        <div class="field">
+          <label class="field-label">Email</label>
+          <input type="email" id="new-email" class="input" placeholder="anna@example.com">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Пароль (мин. 6 симв.)</label>
+          <input type="text" id="new-password" class="input" placeholder="TempPass123">
+        </div>
+        <div class="field">
+          <label class="field-label">Часовой пояс</label>
+          <select id="new-timezone" class="select">
+            <option value="Asia/Tashkent" selected>Asia/Tashkent (UTC+5)</option>
+            <option value="Asia/Almaty">Asia/Almaty (UTC+5)</option>
+            <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
+            <option value="Europe/Kyiv">Europe/Kyiv (UTC+2)</option>
+            <option value="Europe/London">Europe/London (UTC+0)</option>
+            <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
+            <option value="Asia/Seoul">Asia/Seoul (UTC+9)</option>
+            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+            <option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</option>
+            <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
+            <option value="America/New_York">America/New_York (UTC-5)</option>
+            <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div class="field-label" style="margin: 0;">Языковые пары и ставки</div>
+        <button class="btn btn-ghost btn-sm" onclick="addPairRow()">+ Пара</button>
+      </div>
+      <div id="pairs-list"></div>
+      <div style="font-size: 11px; color: #93938a; margin-top: 6px;">
+        Ровно одна пара должна быть основной. Ставка от $0.50 до $500.00 в час.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAddModal()">Отмена</button>
+      <button id="btn-save-translator" class="btn" onclick="saveTranslator()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // ====================================================================
-  // КОНФИГУРАЦИЯ — ЗАМЕНИТЕ НА СВОИ ЗНАЧЕНИЯ ПЕРЕД ЗАЛИВКОЙ НА VERCEL
-  // ====================================================================
-  // Где взять:
-  //   1. Зайдите в свой проект Supabase
-  //   2. Левое меню → Project Settings (шестерёнка внизу) → API
-  //   3. Скопируйте "Project URL" → вставьте в SUPABASE_URL ниже
-  //   4. Скопируйте "anon public" ключ → вставьте в SUPABASE_ANON_KEY ниже
-  //
-  // ВАЖНО: anon ключ ПУБЛИЧНЫЙ — его безопасно класть в HTML.
-  // RLS в БД защищает данные на уровне строк.
-  // НЕ путайте с "service_role" — тот секретный, его НЕЛЬЗЯ класть в HTML.
-  // ====================================================================
   const SUPABASE_URL = 'https://srpiqxfeosusayqqfvrq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNycGlxeGZlb3N1c2F5cXFmdnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjAzMTQsImV4cCI6MjA5NDM5NjMxNH0.PyOLqLn93h7I0_VYL-vE9O8VTEgdyDmS7UWxSAKA3Ss';
+  const CREATE_TRANSLATOR_URL = `${SUPABASE_URL}/functions/v1/create-translator`;
 
-  // Инициализация клиента
-  // ВАЖНО: переименовываем локальную переменную, чтобы не было конфликта
-  // с глобальным window.supabase из CDN.
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // ====================================================================
-  // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-  // ====================================================================
+  let currentUser = null;
+  let languagePairs = [];
+  let pairRowCounter = 0;
+
   function showScreen(id) {
-    document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+    ['loading', 'login', 'app'].forEach(s => document.getElementById('screen-' + s).classList.add('hidden'));
     document.getElementById('screen-' + id).classList.remove('hidden');
   }
-
-  function showError(message) {
-    const err = document.getElementById('login-error');
-    err.textContent = message;
-    err.classList.remove('hidden');
+  function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+    document.getElementById('page-' + pageId).classList.remove('hidden');
+    document.querySelectorAll('.sb-item').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.sb-item[data-page="${pageId}"]`);
+    if (btn) btn.classList.add('active');
   }
 
-  function hideError() {
-    document.getElementById('login-error').classList.add('hidden');
-  }
-
-  // ====================================================================
-  // ОСНОВНАЯ ЛОГИКА
-  // ====================================================================
-
-  // Проверка сессии при загрузке страницы
   async function checkSession() {
     const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      await loadUserProfile(session.user.id);
-    } else {
-      showScreen('login');
-    }
+    if (session) await loadProfile(session.user.id);
+    else showScreen('login');
   }
 
-  // Загрузка профиля пользователя из таблицы public.users
-  async function loadUserProfile(userId) {
-    const { data, error } = await sb
-      .from('users')
-      .select('email, name, role, timezone, is_active')
-      .eq('id', userId)
-      .single();
+  async function loadProfile(userId) {
+    const { data, error } = await sb.from('users')
+      .select('id, email, name, role, timezone, is_active')
+      .eq('id', userId).single();
 
     if (error || !data) {
-      // Профиля нет в таблице users — значит пользователь авторизован в auth,
-      // но не привязан к профилю. Это ошибка конфигурации.
-      console.error('Profile load error:', error);
       await sb.auth.signOut();
       showScreen('login');
-      showError('Профиль не найден. Обратитесь к менеджеру для активации учётной записи.');
+      showError('login-error', 'Профиль не найден. Обратитесь к менеджеру.');
       return;
     }
-
     if (!data.is_active) {
       await sb.auth.signOut();
       showScreen('login');
-      showError('Учётная запись деактивирована. Обратитесь к менеджеру.');
+      showError('login-error', 'Учётная запись деактивирована.');
       return;
     }
 
-    // Заполняем экран приветствия
-    document.getElementById('welcome-name').textContent = data.name;
-    const roleBadge = document.getElementById('welcome-role-badge');
-    roleBadge.textContent = data.role === 'manager' ? 'Менеджер' : 'Переводчик';
-    roleBadge.className = 'role-badge ' + data.role;
+    currentUser = data;
+    document.getElementById('sb-user-name').textContent = data.name;
+    document.getElementById('sb-user-email').textContent = data.email;
 
-    document.getElementById('info-email').textContent = data.email;
-    document.getElementById('info-timezone').textContent = data.timezone;
-    document.getElementById('info-status').textContent = data.is_active ? 'Активен' : 'Неактивен';
-
-    showScreen('welcome');
+    if (data.role === 'manager') {
+      document.getElementById('nav-manager').classList.remove('hidden');
+      document.getElementById('nav-translator').classList.add('hidden');
+      showScreen('app');
+      showPage('translators');
+      await loadLanguagePairs();
+      await loadTranslators();
+    } else {
+      document.getElementById('nav-translator').classList.remove('hidden');
+      document.getElementById('nav-manager').classList.add('hidden');
+      showScreen('app');
+      showPage('my-profile');
+      await loadMyProfile();
+    }
   }
 
-  // Обработчик кнопки "Войти"
   async function handleLogin() {
-    hideError();
+    hideError('login-error');
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+    if (!email || !password) { showError('login-error', 'Введите email и пароль.'); return; }
     const btn = document.getElementById('btn-login');
-
-    if (!email || !password) {
-      showError('Введите email и пароль.');
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Входим…';
-
-    const { data, error } = await sb.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    btn.disabled = false;
-    btn.textContent = 'Войти';
-
+    btn.disabled = true; btn.textContent = 'Входим…';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false; btn.textContent = 'Войти';
     if (error) {
-      // Распространённые ошибки Supabase Auth
-      if (error.message.includes('Invalid login credentials')) {
-        showError('Неверный email или пароль.');
-      } else if (error.message.includes('Email not confirmed')) {
-        showError('Email не подтверждён. Обратитесь к менеджеру.');
-      } else {
-        showError('Ошибка входа: ' + error.message);
-      }
+      showError('login-error', error.message.includes('Invalid login credentials') ? 'Неверный email или пароль.' : ('Ошибка: ' + error.message));
       return;
     }
-
-    await loadUserProfile(data.user.id);
+    await loadProfile(data.user.id);
   }
 
-  // Обработчик кнопки "Выйти"
   async function handleLogout() {
     await sb.auth.signOut();
+    currentUser = null;
     document.getElementById('email').value = '';
     document.getElementById('password').value = '';
-    hideError();
+    hideError('login-error');
     showScreen('login');
   }
 
-  // ====================================================================
-  // СОБЫТИЯ
-  // ====================================================================
+  async function loadLanguagePairs() {
+    const { data } = await sb.from('language_pairs')
+      .select('id, code, display_name').eq('active', true).order('code');
+    languagePairs = data || [];
+  }
+
+  async function loadTranslators() {
+    const content = document.getElementById('translators-content');
+    content.innerHTML = '<div class="loading-state">Загрузка переводчиков…</div>';
+
+    const { data, error } = await sb.from('users')
+      .select(`id, email, name, timezone, is_active, created_at,
+               translator_pairs ( id, rate_per_hour, is_primary, proficiency,
+                                  language_pairs (code, display_name) )`)
+      .eq('role', 'translator')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      content.innerHTML = '';
+      showError('translators-error', 'Ошибка загрузки: ' + error.message);
+      return;
+    }
+
+    document.getElementById('translators-count').textContent =
+      `${data.length} ${pluralize(data.length, 'переводчик', 'переводчика', 'переводчиков')} в системе`;
+
+    if (data.length === 0) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-title">Переводчиков пока нет</div>
+          <div class="empty-state-text">Нажмите «+ Добавить переводчика», чтобы создать первую учётную запись.</div>
+        </div>`;
+      return;
+    }
+
+    let html = `<table><thead><tr>
+      <th>Переводчик</th><th>Языковые пары и ставки</th>
+      <th>Часовой пояс</th><th>Статус</th><th>Создан</th>
+    </tr></thead><tbody>`;
+
+    for (const u of data) {
+      const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+      const pairs = (u.translator_pairs || []).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
+      const pairsHtml = pairs.length === 0
+        ? '<span style="color:#93938a;font-size:12px;">нет пар</span>'
+        : pairs.map(p => `
+            <div class="pair-row">
+              <span class="badge badge-neutral">${p.language_pairs.code}</span>
+              <span class="pair-rate">$${Number(p.rate_per_hour).toFixed(2)}/ч</span>
+              ${p.is_primary ? '<span style="color:#93938a;font-size:11px;">основная</span>' : ''}
+            </div>`).join('');
+      const statusBadge = u.is_active
+        ? '<span class="badge badge-good">● Активен</span>'
+        : '<span class="badge badge-warn">● Неактивен</span>';
+      const created = new Date(u.created_at).toLocaleDateString('ru-RU');
+
+      html += `<tr>
+        <td><div class="emp-cell">
+          <div class="emp-avatar">${initials}</div>
+          <div><div class="emp-name">${escapeHtml(u.name)}</div>
+               <div class="emp-email">${escapeHtml(u.email)}</div></div>
+        </div></td>
+        <td><div class="pair-list">${pairsHtml}</div></td>
+        <td><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">${u.timezone}</span></td>
+        <td>${statusBadge}</td>
+        <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5c5c55;">${created}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  }
+
+  async function loadMyProfile() {
+    const content = document.getElementById('my-profile-content');
+    const { data, error } = await sb.from('translator_pairs')
+      .select(`id, rate_per_hour, is_primary, proficiency, effective_from,
+               language_pairs (code, display_name)`)
+      .eq('user_id', currentUser.id);
+
+    if (error) {
+      content.innerHTML = `<div style="padding:24px;"><div class="error">Ошибка: ${error.message}</div></div>`;
+      return;
+    }
+    if (!data || data.length === 0) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-title">У вас пока нет назначенных языковых пар</div>
+          <div class="empty-state-text">Обратитесь к менеджеру для назначения языков и ставок.</div>
+        </div>`;
+      return;
+    }
+
+    const sorted = data.sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
+    let html = `<table><thead><tr>
+      <th>Языковая пара</th><th>Уровень</th><th>Ставка / час</th><th>Действует с</th>
+    </tr></thead><tbody>`;
+    for (const p of sorted) {
+      html += `<tr>
+        <td><strong>${p.language_pairs.code}</strong>
+            ${p.is_primary ? '<span class="badge badge-neutral" style="margin-left: 6px;">основная</span>' : ''}</td>
+        <td>${p.proficiency || '—'}</td>
+        <td style="font-family: 'JetBrains Mono', monospace; font-weight: 500;">$${Number(p.rate_per_hour).toFixed(2)}</td>
+        <td style="font-family: 'JetBrains Mono', monospace; color: #5c5c55;">${new Date(p.effective_from).toLocaleDateString('ru-RU')}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  }
+
+  function openAddModal() {
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-email').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('new-timezone').value = 'Asia/Tashkent';
+    document.getElementById('pairs-list').innerHTML = '';
+    pairRowCounter = 0;
+    addPairRow(true);
+    hideError('add-error');
+    document.getElementById('add-modal').classList.add('open');
+  }
+  function closeAddModal() {
+    document.getElementById('add-modal').classList.remove('open');
+  }
+
+  function addPairRow(isPrimary = false) {
+    pairRowCounter++;
+    const id = 'pair-' + pairRowCounter;
+    const options = languagePairs.map(p =>
+      `<option value="${p.id}">${p.code} — ${p.display_name}</option>`
+    ).join('');
+
+    const div = document.createElement('div');
+    div.className = 'pair-editor';
+    div.id = id;
+    div.innerHTML = `
+      <select class="pair-lang">${options}</select>
+      <div class="pair-rate-input">
+        <span style="color:#5c5c55;">$</span>
+        <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" placeholder="25.00">
+        <span style="color:#5c5c55;font-size:12px;">/ч</span>
+      </div>
+      <label class="primary-check">
+        <input type="radio" name="primary-pair" value="${id}" ${isPrimary ? 'checked' : ''}>
+        Основная
+      </label>
+      <button class="pair-remove" onclick="document.getElementById('${id}').remove()">×</button>
+    `;
+    document.getElementById('pairs-list').appendChild(div);
+  }
+
+  async function saveTranslator() {
+    hideError('add-error');
+    const name = document.getElementById('new-name').value.trim();
+    const email = document.getElementById('new-email').value.trim();
+    const password = document.getElementById('new-password').value;
+    const timezone = document.getElementById('new-timezone').value;
+
+    if (!name || !email || !password) { showError('add-error', 'Заполните имя, email и пароль.'); return; }
+    if (password.length < 6) { showError('add-error', 'Пароль должен быть не менее 6 символов.'); return; }
+
+    const rows = document.querySelectorAll('#pairs-list .pair-editor');
+    if (rows.length === 0) { showError('add-error', 'Добавьте хотя бы одну языковую пару.'); return; }
+
+    const pairs = [];
+    let primaryFound = false;
+    for (const row of rows) {
+      const langId = row.querySelector('.pair-lang').value;
+      const rate = parseFloat(row.querySelector('.pair-rate-input-field').value);
+      const isPrimary = row.querySelector('input[type="radio"]').checked;
+      if (!rate || rate < 0.5 || rate > 500) {
+        showError('add-error', 'Все ставки должны быть от $0.50 до $500.00.');
+        return;
+      }
+      if (isPrimary) primaryFound = true;
+      pairs.push({ language_pair_id: langId, rate_per_hour: rate, is_primary: isPrimary, proficiency: null });
+    }
+    if (!primaryFound) { showError('add-error', 'Отметьте одну пару как основную.'); return; }
+
+    const codes = pairs.map(p => p.language_pair_id);
+    if (new Set(codes).size !== codes.length) {
+      showError('add-error', 'Одна и та же языковая пара указана несколько раз.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-save-translator');
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const response = await fetch(CREATE_TRANSLATOR_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email, password, name, timezone, pairs })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        showError('add-error', result.error || 'Ошибка сервера.');
+        return;
+      }
+      closeAddModal();
+      await loadTranslators();
+    } catch (e) {
+      showError('add-error', 'Ошибка сети: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Сохранить';
+    }
+  }
+
+  function showError(elId, msg) {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+  function hideError(elId) {
+    document.getElementById(elId).classList.add('hidden');
+  }
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+  function pluralize(n, one, few, many) {
+    const mod10 = n % 10, mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return one;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+    return many;
+  }
+
   document.getElementById('btn-login').addEventListener('click', handleLogin);
   document.getElementById('btn-logout').addEventListener('click', handleLogout);
-
-  // Enter в полях логина = клик по "Войти"
   document.getElementById('password').addEventListener('keydown', e => {
     if (e.key === 'Enter') handleLogin();
   });
   document.getElementById('email').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('password').focus();
   });
+  document.querySelectorAll('.sb-item').forEach(b => {
+    b.addEventListener('click', () => showPage(b.dataset.page));
+  });
+  document.getElementById('add-modal').addEventListener('click', e => {
+    if (e.target.id === 'add-modal') closeAddModal();
+  });
 
-  // Запуск
   checkSession();
 </script>
-
 </body>
 </html>
