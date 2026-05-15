@@ -183,6 +183,101 @@
   .pair-remove:hover { background: #f5e3df; color: #a0392c; }
 
   .loading-state { text-align: center; color: #93938a; padding: 60px 0; font-size: 13px; }
+
+  /* ═══ KPI КАРТОЧКИ ═══ */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: white; border: 1px solid #e8e8e1; border-radius: 8px;
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%; background: #1a1a17;
+  }
+  .kpi.kpi-blue::before { background: #2c4a6b; }
+  .kpi.kpi-green::before { background: #2d6a3e; }
+  .kpi-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #93938a; margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;
+    font-family: 'Inter Tight', sans-serif;
+  }
+  .kpi-unit {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: #93938a; font-weight: 400; margin-left: 4px;
+  }
+  .kpi-meta { margin-top: 8px; font-size: 11px; color: #5c5c55; }
+
+  /* ═══ КАЛЕНДАРЬ ═══ */
+  .cal-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid #e8e8e1;
+  }
+  .cal-toolbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .cal-nav-btn {
+    padding: 6px 12px; background: white; border: 1px solid #d0d0c5;
+    border-radius: 6px; font-size: 12px; color: #5c5c55; transition: all 0.15s;
+  }
+  .cal-nav-btn:hover { border-color: #1a1a17; color: #1a1a17; }
+
+  .calendar {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; padding: 16px 20px;
+  }
+  .cal-day-name {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    text-transform: uppercase; color: #93938a; text-align: center;
+    padding: 6px 0; letter-spacing: 0.1em;
+  }
+  .cal-day {
+    aspect-ratio: 1; background: white; border: 1px solid #e8e8e1;
+    border-radius: 6px; padding: 6px 8px;
+    display: flex; flex-direction: column;
+    cursor: pointer; transition: all 0.15s;
+    position: relative; overflow: hidden;
+    min-height: 70px;
+  }
+  .cal-day:hover { border-color: #1a1a17; transform: translateY(-1px); }
+  .cal-day.empty {
+    background: transparent; border-color: transparent; cursor: default;
+  }
+  .cal-day.empty:hover { transform: none; }
+  .cal-day.today { border-color: #c9622b; border-width: 2px; }
+  .cal-day.weekend { background: #fafaf7; }
+  .cal-day.has-hours {
+    background: linear-gradient(135deg, #ffffff 0%, #e8f0e8 140%);
+    border-color: rgba(45, 106, 62, 0.25);
+  }
+  .cal-day.absent {
+    background: #e1ebf5;
+    border-color: rgba(44, 74, 107, 0.25);
+  }
+  .cal-day-num {
+    font-size: 14px; font-weight: 600; line-height: 1; letter-spacing: -0.01em;
+  }
+  .cal-day-hours {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: #2d6a3e; margin-top: auto; font-weight: 600;
+  }
+  .cal-day-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    text-transform: uppercase; color: #2c4a6b;
+    margin-top: auto; letter-spacing: 0.05em; font-weight: 500;
+  }
+
+  .cal-legend {
+    display: flex; gap: 14px; font-size: 11px;
+    color: #5c5c55; padding: 12px 20px;
+    border-top: 1px solid #e8e8e1; flex-wrap: wrap;
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -224,7 +319,8 @@
 
     <div id="nav-translator" class="sb-section hidden">
       <div class="sb-label">Моё время</div>
-      <button class="sb-item active" data-page="my-profile">Мой профиль</button>
+      <button class="sb-item active" data-page="calendar">Календарь</button>
+      <button class="sb-item" data-page="my-profile">Мой профиль</button>
     </div>
 
     <div class="sb-user">
@@ -247,6 +343,50 @@
       <div class="section">
         <div id="translators-content">
           <div class="loading-state">Загрузка…</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-calendar" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="cal-page-title">Календарь</div>
+          <div class="page-subtitle">Кликните на день, чтобы внести часы или отметить отгул</div>
+        </div>
+      </div>
+
+      <div id="cal-error" class="error hidden"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Отработано</div>
+          <div class="kpi-value" id="kpi-hours">—<span class="kpi-unit"></span></div>
+          <div class="kpi-meta" id="kpi-hours-meta">—</div>
+        </div>
+        <div class="kpi kpi-blue">
+          <div class="kpi-label">Отгулов</div>
+          <div class="kpi-value" id="kpi-absent">—<span class="kpi-unit">дней</span></div>
+          <div class="kpi-meta">не оплачивается</div>
+        </div>
+        <div class="kpi kpi-green">
+          <div class="kpi-label">К выплате</div>
+          <div class="kpi-value" id="kpi-amount">—</div>
+          <div class="kpi-meta">предварительно</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="cal-toolbar">
+          <button class="cal-nav-btn" id="cal-prev">← Назад</button>
+          <div class="cal-toolbar-title" id="cal-month-label">—</div>
+          <button class="cal-nav-btn" id="cal-next">Вперёд →</button>
+        </div>
+        <div class="calendar" id="calendar-grid"></div>
+        <div class="cal-legend">
+          <span><span class="legend-dot" style="background: #e8f0e8; border: 1px solid #2d6a3e;"></span>Отработано</span>
+          <span><span class="legend-dot" style="background: #e1ebf5; border: 1px solid #2c4a6b;"></span>Отгул</span>
+          <span><span class="legend-dot" style="background: #fafaf7; border: 1px solid #e8e8e1;"></span>Выходной</span>
+          <span><span class="legend-dot" style="background: white; border: 2px solid #c9622b;"></span>Сегодня</span>
         </div>
       </div>
     </div>
@@ -390,8 +530,9 @@
       document.getElementById('nav-translator').classList.remove('hidden');
       document.getElementById('nav-manager').classList.add('hidden');
       showScreen('app');
-      showPage('my-profile');
-      await loadMyProfile();
+      showPage('calendar');
+      await loadLanguagePairs();
+      await loadCalendar();
     }
   }
 
@@ -490,6 +631,196 @@
     }
     html += '</tbody></table>';
     content.innerHTML = html;
+  }
+
+  // ====================================================================
+  // КАЛЕНДАРЬ (для переводчика)
+  // ====================================================================
+  let calYear = new Date().getFullYear();
+  let calMonth = new Date().getMonth(); // 0-11
+
+  const MONTH_NAMES_RU = [
+    'Январь','Февраль','Март','Апрель','Май','Июнь',
+    'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'
+  ];
+  const DAY_NAMES = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+  async function loadCalendar() {
+    hideError('cal-error');
+
+    document.getElementById('cal-page-title').textContent =
+      MONTH_NAMES_RU[calMonth] + ' ' + calYear;
+    document.getElementById('cal-month-label').textContent =
+      MONTH_NAMES_RU[calMonth] + ' ' + calYear;
+
+    const periodStart = formatDate(new Date(calYear, calMonth, 1));
+    const periodEnd = formatDate(new Date(calYear, calMonth + 1, 0));
+
+    const { data: days, error } = await sb
+      .from('work_days')
+      .select(`
+        id, work_date, day_type, note,
+        work_intervals ( id, duration_minutes, language_pair_id ),
+        breaks ( id, duration_minutes )
+      `)
+      .eq('user_id', currentUser.id)
+      .gte('work_date', periodStart)
+      .lte('work_date', periodEnd);
+
+    if (error) {
+      showError('cal-error', 'Ошибка загрузки: ' + error.message);
+      return;
+    }
+
+    // Ставки переводчика для расчёта суммы
+    const { data: myPairs } = await sb
+      .from('translator_pairs')
+      .select('language_pair_id, rate_per_hour')
+      .eq('user_id', currentUser.id);
+    const rateByPair = {};
+    for (const p of (myPairs || [])) {
+      rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
+    }
+
+    const dayMap = {};
+    let totalMinutes = 0;
+    let totalAmount = 0;
+    let absentDays = 0;
+    let workingDays = 0;
+
+    for (const d of days || []) {
+      if (d.day_type === 'absent') {
+        dayMap[d.work_date] = { type: 'absent' };
+        absentDays++;
+        continue;
+      }
+      const intervalsSum = (d.work_intervals || []).reduce(
+        (s, i) => s + (i.duration_minutes || 0), 0
+      );
+      const breaksSum = (d.breaks || []).reduce(
+        (s, b) => s + (b.duration_minutes || 0), 0
+      );
+      const netMinutes = Math.max(0, intervalsSum - breaksSum);
+
+      let dayAmount = 0;
+      for (const interv of (d.work_intervals || [])) {
+        const rate = rateByPair[interv.language_pair_id] || 0;
+        dayAmount += (interv.duration_minutes / 60) * rate;
+      }
+      // Пропорциональный вычет брейков
+      if (intervalsSum > 0) {
+        dayAmount = dayAmount * (netMinutes / intervalsSum);
+      }
+
+      if (netMinutes > 0) {
+        dayMap[d.work_date] = { type: 'working', minutes: netMinutes, amount: dayAmount };
+        totalMinutes += netMinutes;
+        totalAmount += dayAmount;
+        workingDays++;
+      }
+    }
+
+    document.getElementById('kpi-hours').innerHTML =
+      formatHoursMinutes(totalMinutes) + '<span class="kpi-unit"></span>';
+    document.getElementById('kpi-hours-meta').textContent =
+      `${workingDays} ${pluralize(workingDays, 'рабочий день', 'рабочих дня', 'рабочих дней')}`;
+    document.getElementById('kpi-absent').innerHTML =
+      absentDays + '<span class="kpi-unit">' +
+      (absentDays === 0 ? 'дней' : pluralize(absentDays, 'день', 'дня', 'дней')) +
+      '</span>';
+    document.getElementById('kpi-amount').textContent = '$' + totalAmount.toFixed(2);
+
+    renderCalendar(dayMap);
+  }
+
+  function renderCalendar(dayMap) {
+    const grid = document.getElementById('calendar-grid');
+    grid.innerHTML = '';
+
+    DAY_NAMES.forEach(n => {
+      const el = document.createElement('div');
+      el.className = 'cal-day-name';
+      el.textContent = n;
+      grid.appendChild(el);
+    });
+
+    const firstDay = new Date(calYear, calMonth, 1);
+    // Сдвигаем понедельник = 0
+    let dow = firstDay.getDay() - 1;
+    if (dow < 0) dow = 6;
+
+    for (let i = 0; i < dow; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'cal-day empty';
+      grid.appendChild(empty);
+    }
+
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const todayStr = formatDate(new Date());
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const cell = document.createElement('div');
+      cell.className = 'cal-day';
+
+      const dayOfWeek = new Date(calYear, calMonth, d).getDay();
+      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+      const info = dayMap[dateStr];
+
+      if (info && info.type === 'working') cell.classList.add('has-hours');
+      else if (info && info.type === 'absent') cell.classList.add('absent');
+      else if (isWeekend) cell.classList.add('weekend');
+
+      if (dateStr === todayStr) cell.classList.add('today');
+
+      const num = document.createElement('div');
+      num.className = 'cal-day-num';
+      num.textContent = d;
+      cell.appendChild(num);
+
+      if (info && info.type === 'working') {
+        const h = document.createElement('div');
+        h.className = 'cal-day-hours';
+        h.textContent = formatHoursMinutes(info.minutes);
+        cell.appendChild(h);
+      } else if (info && info.type === 'absent') {
+        const t = document.createElement('div');
+        t.className = 'cal-day-tag';
+        t.textContent = 'Отгул';
+        cell.appendChild(t);
+      }
+
+      cell.addEventListener('click', () => onDayClick(dateStr));
+      grid.appendChild(cell);
+    }
+  }
+
+  function onDayClick(dateStr) {
+    // В этапе 3.2 здесь откроется форма ввода часов. Пока — заглушка.
+    alert(
+      'Дата: ' + dateStr + '\n\n' +
+      'Форма ввода рабочего дня появится в следующем этапе (3.2).'
+    );
+  }
+
+  function changeMonth(delta) {
+    calMonth += delta;
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    loadCalendar();
+  }
+
+  function formatDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function formatHoursMinutes(totalMinutes) {
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return `${h}ч ${String(m).padStart(2, '0')}м`;
   }
 
   async function loadMyProfile() {
@@ -662,11 +993,21 @@
     if (e.key === 'Enter') document.getElementById('password').focus();
   });
   document.querySelectorAll('.sb-item').forEach(b => {
-    b.addEventListener('click', () => showPage(b.dataset.page));
+    b.addEventListener('click', async () => {
+      const page = b.dataset.page;
+      showPage(page);
+      // подгружаем данные нужной страницы
+      if (page === 'translators') await loadTranslators();
+      else if (page === 'my-profile') await loadMyProfile();
+      else if (page === 'calendar') await loadCalendar();
+    });
   });
   document.getElementById('add-modal').addEventListener('click', e => {
     if (e.target.id === 'add-modal') closeAddModal();
   });
+
+  document.getElementById('cal-prev').addEventListener('click', () => changeMonth(-1));
+  document.getElementById('cal-next').addEventListener('click', () => changeMonth(1));
 
   checkSession();
 </script>
