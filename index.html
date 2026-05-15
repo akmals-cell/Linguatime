@@ -577,6 +577,12 @@
         </div>
         <div class="payroll-toolbar">
           <select class="payroll-month-select" id="payroll-month-select"></select>
+          <button id="btn-export-excel" class="btn btn-ghost hidden" onclick="exportPayrollExcel()">
+            📊 Excel
+          </button>
+          <button id="btn-export-pdf" class="btn btn-ghost hidden" onclick="exportPayrollPDF()">
+            📄 PDF
+          </button>
           <button id="btn-close-period" class="btn hidden" onclick="closePeriod()">Закрыть период</button>
           <button id="btn-reopen-period" class="btn btn-ghost hidden" onclick="reopenPeriod()">Открыть период</button>
         </div>
@@ -836,6 +842,9 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js"></script>
 <script>
   const SUPABASE_URL = 'https://srpiqxfeosusayqqfvrq.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNycGlxeGZlb3N1c2F5cXFmdnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjAzMTQsImV4cCI6MjA5NDM5NjMxNH0.PyOLqLn93h7I0_VYL-vE9O8VTEgdyDmS7UWxSAKA3Ss';
@@ -1066,6 +1075,7 @@
   let payrollMonth = new Date().getMonth();
   let currentPeriod = null; // запись из payroll_periods
   let currentPeriodEntries = []; // payroll_entries для закрытого периода
+  let currentPayrollRows = []; // {user, totalMinutes, totalAmount, breakdown} — для экспорта
 
   function payrollMonthLabel(y, m) {
     return MONTH_NAMES_RU[m] + ' ' + y;
@@ -1338,10 +1348,15 @@
     document.getElementById('payroll-kpi-hours').textContent = '0ч 00м';
     document.getElementById('payroll-kpi-amount').textContent = '$0.00';
     updateCloseButtonVisibility(false);
+    document.getElementById('btn-export-excel').classList.add('hidden');
+    document.getElementById('btn-export-pdf').classList.add('hidden');
+    currentPayrollRows = [];
   }
 
   function renderPayrollTable(rows) {
     const content = document.getElementById('payroll-content');
+    currentPayrollRows = rows; // сохраняем для экспорта
+
     if (rows.length === 0) {
       renderPayrollEmpty('Никто не работал в этом месяце.');
       return;
@@ -1349,6 +1364,9 @@
 
     // Кнопка «Закрыть период» — показать только если есть данные и период не закрыт
     updateCloseButtonVisibility(true);
+    // Кнопки экспорта — показать когда есть данные
+    document.getElementById('btn-export-excel').classList.remove('hidden');
+    document.getElementById('btn-export-pdf').classList.remove('hidden');
 
     // KPI
     const totalAmount = rows.reduce((s, r) => s + r.totalAmount, 0);
@@ -1525,6 +1543,214 @@
     } finally {
       btn.disabled = false; btn.textContent = 'Закрыть период';
     }
+  }
+
+  // ──── Экспорт ведомости ────────────────────────────────────────────────
+
+  // Excel-файл с двумя листами:
+  //   - "Сводка" — компактная ведомость
+  //   - "Разбивка" — детально по парам
+  function exportPayrollExcel() {
+    if (currentPayrollRows.length === 0) {
+      alert('Нет данных для экспорта.');
+      return;
+    }
+    const monthLabel = payrollMonthLabel(payrollYear, payrollMonth);
+    const isClosed = currentPeriod && currentPeriod.status === 'closed';
+    const closedNote = isClosed
+      ? `Период закрыт ${new Date(currentPeriod.closed_at).toLocaleDateString('ru-RU')}`
+      : 'Период открыт (предварительный расчёт)';
+
+    // ─── Лист 1: Сводка ────────────────────────────────────────────────
+    const summaryData = [
+      ['Ведомость зарплаты переводчиков'],
+      [monthLabel],
+      [closedNote],
+      [`Сформирован: ${new Date().toLocaleString('ru-RU')}`],
+      [],
+      ['№', 'Переводчик', 'Email', 'Часы', 'К выплате ($)'],
+    ];
+    let totalMinutes = 0;
+    let totalAmount = 0;
+    currentPayrollRows.forEach((r, i) => {
+      summaryData.push([
+        i + 1,
+        r.user.name || '—',
+        r.user.email || '',
+        Number((r.totalMinutes / 60).toFixed(2)),
+        Number(r.totalAmount.toFixed(2)),
+      ]);
+      totalMinutes += r.totalMinutes;
+      totalAmount += r.totalAmount;
+    });
+    summaryData.push([]);
+    summaryData.push(['', 'ИТОГО:', '', Number((totalMinutes / 60).toFixed(2)), Number(totalAmount.toFixed(2))]);
+
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+    wsSummary['!cols'] = [
+      { wch: 4 },   // №
+      { wch: 28 },  // имя
+      { wch: 26 },  // email
+      { wch: 10 },  // часы
+      { wch: 14 },  // сумма
+    ];
+    // Объединим заголовок
+    wsSummary['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 4 } },
+    ];
+
+    // ─── Лист 2: Разбивка по парам ─────────────────────────────────────
+    const breakdownData = [
+      ['Разбивка по языковым парам'],
+      [monthLabel],
+      [],
+      ['Переводчик', 'Email', 'Языковая пара', 'Часы', 'Ставка ($/ч)', 'Сумма ($)'],
+    ];
+    let detailTotalMinutes = 0;
+    let detailTotalAmount = 0;
+    for (const r of currentPayrollRows) {
+      const pairs = Object.entries(r.breakdown).sort();
+      pairs.forEach(([code, b], idx) => {
+        breakdownData.push([
+          idx === 0 ? r.user.name : '',
+          idx === 0 ? r.user.email : '',
+          code,
+          Number((b.minutes / 60).toFixed(2)),
+          Number(b.rate.toFixed(2)),
+          Number(b.amount.toFixed(2)),
+        ]);
+        detailTotalMinutes += b.minutes;
+        detailTotalAmount += b.amount;
+      });
+    }
+    breakdownData.push([]);
+    breakdownData.push(['', '', 'ИТОГО:',
+      Number((detailTotalMinutes / 60).toFixed(2)),
+      '',
+      Number(detailTotalAmount.toFixed(2))
+    ]);
+
+    const wsBreakdown = XLSX.utils.aoa_to_sheet(breakdownData);
+    wsBreakdown['!cols'] = [
+      { wch: 28 }, { wch: 26 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 14 }
+    ];
+    wsBreakdown['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+    ];
+
+    // ─── Собираем книгу и сохраняем ─────────────────────────────────────
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'Сводка');
+    XLSX.utils.book_append_sheet(wb, wsBreakdown, 'Разбивка');
+
+    const fname = `LinguaTime_${payrollLabel(payrollYear, payrollMonth)}.xlsx`;
+    XLSX.writeFile(wb, fname);
+  }
+
+  // PDF-ведомость: одна страница с таблицей и итогом
+  function exportPayrollPDF() {
+    if (currentPayrollRows.length === 0) {
+      alert('Нет данных для экспорта.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const monthLabel = payrollMonthLabel(payrollYear, payrollMonth);
+    const isClosed = currentPeriod && currentPeriod.status === 'closed';
+    const closedNote = isClosed
+      ? `Period closed: ${new Date(currentPeriod.closed_at).toLocaleDateString('ru-RU')}`
+      : 'Preliminary calculation (open period)';
+    const generated = `Generated: ${new Date().toLocaleString('ru-RU')}`;
+
+    // ВАЖНО: стандартный шрифт jsPDF не поддерживает кириллицу.
+    // Используем транслитерацию для надёжности на любых системах.
+    const titleEN = 'Payroll Report — Translators';
+    const monthEN = transliterate(monthLabel);
+
+    // Заголовок
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(titleEN, 14, 18);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(monthEN, 14, 26);
+
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text(closedNote, 14, 32);
+    doc.text(generated, 14, 37);
+    doc.setTextColor(0);
+
+    // Таблица сводки
+    let totalMinutes = 0;
+    let totalAmount = 0;
+    const body = currentPayrollRows.map((r, i) => {
+      totalMinutes += r.totalMinutes;
+      totalAmount += r.totalAmount;
+      return [
+        i + 1,
+        transliterate(r.user.name || '—'),
+        r.user.email || '',
+        formatHoursMinutes(r.totalMinutes),
+        '$' + r.totalAmount.toFixed(2),
+      ];
+    });
+
+    doc.autoTable({
+      startY: 44,
+      head: [['#', 'Translator', 'Email', 'Hours', 'Amount']],
+      body,
+      foot: [['', transliterate('ИТОГО:'), '',
+        formatHoursMinutes(totalMinutes),
+        '$' + totalAmount.toFixed(2)
+      ]],
+      theme: 'grid',
+      headStyles: { fillColor: [26, 26, 23], textColor: 255, fontStyle: 'bold' },
+      footStyles: { fillColor: [26, 26, 23], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+      },
+    });
+
+    // Подпись/футер
+    const finalY = doc.lastAutoTable.finalY + 16;
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text(`Translators count: ${currentPayrollRows.length}`, 14, finalY);
+    doc.text(`Total hours: ${formatHoursMinutes(totalMinutes)}`, 14, finalY + 5);
+    doc.text(`Total payout: $${totalAmount.toFixed(2)}`, 14, finalY + 10);
+
+    doc.setFontSize(8);
+    doc.setTextColor(160);
+    doc.text('LinguaTime CRM', 14, 286);
+    doc.text(`Page 1 of 1`, 195, 286, { align: 'right' });
+
+    const fname = `LinguaTime_${payrollLabel(payrollYear, payrollMonth)}.pdf`;
+    doc.save(fname);
+  }
+
+  // Транслитерация русского текста в латиницу (для совместимости со стандартным шрифтом jsPDF)
+  function transliterate(text) {
+    const map = {
+      'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z',
+      'и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+      'с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sch',
+      'ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+      'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Ё':'Yo','Ж':'Zh','З':'Z',
+      'И':'I','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R',
+      'С':'S','Т':'T','У':'U','Ф':'F','Х':'Kh','Ц':'Ts','Ч':'Ch','Ш':'Sh','Щ':'Sch',
+      'Ъ':'','Ы':'Y','Ь':'','Э':'E','Ю':'Yu','Я':'Ya'
+    };
+    return String(text || '').split('').map(c => map[c] !== undefined ? map[c] : c).join('');
   }
 
   async function reopenPeriod() {
