@@ -339,6 +339,20 @@
   .modal-hint {
     font-size: 11px; color: #93938a; padding: 8px 0;
   }
+
+  /* ═══ ВАЛИДАЦИЯ ═══ */
+  .interval-row.invalid {
+    background: #f5e3df !important;
+    border-color: #a0392c !important;
+  }
+  .validation-warnings {
+    background: #f9f1dc; border-left: 3px solid #b8861f;
+    padding: 8px 12px; border-radius: 6px; margin-top: 8px;
+    font-size: 12px; color: #8a6515;
+  }
+  .validation-warnings ul { margin: 0; padding-left: 18px; }
+  .validation-warnings li { margin: 2px 0; }
+  .validation-warnings.hidden { display: none !important; }
 </style>
 </head>
 <body>
@@ -579,6 +593,12 @@
             <div class="day-summary-label">Чистое время</div>
             <div class="day-summary-value green" id="sum-net">0ч 00м</div>
           </div>
+        </div>
+
+        <!-- Предупреждения валидации -->
+        <div id="day-warnings" class="validation-warnings hidden">
+          <strong>Проверьте:</strong>
+          <ul id="day-warnings-list"></ul>
         </div>
       </div>
 
@@ -981,6 +1001,7 @@
     document.getElementById('intervals-list').innerHTML = '';
     document.getElementById('breaks-list').innerHTML = '';
     document.getElementById('btn-delete-day').classList.add('hidden');
+    document.getElementById('day-warnings').classList.add('hidden');
     hideError('day-error');
     setDayType('working');
 
@@ -1036,6 +1057,13 @@
     document.getElementById('chip-absent').classList.toggle('active', type === 'absent');
     document.getElementById('working-content').classList.toggle('hidden', type !== 'working');
     document.getElementById('absent-content').classList.toggle('hidden', type !== 'absent');
+    // При выборе "Отгул" — скрываем предупреждения и ошибки
+    if (type === 'absent') {
+      document.getElementById('day-warnings').classList.add('hidden');
+      hideError('day-error');
+    } else {
+      updateDaySummary();
+    }
   }
 
   function addIntervalRow(prefill = null) {
@@ -1094,6 +1122,134 @@
     updateDaySummary();
   }
 
+  // ─── ВАЛИДАЦИЯ ─────────────────────────────────────────────────────────
+  // Возвращает все нарушения, найденные в текущей форме.
+  // Также подсвечивает проблемные строки CSS-классом 'invalid'.
+  function validateDayForm() {
+    const warnings = [];
+    const invalidRows = new Set();
+
+    // Сбрасываем подсветку
+    document.querySelectorAll('#intervals-list .interval-row, #breaks-list .interval-row')
+      .forEach(r => r.classList.remove('invalid'));
+
+    if (currentDayType !== 'working') return { warnings, invalidRows };
+
+    // Собираем интервалы и брейки в виде [start, end] минут от начала currentDayDate
+    // (с учётом перехода через полночь — конец может быть > 24h)
+    const intervals = []; // { rowId, start, end, idx, langId }
+    const breaks = [];    // { rowId, start, end, idx }
+
+    const intervalRows = document.querySelectorAll('#intervals-list .interval-row');
+    intervalRows.forEach((row, idx) => {
+      const s = row.querySelector('.iv-start').value;
+      const e = row.querySelector('.iv-end').value;
+      const langId = row.querySelector('.iv-pair').value;
+      if (!s || !e) {
+        warnings.push(`Интервал #${idx + 1}: укажите время начала и окончания.`);
+        invalidRows.add(row.id);
+        return;
+      }
+      if (!langId) {
+        warnings.push(`Интервал #${idx + 1}: выберите языковую пару.`);
+        invalidRows.add(row.id);
+        return;
+      }
+      const startMin = hmToMinutes(s);
+      let endMin = hmToMinutes(e);
+      if (endMin <= startMin) endMin += 24 * 60;
+      if (endMin - startMin <= 0) {
+        warnings.push(`Интервал #${idx + 1}: время окончания должно быть позже начала.`);
+        invalidRows.add(row.id);
+        return;
+      }
+      intervals.push({ rowId: row.id, start: startMin, end: endMin, idx: idx + 1, langId });
+    });
+
+    const breakRows = document.querySelectorAll('#breaks-list .interval-row');
+    breakRows.forEach((row, idx) => {
+      const s = row.querySelector('.br-start').value;
+      const e = row.querySelector('.br-end').value;
+      if (!s || !e) {
+        warnings.push(`Брейк #${idx + 1}: укажите время начала и окончания.`);
+        invalidRows.add(row.id);
+        return;
+      }
+      const startMin = hmToMinutes(s);
+      let endMin = hmToMinutes(e);
+      if (endMin <= startMin) endMin += 24 * 60;
+      if (endMin - startMin <= 0) {
+        warnings.push(`Брейк #${idx + 1}: время окончания должно быть позже начала.`);
+        invalidRows.add(row.id);
+        return;
+      }
+      breaks.push({ rowId: row.id, start: startMin, end: endMin, idx: idx + 1 });
+    });
+
+    // ── Пересечения интервалов между собой ──────────────────────────────
+    for (let i = 0; i < intervals.length; i++) {
+      for (let j = i + 1; j < intervals.length; j++) {
+        const a = intervals[i], b = intervals[j];
+        if (overlaps(a.start, a.end, b.start, b.end)) {
+          warnings.push(`Интервалы #${a.idx} и #${b.idx} пересекаются по времени.`);
+          invalidRows.add(a.rowId);
+          invalidRows.add(b.rowId);
+        }
+      }
+    }
+
+    // ── Пересечения брейков между собой ─────────────────────────────────
+    for (let i = 0; i < breaks.length; i++) {
+      for (let j = i + 1; j < breaks.length; j++) {
+        const a = breaks[i], b = breaks[j];
+        if (overlaps(a.start, a.end, b.start, b.end)) {
+          warnings.push(`Брейки #${a.idx} и #${b.idx} пересекаются по времени.`);
+          invalidRows.add(a.rowId);
+          invalidRows.add(b.rowId);
+        }
+      }
+    }
+
+    // ── Каждый брейк должен быть ВНУТРИ хотя бы одного интервала ────────
+    for (const br of breaks) {
+      const isInside = intervals.some(iv => iv.start <= br.start && br.end <= iv.end);
+      if (!isInside && intervals.length > 0) {
+        warnings.push(`Брейк #${br.idx} находится вне рабочих интервалов.`);
+        invalidRows.add(br.rowId);
+      }
+    }
+
+    // Применяем подсветку
+    invalidRows.forEach(rowId => {
+      const el = document.getElementById(rowId);
+      if (el) el.classList.add('invalid');
+    });
+
+    return { warnings, invalidRows };
+  }
+
+  // Пересечение интервалов [a1, a2] и [b1, b2] (с открытыми границами)
+  function overlaps(a1, a2, b1, b2) {
+    return a1 < b2 && b1 < a2;
+  }
+
+  function hmToMinutes(hm) {
+    const [h, m] = hm.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function renderWarnings(warnings) {
+    const block = document.getElementById('day-warnings');
+    const list = document.getElementById('day-warnings-list');
+    if (warnings.length === 0) {
+      block.classList.add('hidden');
+      list.innerHTML = '';
+      return;
+    }
+    list.innerHTML = warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('');
+    block.classList.remove('hidden');
+  }
+
   function updateDaySummary() {
     let grossMin = 0, breaksMin = 0;
     document.querySelectorAll('#intervals-list .interval-row').forEach(row => {
@@ -1112,6 +1268,10 @@
     document.getElementById('sum-gross').textContent = formatHoursMinutes(grossMin);
     document.getElementById('sum-breaks').textContent = '−' + formatHoursMinutes(breaksMin);
     document.getElementById('sum-net').textContent = formatHoursMinutes(netMin);
+
+    // Запускаем валидацию и показываем предупреждения
+    const { warnings } = validateDayForm();
+    renderWarnings(warnings);
   }
 
   function minutesBetween(startHM, endHM) {
@@ -1127,6 +1287,17 @@
   async function saveDay() {
     hideError('day-error');
     const btn = document.getElementById('btn-save-day');
+
+    // Запускаем валидацию для рабочего дня
+    if (currentDayType === 'working') {
+      const { warnings } = validateDayForm();
+      if (warnings.length > 0) {
+        showError('day-error', 'Исправьте ошибки перед сохранением: ' + warnings.length + ' замечание(й) ниже.');
+        renderWarnings(warnings);
+        return;
+      }
+    }
+
     btn.disabled = true; btn.textContent = 'Сохранение…';
     try {
       if (currentDayType === 'absent') {
