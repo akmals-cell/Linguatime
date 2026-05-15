@@ -353,6 +353,55 @@
   .validation-warnings ul { margin: 0; padding-left: 18px; }
   .validation-warnings li { margin: 2px 0; }
   .validation-warnings.hidden { display: none !important; }
+
+  /* ═══ ДЕТАЛИ ПЕРЕВОДЧИКА (для менеджера) ═══ */
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 0; font-size: 12px; color: #5c5c55;
+    background: transparent; margin-bottom: 8px;
+  }
+  .back-link:hover { color: #1a1a17; }
+
+  .emp-detail-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 4px;
+  }
+  .emp-detail-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: #1a1a17; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 600;
+  }
+  .emp-detail-name { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .emp-detail-email {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; color: #93938a;
+  }
+  .emp-detail-pairs {
+    display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;
+  }
+
+  /* read-only день */
+  .day-readonly-section {
+    margin-bottom: 18px;
+  }
+  .day-readonly-title {
+    font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #1a1a17;
+  }
+  .day-readonly-item {
+    display: grid; grid-template-columns: auto 1fr auto;
+    gap: 12px; align-items: center;
+    padding: 10px 14px; background: #fafaf7;
+    border: 1px solid #e8e8e1; border-radius: 6px; margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  }
+  .day-readonly-item.break-item { background: #f9f1dc; border-color: rgba(184, 134, 31, 0.2); }
+  .day-readonly-time { font-weight: 600; color: #1a1a17; }
+  .day-readonly-meta { font-family: 'Inter Tight', sans-serif; font-size: 12px; color: #5c5c55; }
+  .day-readonly-dur { font-weight: 500; color: #93938a; font-size: 12px; }
+  .day-readonly-empty {
+    padding: 16px; text-align: center; color: #93938a;
+    font-size: 13px; background: #fafaf7; border-radius: 6px;
+  }
 </style>
 </head>
 <body>
@@ -462,6 +511,57 @@
           <span><span class="legend-dot" style="background: #e1ebf5; border: 1px solid #2c4a6b;"></span>Отгул</span>
           <span><span class="legend-dot" style="background: #fafaf7; border: 1px solid #e8e8e1;"></span>Выходной</span>
           <span><span class="legend-dot" style="background: white; border: 2px solid #c9622b;"></span>Сегодня</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-translator-detail" class="page hidden">
+      <button class="back-link" onclick="backToTranslators()">← Назад к списку</button>
+      <div class="page-header" style="align-items: flex-start;">
+        <div class="emp-detail-header">
+          <div class="emp-detail-avatar" id="td-avatar">??</div>
+          <div>
+            <div class="emp-detail-name" id="td-name">—</div>
+            <div class="emp-detail-email" id="td-email">—</div>
+            <div class="emp-detail-pairs" id="td-pairs"></div>
+          </div>
+        </div>
+        <div>
+          <select class="select" id="td-month-select" style="width: auto;"></select>
+        </div>
+      </div>
+
+      <div id="td-error" class="error hidden"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-label">Отработано</div>
+          <div class="kpi-value" id="td-hours">—</div>
+          <div class="kpi-meta" id="td-hours-meta">—</div>
+        </div>
+        <div class="kpi kpi-blue">
+          <div class="kpi-label">Отгулов</div>
+          <div class="kpi-value" id="td-absent">—<span class="kpi-unit">дней</span></div>
+          <div class="kpi-meta">не оплачивается</div>
+        </div>
+        <div class="kpi kpi-green">
+          <div class="kpi-label">К выплате</div>
+          <div class="kpi-value" id="td-amount">—</div>
+          <div class="kpi-meta">предварительно</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="cal-toolbar">
+          <button class="cal-nav-btn" id="td-cal-prev">← Назад</button>
+          <div class="cal-toolbar-title" id="td-cal-month-label">—</div>
+          <button class="cal-nav-btn" id="td-cal-next">Вперёд →</button>
+        </div>
+        <div class="calendar" id="td-calendar-grid"></div>
+        <div class="cal-legend">
+          <span><span class="legend-dot" style="background: #e8f0e8; border: 1px solid #2d6a3e;"></span>Отработано</span>
+          <span><span class="legend-dot" style="background: #e1ebf5; border: 1px solid #2c4a6b;"></span>Отгул</span>
+          <span><span class="legend-dot" style="background: #fafaf7; border: 1px solid #e8e8e1;"></span>Выходной</span>
         </div>
       </div>
     </div>
@@ -618,6 +718,24 @@
   </div>
 </div>
 
+<div id="day-view-modal" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="day-view-title">—</div>
+        <div style="font-size: 12px; color: #93938a; margin-top: 2px;" id="day-view-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeDayViewModal()">×</button>
+    </div>
+    <div class="modal-body" id="day-view-body">
+      <div class="loading-state">Загрузка…</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDayViewModal()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const SUPABASE_URL = 'https://srpiqxfeosusayqqfvrq.supabase.co';
@@ -748,9 +866,58 @@
     }
 
     let html = `<table><thead><tr>
-      <th>Переводчик</th><th>Языковые пары и ставки</th>
-      <th>Часовой пояс</th><th>Статус</th><th>Создан</th>
+      <th>Переводчик</th><th>Языковые пары</th>
+      <th class="numeric">Часов в этом мес.</th>
+      <th class="numeric">К выплате</th>
+      <th>Статус</th>
+      <th></th>
     </tr></thead><tbody>`;
+
+    // Получим часы каждого переводчика за текущий месяц одним запросом
+    const monthStart = formatDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    const monthEnd = formatDate(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0));
+    const userIds = data.map(u => u.id);
+    let daysData = [];
+    if (userIds.length > 0) {
+      const { data: monthDays } = await sb
+        .from('work_days')
+        .select(`
+          user_id, work_date, day_type,
+          work_intervals ( language_pair_id, duration_minutes ),
+          breaks ( duration_minutes )
+        `)
+        .in('user_id', userIds)
+        .gte('work_date', monthStart)
+        .lte('work_date', monthEnd);
+      daysData = monthDays || [];
+    }
+
+    // Считаем для каждого переводчика
+    const statsByUser = {}; // user_id -> { minutes, amount }
+    for (const u of data) statsByUser[u.id] = { minutes: 0, amount: 0 };
+
+    for (const d of daysData) {
+      if (d.day_type !== 'working') continue;
+      const user = data.find(u => u.id === d.user_id);
+      if (!user) continue;
+      const rateByPair = {};
+      for (const p of (user.translator_pairs || [])) {
+        rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
+      }
+      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
+      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
+      const netMin = Math.max(0, intervalsSum - breaksSum);
+
+      let dayAmount = 0;
+      for (const interv of (d.work_intervals || [])) {
+        const rate = rateByPair[interv.language_pair_id] || 0;
+        dayAmount += (interv.duration_minutes / 60) * rate;
+      }
+      if (intervalsSum > 0) dayAmount = dayAmount * (netMin / intervalsSum);
+
+      statsByUser[d.user_id].minutes += netMin;
+      statsByUser[d.user_id].amount += dayAmount;
+    }
 
     for (const u of data) {
       const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
@@ -766,22 +933,350 @@
       const statusBadge = u.is_active
         ? '<span class="badge badge-good">● Активен</span>'
         : '<span class="badge badge-warn">● Неактивен</span>';
-      const created = new Date(u.created_at).toLocaleDateString('ru-RU');
 
-      html += `<tr>
+      const stats = statsByUser[u.id];
+      const hoursDisplay = stats.minutes > 0
+        ? formatHoursMinutes(stats.minutes)
+        : '<span style="color:#93938a;">—</span>';
+      const amountDisplay = stats.amount > 0
+        ? '$' + stats.amount.toFixed(2)
+        : '<span style="color:#93938a;">—</span>';
+
+      html += `<tr style="cursor:pointer;" data-user-id="${u.id}" onclick="openTranslatorDetail('${u.id}')">
         <td><div class="emp-cell">
           <div class="emp-avatar">${initials}</div>
           <div><div class="emp-name">${escapeHtml(u.name)}</div>
                <div class="emp-email">${escapeHtml(u.email)}</div></div>
         </div></td>
         <td><div class="pair-list">${pairsHtml}</div></td>
-        <td><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">${u.timezone}</span></td>
+        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${hoursDisplay}</td>
+        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #2d6a3e;">${amountDisplay}</td>
         <td>${statusBadge}</td>
-        <td style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5c5c55;">${created}</td>
+        <td style="text-align: right;"><span style="color:#93938a; font-size: 11px;">Открыть →</span></td>
       </tr>`;
     }
     html += '</tbody></table>';
     content.innerHTML = html;
+  }
+
+  // ====================================================================
+  // СТРАНИЦА: ДЕТАЛИ ПЕРЕВОДЧИКА (для менеджера)
+  // ====================================================================
+  let tdUser = null;          // объект переводчика
+  let tdCalYear = new Date().getFullYear();
+  let tdCalMonth = new Date().getMonth();
+  let tdRateByPair = {};      // language_pair_id -> rate
+  let tdMyPairs = [];         // массив для отображения
+
+  function backToTranslators() {
+    showPage('translators');
+    loadTranslators();
+  }
+
+  async function openTranslatorDetail(userId) {
+    // Загружаем профиль и его пары
+    const { data: user, error } = await sb
+      .from('users')
+      .select(`
+        id, email, name, timezone, is_active, created_at,
+        translator_pairs ( language_pair_id, rate_per_hour, is_primary, language_pairs (code, display_name) )
+      `)
+      .eq('id', userId)
+      .single();
+
+    if (error || !user) {
+      alert('Не удалось загрузить переводчика: ' + (error?.message || ''));
+      return;
+    }
+
+    tdUser = user;
+    tdRateByPair = {};
+    tdMyPairs = (user.translator_pairs || []).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
+    for (const p of tdMyPairs) {
+      tdRateByPair[p.language_pair_id] = Number(p.rate_per_hour);
+    }
+
+    // Текущий месяц по умолчанию
+    tdCalYear = new Date().getFullYear();
+    tdCalMonth = new Date().getMonth();
+
+    // Заполняем шапку
+    const initials = (user.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+    document.getElementById('td-avatar').textContent = initials;
+    document.getElementById('td-name').textContent = user.name;
+    document.getElementById('td-email').textContent = user.email;
+    document.getElementById('td-pairs').innerHTML = tdMyPairs.map(p =>
+      `<span class="badge badge-neutral">${p.language_pairs.code} · $${Number(p.rate_per_hour).toFixed(2)}/ч</span>`
+    ).join('');
+
+    // Заполняем селектор месяцев (последние 12 месяцев + текущий)
+    fillMonthSelector();
+
+    showPage('translator-detail');
+    await loadTranslatorDetailMonth();
+  }
+
+  function fillMonthSelector() {
+    const sel = document.getElementById('td-month-select');
+    sel.innerHTML = '';
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${d.getMonth()}`;
+      const label = MONTH_NAMES_RU[d.getMonth()] + ' ' + d.getFullYear();
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    }
+    sel.value = `${tdCalYear}-${tdCalMonth}`;
+    sel.onchange = () => {
+      const [y, m] = sel.value.split('-').map(Number);
+      tdCalYear = y; tdCalMonth = m;
+      loadTranslatorDetailMonth();
+    };
+  }
+
+  async function loadTranslatorDetailMonth() {
+    hideError('td-error');
+
+    document.getElementById('td-cal-month-label').textContent =
+      MONTH_NAMES_RU[tdCalMonth] + ' ' + tdCalYear;
+
+    const periodStart = formatDate(new Date(tdCalYear, tdCalMonth, 1));
+    const periodEnd = formatDate(new Date(tdCalYear, tdCalMonth + 1, 0));
+
+    const { data: days, error } = await sb
+      .from('work_days')
+      .select(`
+        id, work_date, day_type,
+        work_intervals ( id, duration_minutes, language_pair_id ),
+        breaks ( id, duration_minutes )
+      `)
+      .eq('user_id', tdUser.id)
+      .gte('work_date', periodStart)
+      .lte('work_date', periodEnd);
+
+    if (error) {
+      showError('td-error', 'Ошибка загрузки: ' + error.message);
+      return;
+    }
+
+    const dayMap = {};
+    let totalMinutes = 0, totalAmount = 0, absentDays = 0, workingDays = 0;
+    for (const d of days || []) {
+      if (d.day_type === 'absent') {
+        dayMap[d.work_date] = { type: 'absent' };
+        absentDays++;
+        continue;
+      }
+      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
+      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
+      const netMin = Math.max(0, intervalsSum - breaksSum);
+      let dayAmount = 0;
+      for (const interv of (d.work_intervals || [])) {
+        const rate = tdRateByPair[interv.language_pair_id] || 0;
+        dayAmount += (interv.duration_minutes / 60) * rate;
+      }
+      if (intervalsSum > 0) dayAmount = dayAmount * (netMin / intervalsSum);
+      if (netMin > 0) {
+        dayMap[d.work_date] = { type: 'working', minutes: netMin, amount: dayAmount };
+        totalMinutes += netMin;
+        totalAmount += dayAmount;
+        workingDays++;
+      }
+    }
+
+    document.getElementById('td-hours').textContent = formatHoursMinutes(totalMinutes);
+    document.getElementById('td-hours-meta').textContent =
+      `${workingDays} ${pluralize(workingDays, 'рабочий день', 'рабочих дня', 'рабочих дней')}`;
+    document.getElementById('td-absent').innerHTML =
+      absentDays + '<span class="kpi-unit">' +
+      (absentDays === 0 ? 'дней' : pluralize(absentDays, 'день', 'дня', 'дней')) +
+      '</span>';
+    document.getElementById('td-amount').textContent = '$' + totalAmount.toFixed(2);
+
+    renderTdCalendar(dayMap);
+  }
+
+  function renderTdCalendar(dayMap) {
+    const grid = document.getElementById('td-calendar-grid');
+    grid.innerHTML = '';
+    DAY_NAMES.forEach(n => {
+      const el = document.createElement('div');
+      el.className = 'cal-day-name';
+      el.textContent = n;
+      grid.appendChild(el);
+    });
+    const firstDay = new Date(tdCalYear, tdCalMonth, 1);
+    let dow = firstDay.getDay() - 1;
+    if (dow < 0) dow = 6;
+    for (let i = 0; i < dow; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'cal-day empty';
+      grid.appendChild(empty);
+    }
+    const daysInMonth = new Date(tdCalYear, tdCalMonth + 1, 0).getDate();
+    const todayStr = formatDate(new Date());
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${tdCalYear}-${String(tdCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const cell = document.createElement('div');
+      cell.className = 'cal-day';
+      const dayOfWeek = new Date(tdCalYear, tdCalMonth, d).getDay();
+      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+      const info = dayMap[dateStr];
+      if (info && info.type === 'working') cell.classList.add('has-hours');
+      else if (info && info.type === 'absent') cell.classList.add('absent');
+      else if (isWeekend) cell.classList.add('weekend');
+      if (dateStr === todayStr) cell.classList.add('today');
+
+      const num = document.createElement('div');
+      num.className = 'cal-day-num';
+      num.textContent = d;
+      cell.appendChild(num);
+
+      if (info && info.type === 'working') {
+        const h = document.createElement('div');
+        h.className = 'cal-day-hours';
+        h.textContent = formatHoursMinutes(info.minutes);
+        cell.appendChild(h);
+      } else if (info && info.type === 'absent') {
+        const t = document.createElement('div');
+        t.className = 'cal-day-tag';
+        t.textContent = 'Отгул';
+        cell.appendChild(t);
+      }
+
+      // Клик на день — открыть read-only просмотр (только если что-то записано)
+      if (info) {
+        cell.addEventListener('click', () => openDayViewModal(dateStr));
+      } else {
+        cell.style.cursor = 'default';
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  function changeTdMonth(delta) {
+    tdCalMonth += delta;
+    if (tdCalMonth < 0) { tdCalMonth = 11; tdCalYear--; }
+    if (tdCalMonth > 11) { tdCalMonth = 0; tdCalYear++; }
+    const sel = document.getElementById('td-month-select');
+    sel.value = `${tdCalYear}-${tdCalMonth}`;
+    loadTranslatorDetailMonth();
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // Read-only просмотр дня (для менеджера)
+  // ────────────────────────────────────────────────────────────────
+  async function openDayViewModal(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00');
+    const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
+    const monthName = MONTH_NAMES_RU[date.getMonth()];
+    document.getElementById('day-view-title').textContent =
+      `${date.getDate()} ${monthName.toLowerCase()} · ${tdUser.name}`;
+    document.getElementById('day-view-subtitle').textContent = dayName;
+
+    const body = document.getElementById('day-view-body');
+    body.innerHTML = '<div class="loading-state">Загрузка…</div>';
+
+    document.getElementById('day-view-modal').classList.add('open');
+
+    const { data: day, error } = await sb
+      .from('work_days')
+      .select(`
+        id, day_type, note,
+        work_intervals ( id, language_pair_id, start_at, end_at, duration_minutes,
+                         language_pairs (code) ),
+        breaks ( id, start_at, end_at, duration_minutes, note )
+      `)
+      .eq('user_id', tdUser.id)
+      .eq('work_date', dateStr)
+      .maybeSingle();
+
+    if (error || !day) {
+      body.innerHTML = '<div class="day-readonly-empty">Запись не найдена.</div>';
+      return;
+    }
+
+    if (day.day_type === 'absent') {
+      body.innerHTML = `
+        <div style="padding: 24px; text-align: center; color: #2c4a6b; background: #e1ebf5; border-radius: 8px;">
+          <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Отгул</div>
+          <div style="font-size: 12px;">Этот день отмечен как отгул. Оплата не начисляется.</div>
+        </div>
+      `;
+      return;
+    }
+
+    // Рабочий день
+    const intervals = (day.work_intervals || []).sort((a, b) => a.start_at.localeCompare(b.start_at));
+    const breaks = (day.breaks || []).sort((a, b) => a.start_at.localeCompare(b.start_at));
+
+    const grossMin = intervals.reduce((s, i) => s + (i.duration_minutes || 0), 0);
+    const breaksMin = breaks.reduce((s, b) => s + (b.duration_minutes || 0), 0);
+    const netMin = Math.max(0, grossMin - breaksMin);
+
+    let dayAmount = 0;
+    for (const interv of intervals) {
+      const rate = tdRateByPair[interv.language_pair_id] || 0;
+      dayAmount += (interv.duration_minutes / 60) * rate;
+    }
+    if (grossMin > 0) dayAmount = dayAmount * (netMin / grossMin);
+
+    let html = `
+      <div class="day-readonly-section">
+        <div class="day-readonly-title">Рабочие интервалы</div>
+        ${intervals.length === 0
+          ? '<div class="day-readonly-empty">Нет интервалов.</div>'
+          : intervals.map(i => `
+            <div class="day-readonly-item">
+              <span class="day-readonly-time">${formatTimeHM(i.start_at)} → ${formatTimeHM(i.end_at)}</span>
+              <span class="day-readonly-meta">${i.language_pairs.code} · $${(tdRateByPair[i.language_pair_id] || 0).toFixed(2)}/ч</span>
+              <span class="day-readonly-dur">${formatHoursMinutes(i.duration_minutes)}</span>
+            </div>
+          `).join('')}
+      </div>
+    `;
+
+    if (breaks.length > 0) {
+      html += `
+        <div class="day-readonly-section">
+          <div class="day-readonly-title">Брейки</div>
+          ${breaks.map(b => `
+            <div class="day-readonly-item break-item">
+              <span class="day-readonly-time">${formatTimeHM(b.start_at)} → ${formatTimeHM(b.end_at)}</span>
+              <span class="day-readonly-meta">${escapeHtml(b.note || '')}</span>
+              <span class="day-readonly-dur">${formatHoursMinutes(b.duration_minutes)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="day-summary">
+        <div class="day-summary-cell">
+          <div class="day-summary-label">Чистое время</div>
+          <div class="day-summary-value green">${formatHoursMinutes(netMin)}</div>
+        </div>
+        <div class="day-summary-cell">
+          <div class="day-summary-label">Брейки</div>
+          <div class="day-summary-value">${formatHoursMinutes(breaksMin)}</div>
+        </div>
+        <div class="day-summary-cell">
+          <div class="day-summary-label">К оплате</div>
+          <div class="day-summary-value green">$${dayAmount.toFixed(2)}</div>
+        </div>
+      </div>
+    `;
+
+    body.innerHTML = html;
+  }
+
+  function closeDayViewModal() {
+    document.getElementById('day-view-modal').classList.remove('open');
   }
 
   // ====================================================================
@@ -1633,6 +2128,11 @@
 
   document.getElementById('cal-prev').addEventListener('click', () => changeMonth(-1));
   document.getElementById('cal-next').addEventListener('click', () => changeMonth(1));
+  document.getElementById('td-cal-prev').addEventListener('click', () => changeTdMonth(-1));
+  document.getElementById('td-cal-next').addEventListener('click', () => changeTdMonth(1));
+  document.getElementById('day-view-modal').addEventListener('click', e => {
+    if (e.target.id === 'day-view-modal') closeDayViewModal();
+  });
 
   checkSession();
 </script>
