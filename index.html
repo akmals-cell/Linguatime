@@ -2167,6 +2167,7 @@
               old_rate: p.originalRate,
               new_rate: p.rate,
               changed_by: currentUser.id,
+              effective_from: p.effectiveDate,
               reason: `Изменение ставки с ${p.effectiveDate}`,
             });
           }
@@ -2194,6 +2195,7 @@
             old_rate: null,
             new_rate: p.rate,
             changed_by: currentUser.id,
+            effective_from: p.effectiveDate,
             reason: `Добавлена пара с ${p.effectiveDate}`,
           });
         }
@@ -2585,11 +2587,11 @@
   //   currentRates  — { pair_id: rate } (текущие, fallback)
   function getRateForDate(workDate, pairId, historyByPair, currentRates) {
     const history = historyByPair[pairId] || [];
-    // История уже отсортирована по changed_at DESC.
-    // Ищем первую запись, у которой changed_at <= workDate.
+    // История уже отсортирована по effective_from DESC.
+    // Ищем первую запись, у которой effective_from <= workDate.
     for (const h of history) {
-      const changeDateOnly = h.changed_at.split('T')[0]; // YYYY-MM-DD
-      if (changeDateOnly <= workDate) {
+      const effective = h.effective_from || h.changed_at.split('T')[0];
+      if (effective <= workDate) {
         return Number(h.new_rate);
       }
     }
@@ -2598,14 +2600,14 @@
   }
 
   // Загружает историю ставок для набора пользователей и группирует по парам.
-  // Возвращает { user_id: { pair_id: [history items DESC] } }
+  // Возвращает { user_id: { pair_id: [history items DESC by effective_from] } }
   async function loadRateHistoryForUsers(userIds) {
     if (userIds.length === 0) return {};
     const { data } = await sb
       .from('rate_history')
-      .select('user_id, language_pair_id, new_rate, changed_at')
+      .select('user_id, language_pair_id, new_rate, changed_at, effective_from')
       .in('user_id', userIds)
-      .order('changed_at', { ascending: false });
+      .order('effective_from', { ascending: false });
 
     const byUser = {};
     for (const h of (data || [])) {
