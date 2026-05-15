@@ -232,7 +232,9 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNycGlxeGZlb3N1c2F5cXFmdnJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjAzMTQsImV4cCI6MjA5NDM5NjMxNH0.PyOLqLn93h7I0_VYL-vE9O8VTEgdyDmS7UWxSAKA3Ss';
 
   // Инициализация клиента
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // ВАЖНО: переименовываем локальную переменную, чтобы не было конфликта
+  // с глобальным window.supabase из CDN.
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ====================================================================
   // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -258,7 +260,7 @@
 
   // Проверка сессии при загрузке страницы
   async function checkSession() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await sb.auth.getSession();
     if (session) {
       await loadUserProfile(session.user.id);
     } else {
@@ -268,7 +270,7 @@
 
   // Загрузка профиля пользователя из таблицы public.users
   async function loadUserProfile(userId) {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('users')
       .select('email, name, role, timezone, is_active')
       .eq('id', userId)
@@ -278,14 +280,14 @@
       // Профиля нет в таблице users — значит пользователь авторизован в auth,
       // но не привязан к профилю. Это ошибка конфигурации.
       console.error('Profile load error:', error);
-      await supabase.auth.signOut();
+      await sb.auth.signOut();
       showScreen('login');
       showError('Профиль не найден. Обратитесь к менеджеру для активации учётной записи.');
       return;
     }
 
     if (!data.is_active) {
-      await supabase.auth.signOut();
+      await sb.auth.signOut();
       showScreen('login');
       showError('Учётная запись деактивирована. Обратитесь к менеджеру.');
       return;
@@ -319,7 +321,7 @@
     btn.disabled = true;
     btn.textContent = 'Входим…';
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await sb.auth.signInWithPassword({
       email,
       password
     });
@@ -344,7 +346,7 @@
 
   // Обработчик кнопки "Выйти"
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
     document.getElementById('email').value = '';
     document.getElementById('password').value = '';
     hideError();
