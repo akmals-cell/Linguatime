@@ -11,8 +11,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Inter Tight', sans-serif;
-    background: #fafaf7;
-    color: #1a1a17;
+    background: #FAFAFA;
+    color: #1E40AF;
     min-height: 100vh;
     font-size: 14px;
   }
@@ -22,124 +22,124 @@
 
   .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
   .auth-card {
-    background: white; border: 1px solid #e8e8e1; border-radius: 12px; padding: 40px;
+    background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 40px;
     width: 100%; max-width: 420px; box-shadow: 0 4px 20px rgba(0,0,0,0.04);
   }
-  .brand { font-size: 28px; font-weight: 600; text-align: center; margin-bottom: 8px; letter-spacing: -0.02em; }
+  .brand { font-size: 32px; font-weight: 700; text-align: center; margin-bottom: 8px; letter-spacing: -0.025em; color: #1E40AF; }
   .brand-tag {
-    text-align: center; font-size: 12px; color: #93938a; margin-bottom: 32px;
-    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.1em; text-transform: uppercase;
+    text-align: center; font-size: 11px; color: #16A34A; margin-bottom: 32px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; letter-spacing: 0.15em; text-transform: uppercase;
   }
 
   .field { margin-bottom: 14px; }
   .field-label {
-    display: block; font-size: 11px; color: #5c5c55; margin-bottom: 5px; font-weight: 500;
+    display: block; font-size: 11px; color: #475569; margin-bottom: 5px; font-weight: 500;
     text-transform: uppercase; letter-spacing: 0.05em; font-family: 'JetBrains Mono', monospace;
   }
   .input, .select {
-    width: 100%; padding: 9px 12px; border: 1px solid #d0d0c5; border-radius: 6px;
+    width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 6px;
     font-size: 14px; background: white; transition: border-color 0.15s;
   }
-  .input:focus, .select:focus { outline: none; border-color: #1a1a17; }
+  .input:focus, .select:focus { outline: none; border-color: #1E40AF; }
 
   .btn {
-    padding: 9px 16px; background: #1a1a17; color: white; border-radius: 6px;
+    padding: 9px 16px; background: #1E40AF; color: white; border-radius: 6px;
     font-size: 13px; font-weight: 500; transition: background 0.15s;
     display: inline-flex; align-items: center; gap: 6px;
   }
-  .btn:hover { background: #000; }
-  .btn:disabled { background: #93938a; cursor: not-allowed; }
+  .btn:hover { background: #1E3A8A; }
+  .btn:disabled { background: #94A3B8; cursor: not-allowed; }
   .btn-block { width: 100%; padding: 11px; font-size: 14px; justify-content: center; }
-  .btn-ghost { background: transparent; color: #5c5c55; border: 1px solid #d0d0c5; }
-  .btn-ghost:hover { background: #fafaf7; color: #1a1a17; }
+  .btn-ghost { background: transparent; color: #475569; border: 1px solid #CBD5E1; }
+  .btn-ghost:hover { background: #FAFAFA; color: #1E40AF; }
   .btn-sm { padding: 5px 10px; font-size: 12px; }
 
   .error {
-    background: #f5e3df; color: #a0392c; padding: 10px 14px; border-radius: 6px;
-    font-size: 13px; margin-bottom: 16px; border-left: 3px solid #a0392c;
+    background: #FEE2E2; color: #DC2626; padding: 10px 14px; border-radius: 6px;
+    font-size: 13px; margin-bottom: 16px; border-left: 3px solid #DC2626;
   }
   .success {
-    background: #e8f0e8; color: #2d6a3e; padding: 10px 14px; border-radius: 6px;
-    font-size: 13px; margin-bottom: 16px; border-left: 3px solid #2d6a3e;
+    background: #DCFCE7; color: #16A34A; padding: 10px 14px; border-radius: 6px;
+    font-size: 13px; margin-bottom: 16px; border-left: 3px solid #16A34A;
   }
 
   .app-wrap { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
 
   .sidebar {
-    background: white; border-right: 1px solid #e8e8e1; padding: 24px 16px;
+    background: white; border-right: 1px solid #E5E7EB; padding: 24px 16px;
     display: flex; flex-direction: column;
   }
-  .sb-brand { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; padding: 0 10px; margin-bottom: 4px; }
+  .sb-brand { font-size: 22px; font-weight: 700; letter-spacing: -0.025em; padding: 0 10px; margin-bottom: 4px; color: #1E40AF; }
   .sb-brand-tag {
-    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #93938a;
-    letter-spacing: 0.1em; text-transform: uppercase; padding: 0 10px; margin-bottom: 24px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #16A34A;
+    letter-spacing: 0.12em; text-transform: uppercase; padding: 0 10px; margin-bottom: 24px; font-weight: 500;
   }
   .sb-section { margin-bottom: 20px; }
   .sb-label {
     font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.12em; color: #93938a; margin-bottom: 8px; padding: 0 10px;
+    letter-spacing: 0.12em; color: #94A3B8; margin-bottom: 8px; padding: 0 10px;
   }
   .sb-item {
-    display: block; padding: 8px 10px; border-radius: 6px; color: #5c5c55;
+    display: block; padding: 8px 10px; border-radius: 6px; color: #475569;
     font-weight: 500; width: 100%; text-align: left; margin-bottom: 2px; transition: all 0.15s;
   }
-  .sb-item:hover { background: #fafaf7; color: #1a1a17; }
-  .sb-item.active { background: #1a1a17; color: white; }
+  .sb-item:hover { background: #FAFAFA; color: #1E40AF; }
+  .sb-item.active { background: #1E40AF; color: white; }
 
-  .sb-user { margin-top: auto; padding: 16px 10px 0; border-top: 1px solid #e8e8e1; font-size: 12px; }
+  .sb-user { margin-top: auto; padding: 16px 10px 0; border-top: 1px solid #E5E7EB; font-size: 12px; }
   .sb-user-name { font-weight: 500; margin-bottom: 2px; }
-  .sb-user-email { color: #93938a; margin-bottom: 8px; word-break: break-all; }
+  .sb-user-email { color: #94A3B8; margin-bottom: 8px; word-break: break-all; }
 
   .main { padding: 32px 40px; overflow-x: auto; }
 
   .page-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e8e8e1;
+    margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #E5E7EB;
   }
   .page-title { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
-  .page-subtitle { color: #5c5c55; font-size: 13px; margin-top: 4px; }
+  .page-subtitle { color: #475569; font-size: 13px; margin-top: 4px; }
 
   .section {
-    background: white; border: 1px solid #e8e8e1; border-radius: 10px; overflow: hidden;
+    background: white; border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden;
   }
 
   table { width: 100%; border-collapse: collapse; }
   th {
     font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.1em; color: #93938a; text-align: left; padding: 12px 20px;
-    border-bottom: 1px solid #e8e8e1; font-weight: 500; background: #fafaf7;
+    letter-spacing: 0.1em; color: #94A3B8; text-align: left; padding: 12px 20px;
+    border-bottom: 1px solid #E5E7EB; font-weight: 500; background: #FAFAFA;
   }
-  td { padding: 14px 20px; border-bottom: 1px solid #e8e8e1; vertical-align: middle; font-size: 13px; }
+  td { padding: 14px 20px; border-bottom: 1px solid #E5E7EB; vertical-align: middle; font-size: 13px; }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: #fafaf7; }
+  tr:hover td { background: #FAFAFA; }
 
   .badge {
     display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
     border-radius: 100px; font-size: 11px; font-weight: 500;
     font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em;
   }
-  .badge-good { background: #e8f0e8; color: #2d6a3e; }
-  .badge-warn { background: #f9f1dc; color: #b8861f; }
-  .badge-neutral { background: #fafaf7; color: #5c5c55; border: 1px solid #e8e8e1; }
+  .badge-good { background: #DCFCE7; color: #16A34A; }
+  .badge-warn { background: #FEF3C7; color: #B45309; }
+  .badge-neutral { background: #FAFAFA; color: #475569; border: 1px solid #E5E7EB; }
 
   .emp-cell { display: flex; align-items: center; gap: 10px; }
   .emp-avatar {
-    width: 32px; height: 32px; border-radius: 50%; background: #1a1a17; color: white;
+    width: 32px; height: 32px; border-radius: 50%; background: #1E40AF; color: white;
     display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;
   }
   .emp-name { font-weight: 500; }
-  .emp-email { font-size: 11px; color: #93938a; font-family: 'JetBrains Mono', monospace; }
+  .emp-email { font-size: 11px; color: #94A3B8; font-family: 'JetBrains Mono', monospace; }
 
   .pair-list { display: flex; flex-direction: column; gap: 3px; }
   .pair-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
   .pair-rate { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
 
-  .empty-state { padding: 60px 20px; text-align: center; color: #93938a; }
-  .empty-state-title { font-size: 16px; color: #5c5c55; margin-bottom: 8px; font-weight: 500; }
+  .empty-state { padding: 60px 20px; text-align: center; color: #94A3B8; }
+  .empty-state-title { font-size: 16px; color: #475569; margin-bottom: 8px; font-weight: 500; }
   .empty-state-text { font-size: 13px; margin-bottom: 20px; }
 
   .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(26, 26, 23, 0.5); backdrop-filter: blur(4px);
+    position: fixed; inset: 0; background: rgba(30, 64, 175, 0.5); backdrop-filter: blur(4px);
     display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
   }
   .modal-backdrop.open { display: flex; }
@@ -148,41 +148,41 @@
     max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.25);
   }
   .modal-header {
-    padding: 18px 24px; border-bottom: 1px solid #e8e8e1;
+    padding: 18px 24px; border-bottom: 1px solid #E5E7EB;
     display: flex; align-items: center; justify-content: space-between;
   }
   .modal-title { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
   .modal-close {
-    color: #93938a; font-size: 22px; width: 28px; height: 28px;
+    color: #94A3B8; font-size: 22px; width: 28px; height: 28px;
     display: flex; align-items: center; justify-content: center; border-radius: 6px;
   }
-  .modal-close:hover { background: #fafaf7; color: #1a1a17; }
+  .modal-close:hover { background: #FAFAFA; color: #1E40AF; }
   .modal-body { padding: 24px; }
   .modal-footer {
-    padding: 14px 24px; border-top: 1px solid #e8e8e1;
-    display: flex; justify-content: flex-end; gap: 8px; background: #fafaf7;
+    padding: 14px 24px; border-top: 1px solid #E5E7EB;
+    display: flex; justify-content: flex-end; gap: 8px; background: #FAFAFA;
   }
 
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   .pair-editor {
-    border: 1px solid #e8e8e1; border-radius: 6px; padding: 10px;
-    margin-bottom: 8px; background: #fafaf7;
+    border: 1px solid #E5E7EB; border-radius: 6px; padding: 10px;
+    margin-bottom: 8px; background: #FAFAFA;
     display: grid; grid-template-columns: 1.5fr 1fr 0.9fr 30px; gap: 8px; align-items: center;
   }
   .pair-editor select, .pair-editor .pair-rate-input-field {
-    padding: 6px 8px; border: 1px solid #d0d0c5; border-radius: 4px; font-size: 13px;
+    padding: 6px 8px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 13px;
   }
   .pair-rate-input { display: flex; align-items: center; gap: 4px; }
   .pair-rate-input-field { width: 100%; font-family: 'JetBrains Mono', monospace; }
-  .primary-check { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #5c5c55; cursor: pointer; }
+  .primary-check { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; cursor: pointer; }
   .pair-remove {
-    color: #93938a; font-size: 16px; width: 24px; height: 24px;
+    color: #94A3B8; font-size: 16px; width: 24px; height: 24px;
     display: flex; align-items: center; justify-content: center; border-radius: 4px;
   }
-  .pair-remove:hover { background: #f5e3df; color: #a0392c; }
+  .pair-remove:hover { background: #FEE2E2; color: #DC2626; }
 
-  .loading-state { text-align: center; color: #93938a; padding: 60px 0; font-size: 13px; }
+  .loading-state { text-align: center; color: #94A3B8; padding: 60px 0; font-size: 13px; }
 
   /* ═══ KPI КАРТОЧКИ ═══ */
   .kpi-grid {
@@ -192,18 +192,18 @@
     margin-bottom: 24px;
   }
   .kpi {
-    background: white; border: 1px solid #e8e8e1; border-radius: 8px;
+    background: white; border: 1px solid #E5E7EB; border-radius: 8px;
     padding: 16px 18px; position: relative; overflow: hidden;
   }
   .kpi::before {
     content: ''; position: absolute; top: 0; left: 0;
-    width: 3px; height: 100%; background: #1a1a17;
+    width: 3px; height: 100%; background: #1E40AF;
   }
-  .kpi.kpi-blue::before { background: #2c4a6b; }
-  .kpi.kpi-green::before { background: #2d6a3e; }
+  .kpi.kpi-blue::before { background: #1E40AF; }
+  .kpi.kpi-green::before { background: #16A34A; }
   .kpi-label {
     font-family: 'JetBrains Mono', monospace; font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.1em; color: #93938a; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 8px;
   }
   .kpi-value {
     font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1;
@@ -211,21 +211,21 @@
   }
   .kpi-unit {
     font-family: 'JetBrains Mono', monospace; font-size: 12px;
-    color: #93938a; font-weight: 400; margin-left: 4px;
+    color: #94A3B8; font-weight: 400; margin-left: 4px;
   }
-  .kpi-meta { margin-top: 8px; font-size: 11px; color: #5c5c55; }
+  .kpi-meta { margin-top: 8px; font-size: 11px; color: #475569; }
 
   /* ═══ КАЛЕНДАРЬ ═══ */
   .cal-toolbar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; border-bottom: 1px solid #e8e8e1;
+    padding: 16px 20px; border-bottom: 1px solid #E5E7EB;
   }
   .cal-toolbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
   .cal-nav-btn {
-    padding: 6px 12px; background: white; border: 1px solid #d0d0c5;
-    border-radius: 6px; font-size: 12px; color: #5c5c55; transition: all 0.15s;
+    padding: 6px 12px; background: white; border: 1px solid #CBD5E1;
+    border-radius: 6px; font-size: 12px; color: #475569; transition: all 0.15s;
   }
-  .cal-nav-btn:hover { border-color: #1a1a17; color: #1a1a17; }
+  .cal-nav-btn:hover { border-color: #1E40AF; color: #1E40AF; }
 
   .calendar {
     display: grid; grid-template-columns: repeat(7, 1fr);
@@ -233,122 +233,122 @@
   }
   .cal-day-name {
     font-family: 'JetBrains Mono', monospace; font-size: 10px;
-    text-transform: uppercase; color: #93938a; text-align: center;
+    text-transform: uppercase; color: #94A3B8; text-align: center;
     padding: 6px 0; letter-spacing: 0.1em;
   }
   .cal-day {
-    aspect-ratio: 1; background: white; border: 1px solid #e8e8e1;
+    aspect-ratio: 1; background: white; border: 1px solid #E5E7EB;
     border-radius: 6px; padding: 6px 8px;
     display: flex; flex-direction: column;
     cursor: pointer; transition: all 0.15s;
     position: relative; overflow: hidden;
     min-height: 70px;
   }
-  .cal-day:hover { border-color: #1a1a17; transform: translateY(-1px); }
+  .cal-day:hover { border-color: #1E40AF; transform: translateY(-1px); }
   .cal-day.empty {
     background: transparent; border-color: transparent; cursor: default;
   }
   .cal-day.empty:hover { transform: none; }
-  .cal-day.today { border-color: #c9622b; border-width: 2px; }
-  .cal-day.weekend { background: #fafaf7; }
+  .cal-day.today { border-color: #1E40AF; border-width: 2px; }
+  .cal-day.weekend { background: #FAFAFA; }
   .cal-day.has-hours {
-    background: linear-gradient(135deg, #ffffff 0%, #e8f0e8 140%);
-    border-color: rgba(45, 106, 62, 0.25);
+    background: linear-gradient(135deg, #ffffff 0%, #DCFCE7 140%);
+    border-color: rgba(22, 163, 74, 0.25);
   }
   .cal-day.absent {
-    background: #e1ebf5;
-    border-color: rgba(44, 74, 107, 0.25);
+    background: #DBEAFE;
+    border-color: rgba(30, 64, 175, 0.25);
   }
   .cal-day-num {
     font-size: 14px; font-weight: 600; line-height: 1; letter-spacing: -0.01em;
   }
   .cal-day-hours {
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
-    color: #2d6a3e; margin-top: auto; font-weight: 600;
+    color: #16A34A; margin-top: auto; font-weight: 600;
   }
   .cal-day-tag {
     font-family: 'JetBrains Mono', monospace; font-size: 9px;
-    text-transform: uppercase; color: #2c4a6b;
+    text-transform: uppercase; color: #1E40AF;
     margin-top: auto; letter-spacing: 0.05em; font-weight: 500;
   }
 
   .cal-legend {
     display: flex; gap: 14px; font-size: 11px;
-    color: #5c5c55; padding: 12px 20px;
-    border-top: 1px solid #e8e8e1; flex-wrap: wrap;
+    color: #475569; padding: 12px 20px;
+    border-top: 1px solid #E5E7EB; flex-wrap: wrap;
   }
   .legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: middle; }
 
   /* ═══ ФОРМА ДНЯ ═══ */
   .day-type-chips { display: flex; gap: 6px; margin-bottom: 4px; }
   .day-chip {
-    padding: 6px 14px; border: 1px solid #d0d0c5; border-radius: 100px;
-    background: white; font-size: 13px; font-weight: 500; color: #5c5c55;
+    padding: 6px 14px; border: 1px solid #CBD5E1; border-radius: 100px;
+    background: white; font-size: 13px; font-weight: 500; color: #475569;
     transition: all 0.15s;
   }
-  .day-chip:hover { border-color: #5c5c55; }
-  .day-chip.active { background: #1a1a17; color: white; border-color: #1a1a17; }
+  .day-chip:hover { border-color: #475569; }
+  .day-chip.active { background: #1E40AF; color: white; border-color: #1E40AF; }
 
   .section-block {
     display: flex; align-items: center; justify-content: space-between;
-    margin: 18px 0 10px; padding-top: 16px; border-top: 1px solid #e8e8e1;
+    margin: 18px 0 10px; padding-top: 16px; border-top: 1px solid #E5E7EB;
   }
   .section-block:first-child { border-top: none; padding-top: 0; margin-top: 0; }
   .section-block h3 { font-size: 14px; font-weight: 600; }
 
   .interval-row {
     display: grid; gap: 8px; align-items: center;
-    padding: 10px 12px; background: #fafaf7; border: 1px solid #e8e8e1;
+    padding: 10px 12px; background: #FAFAFA; border: 1px solid #E5E7EB;
     border-radius: 6px; margin-bottom: 6px;
     grid-template-columns: auto auto auto 1.5fr 30px;
   }
   .interval-row.break-row {
-    background: #f9f1dc; border-color: rgba(184, 134, 31, 0.2);
+    background: #FEF3C7; border-color: rgba(180, 83, 9, 0.2);
     grid-template-columns: auto auto auto 1fr 30px;
   }
   .interval-row input[type="time"] {
-    padding: 5px 8px; border: 1px solid #d0d0c5; border-radius: 4px;
+    padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 4px;
     font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 95px;
   }
   .interval-row select, .interval-row .break-note {
-    padding: 5px 8px; border: 1px solid #d0d0c5; border-radius: 4px;
+    padding: 5px 8px; border: 1px solid #CBD5E1; border-radius: 4px;
     font-size: 12px; background: white; width: 100%;
   }
-  .interval-row .arrow { color: #93938a; font-size: 13px; }
+  .interval-row .arrow { color: #94A3B8; font-size: 13px; }
   .interval-row .remove-btn {
-    color: #93938a; font-size: 16px; width: 24px; height: 24px;
+    color: #94A3B8; font-size: 16px; width: 24px; height: 24px;
     display: flex; align-items: center; justify-content: center; border-radius: 4px;
   }
-  .interval-row .remove-btn:hover { background: #f5e3df; color: #a0392c; }
+  .interval-row .remove-btn:hover { background: #FEE2E2; color: #DC2626; }
 
   .day-summary {
     margin-top: 18px; padding: 12px 16px;
-    background: #fafaf7; border-left: 3px solid #1a1a17; border-radius: 6px;
+    background: #FAFAFA; border-left: 3px solid #1E40AF; border-radius: 6px;
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
   }
   .day-summary-cell {}
   .day-summary-label {
     font-family: 'JetBrains Mono', monospace; font-size: 9px;
-    text-transform: uppercase; letter-spacing: 0.1em; color: #93938a; margin-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 4px;
   }
   .day-summary-value {
     font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600;
   }
-  .day-summary-value.green { color: #2d6a3e; }
+  .day-summary-value.green { color: #16A34A; }
 
   .modal-hint {
-    font-size: 11px; color: #93938a; padding: 8px 0;
+    font-size: 11px; color: #94A3B8; padding: 8px 0;
   }
 
   /* ═══ ВАЛИДАЦИЯ ═══ */
   .interval-row.invalid {
-    background: #f5e3df !important;
-    border-color: #a0392c !important;
+    background: #FEE2E2 !important;
+    border-color: #DC2626 !important;
   }
   .validation-warnings {
-    background: #f9f1dc; border-left: 3px solid #b8861f;
+    background: #FEF3C7; border-left: 3px solid #B45309;
     padding: 8px 12px; border-radius: 6px; margin-top: 8px;
-    font-size: 12px; color: #8a6515;
+    font-size: 12px; color: #92400E;
   }
   .validation-warnings ul { margin: 0; padding-left: 18px; }
   .validation-warnings li { margin: 2px 0; }
@@ -357,24 +357,24 @@
   /* ═══ ДЕТАЛИ ПЕРЕВОДЧИКА (для менеджера) ═══ */
   .back-link {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 0; font-size: 12px; color: #5c5c55;
+    padding: 4px 0; font-size: 12px; color: #475569;
     background: transparent; margin-bottom: 8px;
   }
-  .back-link:hover { color: #1a1a17; }
+  .back-link:hover { color: #1E40AF; }
 
   .emp-detail-header {
     display: flex; align-items: center; gap: 14px; margin-bottom: 4px;
   }
   .emp-detail-avatar {
     width: 48px; height: 48px; border-radius: 50%;
-    background: #1a1a17; color: white;
+    background: #1E40AF; color: white;
     display: flex; align-items: center; justify-content: center;
     font-size: 16px; font-weight: 600;
   }
   .emp-detail-name { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
   .emp-detail-email {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: #93938a;
+    font-size: 12px; color: #94A3B8;
   }
   .emp-detail-pairs {
     display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;
@@ -385,22 +385,22 @@
     margin-bottom: 18px;
   }
   .day-readonly-title {
-    font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #1a1a17;
+    font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #1E40AF;
   }
   .day-readonly-item {
     display: grid; grid-template-columns: auto 1fr auto;
     gap: 12px; align-items: center;
-    padding: 10px 14px; background: #fafaf7;
-    border: 1px solid #e8e8e1; border-radius: 6px; margin-bottom: 6px;
+    padding: 10px 14px; background: #FAFAFA;
+    border: 1px solid #E5E7EB; border-radius: 6px; margin-bottom: 6px;
     font-family: 'JetBrains Mono', monospace; font-size: 13px;
   }
-  .day-readonly-item.break-item { background: #f9f1dc; border-color: rgba(184, 134, 31, 0.2); }
-  .day-readonly-time { font-weight: 600; color: #1a1a17; }
-  .day-readonly-meta { font-family: 'Inter Tight', sans-serif; font-size: 12px; color: #5c5c55; }
-  .day-readonly-dur { font-weight: 500; color: #93938a; font-size: 12px; }
+  .day-readonly-item.break-item { background: #FEF3C7; border-color: rgba(180, 83, 9, 0.2); }
+  .day-readonly-time { font-weight: 600; color: #1E40AF; }
+  .day-readonly-meta { font-family: 'Inter Tight', sans-serif; font-size: 12px; color: #475569; }
+  .day-readonly-dur { font-weight: 500; color: #94A3B8; font-size: 12px; }
   .day-readonly-empty {
-    padding: 16px; text-align: center; color: #93938a;
-    font-size: 13px; background: #fafaf7; border-radius: 6px;
+    padding: 16px; text-align: center; color: #94A3B8;
+    font-size: 13px; background: #FAFAFA; border-radius: 6px;
   }
 
   /* ═══ ЗАРПЛАТА ═══ */
@@ -410,10 +410,10 @@
     font-size: 13px;
   }
   .payroll-status.status-open {
-    background: #e8f0e8; color: #2d6a3e; border-left: 3px solid #2d6a3e;
+    background: #DCFCE7; color: #16A34A; border-left: 3px solid #16A34A;
   }
   .payroll-status.status-closed {
-    background: #fafaf7; color: #5c5c55; border-left: 3px solid #93938a;
+    background: #FAFAFA; color: #475569; border-left: 3px solid #94A3B8;
   }
   .payroll-status-icon {
     width: 8px; height: 8px; border-radius: 50%;
@@ -424,7 +424,7 @@
     margin-bottom: 16px; gap: 12px;
   }
   .payroll-month-select {
-    padding: 8px 14px; border: 1px solid #d0d0c5; border-radius: 6px;
+    padding: 8px 14px; border: 1px solid #CBD5E1; border-radius: 6px;
     font-size: 14px; background: white; min-width: 200px;
   }
   .payroll-pair-row {
@@ -433,27 +433,27 @@
     font-family: 'JetBrains Mono', monospace;
   }
   .payroll-pair-hours { font-weight: 500; min-width: 60px; }
-  .payroll-pair-rate { color: #93938a; }
-  .payroll-pair-amount { color: #2d6a3e; font-weight: 500; margin-left: auto; }
+  .payroll-pair-rate { color: #94A3B8; }
+  .payroll-pair-amount { color: #16A34A; font-weight: 500; margin-left: auto; }
 
   .payroll-total-row {
-    background: #1a1a17; color: white;
+    background: #1E40AF; color: white;
   }
   .payroll-total-row td {
     border-bottom: none !important;
     font-weight: 600 !important;
     padding-top: 18px !important; padding-bottom: 18px !important;
   }
-  .payroll-total-row td:hover { background: #1a1a17 !important; }
+  .payroll-total-row td:hover { background: #1E40AF !important; }
   .payroll-grand-total {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 18px; color: #2d6a3e; font-weight: 600;
+    font-size: 18px; color: #16A34A; font-weight: 600;
   }
 
   .payroll-snapshot-note {
-    background: #f9f1dc; border-left: 3px solid #b8861f;
+    background: #FEF3C7; border-left: 3px solid #B45309;
     padding: 10px 14px; border-radius: 6px; margin-bottom: 16px;
-    font-size: 12px; color: #8a6515;
+    font-size: 12px; color: #92400E;
   }
 
   /* ═══ РЕДАКТИРОВАНИЕ ПЕРЕВОДЧИКА ═══ */
@@ -472,25 +472,25 @@
     width: 100%;
   }
   .pair-editor.existing.removed {
-    opacity: 0.4; background: #f5e3df;
+    opacity: 0.4; background: #FEE2E2;
   }
   .pair-editor.existing.removed input,
   .pair-editor.existing.removed select {
     text-decoration: line-through;
   }
   .pair-effective-date {
-    padding: 6px 8px; border: 1px solid #d0d0c5; border-radius: 4px;
+    padding: 6px 8px; border: 1px solid #CBD5E1; border-radius: 4px;
     font-size: 12px; font-family: 'JetBrains Mono', monospace;
   }
   .rate-history-block {
-    margin-top: 16px; padding: 12px; background: #fafaf7;
-    border-radius: 6px; border: 1px solid #e8e8e1;
+    margin-top: 16px; padding: 12px; background: #FAFAFA;
+    border-radius: 6px; border: 1px solid #E5E7EB;
   }
   .rate-history-toggle {
-    font-size: 12px; color: #5c5c55; padding: 4px 0;
+    font-size: 12px; color: #475569; padding: 4px 0;
     cursor: pointer; user-select: none;
   }
-  .rate-history-toggle:hover { color: #1a1a17; }
+  .rate-history-toggle:hover { color: #1E40AF; }
   .rate-history-list {
     margin-top: 10px; max-height: 200px; overflow-y: auto;
   }
@@ -498,57 +498,48 @@
     display: grid; grid-template-columns: auto 1fr auto;
     gap: 10px; align-items: center;
     padding: 6px 0; font-size: 12px;
-    border-bottom: 1px solid #e8e8e1;
+    border-bottom: 1px solid #E5E7EB;
     font-family: 'JetBrains Mono', monospace;
   }
   .rate-history-item:last-child { border-bottom: none; }
-  .rate-history-date { color: #93938a; }
+  .rate-history-date { color: #94A3B8; }
   .rate-history-change {}
-  .rate-history-old { color: #a0392c; text-decoration: line-through; }
-  .rate-history-new { color: #2d6a3e; font-weight: 600; }
-  .rate-history-arrow { color: #93938a; margin: 0 4px; }
+  .rate-history-old { color: #DC2626; text-decoration: line-through; }
+  .rate-history-new { color: #16A34A; font-weight: 600; }
+  .rate-history-arrow { color: #94A3B8; margin: 0 4px; }
 
   .deactivate-warning {
-    background: #f9f1dc; border-left: 3px solid #b8861f;
+    background: #FEF3C7; border-left: 3px solid #B45309;
     padding: 10px 14px; border-radius: 6px; margin: 8px 0;
-    font-size: 12px; color: #8a6515;
+    font-size: 12px; color: #92400E;
   }
 
   /* ═══ DASHBOARD ═══ */
   .dash-hero {
-    background: linear-gradient(135deg, #1a1a17 0%, #2d2d28 100%);
-    color: white;
-    border-radius: 12px;
-    padding: 28px 32px;
-    margin-bottom: 24px;
-    position: relative;
-    overflow: hidden;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #E5E7EB;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  .dash-hero::before {
-    content: '';
-    position: absolute;
-    top: -50%; right: -10%;
-    width: 400px; height: 400px;
-    background: radial-gradient(circle, rgba(201, 98, 43, 0.15) 0%, transparent 70%);
-    pointer-events: none;
-  }
+  .dash-hero-left { display: flex; align-items: baseline; gap: 12px; }
   .dash-hero-greeting {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    color: #94A3B8;
   }
   .dash-hero-name {
-    font-size: 32px;
+    font-size: 22px;
     font-weight: 600;
-    letter-spacing: -0.03em;
-    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+    color: #1E40AF;
   }
   .dash-hero-meta {
-    font-size: 14px;
-    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    color: #94A3B8;
+    font-family: 'JetBrains Mono', monospace;
   }
 
   .dash-kpi-grid {
@@ -559,7 +550,7 @@
   }
   .dash-kpi {
     background: white;
-    border: 1px solid #e8e8e1;
+    border: 1px solid #E5E7EB;
     border-radius: 10px;
     padding: 20px 22px;
     position: relative;
@@ -577,16 +568,16 @@
     margin-bottom: 12px;
     font-size: 16px;
   }
-  .dash-kpi-icon.purple { background: #efe7f4; color: #6b4188; }
-  .dash-kpi-icon.green { background: #e8f0e8; color: #2d6a3e; }
-  .dash-kpi-icon.orange { background: #fbeadf; color: #c9622b; }
-  .dash-kpi-icon.blue { background: #e1ebf5; color: #2c4a6b; }
+  .dash-kpi-icon.purple { background: #DBEAFE; color: #1E40AF; }
+  .dash-kpi-icon.green { background: #DCFCE7; color: #16A34A; }
+  .dash-kpi-icon.orange { background: #DBEAFE; color: #1E40AF; }
+  .dash-kpi-icon.blue { background: #DBEAFE; color: #1E40AF; }
   .dash-kpi-label {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #93938a;
+    color: #94A3B8;
     margin-bottom: 6px;
   }
   .dash-kpi-value {
@@ -598,10 +589,10 @@
   .dash-kpi-meta {
     margin-top: 6px;
     font-size: 11px;
-    color: #5c5c55;
+    color: #475569;
   }
-  .dash-kpi-meta.warning { color: #c9622b; }
-  .dash-kpi-meta.good { color: #2d6a3e; }
+  .dash-kpi-meta.warning { color: #1E40AF; }
+  .dash-kpi-meta.good { color: #16A34A; }
 
   /* Двухколоночная сетка */
   .dash-grid-2 {
@@ -613,13 +604,13 @@
 
   .dash-card {
     background: white;
-    border: 1px solid #e8e8e1;
+    border: 1px solid #E5E7EB;
     border-radius: 10px;
     overflow: hidden;
   }
   .dash-card-header {
     padding: 16px 20px;
-    border-bottom: 1px solid #e8e8e1;
+    border-bottom: 1px solid #E5E7EB;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -632,7 +623,7 @@
   .dash-card-meta {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    color: #93938a;
+    color: #94A3B8;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -648,7 +639,7 @@
   }
   .dash-chart-bar {
     flex: 1;
-    background: linear-gradient(180deg, #2d6a3e 0%, rgba(45, 106, 62, 0.5) 100%);
+    background: linear-gradient(180deg, #16A34A 0%, rgba(22, 163, 74, 0.5) 100%);
     border-radius: 3px 3px 0 0;
     position: relative;
     min-height: 2px;
@@ -657,21 +648,21 @@
   }
   .dash-chart-bar:hover { opacity: 0.75; }
   .dash-chart-bar.weekend {
-    background: linear-gradient(180deg, #5c5c55 0%, rgba(92, 92, 85, 0.4) 100%);
+    background: linear-gradient(180deg, #475569 0%, rgba(92, 92, 85, 0.4) 100%);
   }
   .dash-chart-bar.empty {
-    background: #fafaf7;
-    border: 1px dashed #e8e8e1;
+    background: #FAFAFA;
+    border: 1px dashed #E5E7EB;
   }
   .dash-chart-bar.today {
-    background: linear-gradient(180deg, #c9622b 0%, rgba(201, 98, 43, 0.5) 100%);
+    background: linear-gradient(180deg, #1E40AF 0%, rgba(30, 64, 175, 0.5) 100%);
   }
   .dash-chart-bar[data-tooltip]:hover::after {
     content: attr(data-tooltip);
     position: absolute;
     bottom: 100%; left: 50%;
     transform: translateX(-50%);
-    background: #1a1a17;
+    background: #1E40AF;
     color: white;
     padding: 4px 8px;
     border-radius: 4px;
@@ -687,7 +678,7 @@
     margin-top: 8px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 9px;
-    color: #93938a;
+    color: #94A3B8;
   }
 
   /* Топ переводчиков */
@@ -698,14 +689,14 @@
   .dash-leader-rank {
     width: 22px; height: 22px;
     border-radius: 50%;
-    background: #fafaf7;
-    color: #5c5c55;
+    background: #FAFAFA;
+    color: #475569;
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 600;
     font-family: 'JetBrains Mono', monospace;
     flex-shrink: 0;
   }
-  .dash-leader-rank.gold { background: #fbeadf; color: #c9622b; }
+  .dash-leader-rank.gold { background: #DBEAFE; color: #1E40AF; }
   .dash-leader-info { flex: 1; min-width: 0; }
   .dash-leader-name {
     font-size: 13px; font-weight: 500;
@@ -713,21 +704,21 @@
   }
   .dash-leader-bar-track {
     height: 4px;
-    background: #fafaf7;
+    background: #FAFAFA;
     border-radius: 100px;
     overflow: hidden;
     margin-top: 4px;
   }
   .dash-leader-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #2d6a3e, #4a9961);
+    background: linear-gradient(90deg, #16A34A, #22C55E);
     border-radius: 100px;
   }
   .dash-leader-value {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
     font-weight: 600;
-    color: #2d6a3e;
+    color: #16A34A;
     flex-shrink: 0;
   }
 
@@ -743,30 +734,30 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 600;
-    color: #1a1a17;
+    color: #1E40AF;
   }
   .dash-pair-bar-track {
     height: 8px;
-    background: #fafaf7;
+    background: #FAFAFA;
     border-radius: 100px;
     overflow: hidden;
-    border: 1px solid #e8e8e1;
+    border: 1px solid #E5E7EB;
   }
   .dash-pair-bar-fill {
     height: 100%;
-    background: #1a1a17;
+    background: #1E40AF;
     border-radius: 100px;
   }
   .dash-pair-value {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    color: #5c5c55;
+    color: #475569;
     text-align: right;
   }
 
   .dash-empty {
     text-align: center;
-    color: #93938a;
+    color: #94A3B8;
     padding: 20px;
     font-size: 13px;
   }
@@ -877,18 +868,20 @@
         </div>
         <div class="calendar" id="calendar-grid"></div>
         <div class="cal-legend">
-          <span><span class="legend-dot" style="background: #e8f0e8; border: 1px solid #2d6a3e;"></span>Отработано</span>
-          <span><span class="legend-dot" style="background: #e1ebf5; border: 1px solid #2c4a6b;"></span>Отгул</span>
-          <span><span class="legend-dot" style="background: #fafaf7; border: 1px solid #e8e8e1;"></span>Выходной</span>
-          <span><span class="legend-dot" style="background: white; border: 2px solid #c9622b;"></span>Сегодня</span>
+          <span><span class="legend-dot" style="background: #DCFCE7; border: 1px solid #16A34A;"></span>Отработано</span>
+          <span><span class="legend-dot" style="background: #DBEAFE; border: 1px solid #1E40AF;"></span>Отгул</span>
+          <span><span class="legend-dot" style="background: #FAFAFA; border: 1px solid #E5E7EB;"></span>Выходной</span>
+          <span><span class="legend-dot" style="background: white; border: 2px solid #1E40AF;"></span>Сегодня</span>
         </div>
       </div>
     </div>
 
     <div id="page-dashboard" class="page hidden">
       <div class="dash-hero">
-        <div class="dash-hero-greeting" id="dash-greeting">Добро пожаловать</div>
-        <div class="dash-hero-name" id="dash-name">—</div>
+        <div class="dash-hero-left">
+          <span class="dash-hero-greeting" id="dash-greeting">Добрый день,</span>
+          <span class="dash-hero-name" id="dash-name">—</span>
+        </div>
         <div class="dash-hero-meta" id="dash-date">—</div>
       </div>
 
@@ -1058,9 +1051,9 @@
         </div>
         <div class="calendar" id="td-calendar-grid"></div>
         <div class="cal-legend">
-          <span><span class="legend-dot" style="background: #e8f0e8; border: 1px solid #2d6a3e;"></span>Отработано</span>
-          <span><span class="legend-dot" style="background: #e1ebf5; border: 1px solid #2c4a6b;"></span>Отгул</span>
-          <span><span class="legend-dot" style="background: #fafaf7; border: 1px solid #e8e8e1;"></span>Выходной</span>
+          <span><span class="legend-dot" style="background: #DCFCE7; border: 1px solid #16A34A;"></span>Отработано</span>
+          <span><span class="legend-dot" style="background: #DBEAFE; border: 1px solid #1E40AF;"></span>Отгул</span>
+          <span><span class="legend-dot" style="background: #FAFAFA; border: 1px solid #E5E7EB;"></span>Выходной</span>
         </div>
       </div>
     </div>
@@ -1130,7 +1123,7 @@
         <button class="btn btn-ghost btn-sm" onclick="addPairRow()">+ Пара</button>
       </div>
       <div id="pairs-list"></div>
-      <div style="font-size: 11px; color: #93938a; margin-top: 6px;">
+      <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
         Ровно одна пара должна быть основной. Ставка от $0.50 до $500.00 в час.
       </div>
     </div>
@@ -1146,7 +1139,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="day-modal-title">Внести часы</div>
-        <div style="font-size: 12px; color: #93938a; margin-top: 2px;" id="day-modal-subtitle">—</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="day-modal-subtitle">—</div>
       </div>
       <button class="modal-close" onclick="closeDayModal()">×</button>
     </div>
@@ -1203,14 +1196,14 @@
 
       <!-- Содержимое для отгула -->
       <div id="absent-content" class="hidden">
-        <div style="padding: 24px; text-align: center; color: #5c5c55; background: #e1ebf5; border-radius: 8px; margin-top: 8px;">
-          <div style="font-size: 14px; font-weight: 500; color: #2c4a6b; margin-bottom: 4px;">Отгул</div>
+        <div style="padding: 24px; text-align: center; color: #475569; background: #DBEAFE; border-radius: 8px; margin-top: 8px;">
+          <div style="font-size: 14px; font-weight: 500; color: #1E40AF; margin-bottom: 4px;">Отгул</div>
           <div style="font-size: 12px;">Этот день будет помечен как отгул. Часы и оплата не начисляются.</div>
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button id="btn-delete-day" class="btn btn-ghost hidden" onclick="deleteDay()" style="color: #a0392c; margin-right: auto;">Удалить запись</button>
+      <button id="btn-delete-day" class="btn btn-ghost hidden" onclick="deleteDay()" style="color: #DC2626; margin-right: auto;">Удалить запись</button>
       <button class="btn btn-ghost" onclick="closeDayModal()">Отмена</button>
       <button id="btn-save-day" class="btn" onclick="saveDay()">Сохранить</button>
     </div>
@@ -1255,7 +1248,7 @@
         <button class="btn btn-ghost btn-sm" onclick="addEditPairRow()">+ Пара</button>
       </div>
       <div id="edit-pairs-list"></div>
-      <div style="font-size: 11px; color: #93938a; margin-top: 6px;">
+      <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
         Изменение ставки требует даты вступления в силу (по умолчанию — сегодня). Удаление пары — мягкое: историческая ставка сохраняется в rate_history.
       </div>
 
@@ -1278,7 +1271,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="day-view-title">—</div>
-        <div style="font-size: 12px; color: #93938a; margin-top: 2px;" id="day-view-subtitle">—</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="day-view-subtitle">—</div>
       </div>
       <button class="modal-close" onclick="closeDayViewModal()">×</button>
     </div>
@@ -1475,12 +1468,12 @@
       const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
       const pairs = (u.translator_pairs || []).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
       const pairsHtml = pairs.length === 0
-        ? '<span style="color:#93938a;font-size:12px;">нет пар</span>'
+        ? '<span style="color:#94A3B8;font-size:12px;">нет пар</span>'
         : pairs.map(p => `
             <div class="pair-row">
               <span class="badge badge-neutral">${p.language_pairs.code}</span>
               <span class="pair-rate">$${Number(p.rate_per_hour).toFixed(2)}/ч</span>
-              ${p.is_primary ? '<span style="color:#93938a;font-size:11px;">основная</span>' : ''}
+              ${p.is_primary ? '<span style="color:#94A3B8;font-size:11px;">основная</span>' : ''}
             </div>`).join('');
       const statusBadge = u.is_active
         ? '<span class="badge badge-good">● Активен</span>'
@@ -1489,10 +1482,10 @@
       const stats = statsByUser[u.id];
       const hoursDisplay = stats.minutes > 0
         ? formatHoursMinutes(stats.minutes)
-        : '<span style="color:#93938a;">—</span>';
+        : '<span style="color:#94A3B8;">—</span>';
       const amountDisplay = stats.amount > 0
         ? '$' + stats.amount.toFixed(2)
-        : '<span style="color:#93938a;">—</span>';
+        : '<span style="color:#94A3B8;">—</span>';
 
       html += `<tr style="cursor:pointer;" data-user-id="${u.id}" onclick="openTranslatorDetail('${u.id}')">
         <td><div class="emp-cell">
@@ -1502,9 +1495,9 @@
         </div></td>
         <td><div class="pair-list">${pairsHtml}</div></td>
         <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${hoursDisplay}</td>
-        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #2d6a3e;">${amountDisplay}</td>
+        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #16A34A;">${amountDisplay}</td>
         <td>${statusBadge}</td>
-        <td style="text-align: right;"><span style="color:#93938a; font-size: 11px;">Открыть →</span></td>
+        <td style="text-align: right;"><span style="color:#94A3B8; font-size: 11px;">Открыть →</span></td>
       </tr>`;
     }
     html += '</tbody></table>';
@@ -1519,17 +1512,17 @@
 
     // Приветствие
     const hour = new Date().getHours();
-    const greeting = hour < 6 ? 'Доброй ночи' :
-                     hour < 12 ? 'Доброе утро' :
-                     hour < 18 ? 'Добрый день' : 'Добрый вечер';
+    const greeting = hour < 6 ? 'Доброй ночи,' :
+                     hour < 12 ? 'Доброе утро,' :
+                     hour < 18 ? 'Добрый день,' : 'Добрый вечер,';
     document.getElementById('dash-greeting').textContent = greeting;
-    document.getElementById('dash-name').textContent = currentUser.name + '!';
+    document.getElementById('dash-name').textContent = currentUser.name;
 
     const today = new Date();
     const dateStr = today.toLocaleDateString('ru-RU', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
-    document.getElementById('dash-date').textContent = 'Сегодня ' + dateStr;
+    document.getElementById('dash-date').textContent = dateStr;
 
     // Текущий период
     const year = today.getFullYear();
@@ -2104,12 +2097,12 @@
         </div></td>
         <td>${breakdownHtml}</td>
         <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${formatHoursMinutes(r.totalMinutes)}</td>
-        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #2d6a3e;">$${r.totalAmount.toFixed(2)}</td>
+        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #16A34A;">$${r.totalAmount.toFixed(2)}</td>
       </tr>`;
     }
 
     html += `<tr class="payroll-total-row">
-      <td colspan="2" style="text-align: right; color: #93938a; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;">Итого по команде</td>
+      <td colspan="2" style="text-align: right; color: #94A3B8; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;">Итого по команде</td>
       <td style="text-align:right; font-family: 'JetBrains Mono', monospace;">${formatHoursMinutes(totalMinutes)}</td>
       <td style="text-align:right;" class="payroll-grand-total">$${totalAmount.toFixed(2)}</td>
     </tr>`;
@@ -2565,9 +2558,9 @@
       div.innerHTML = `
         <select class="pair-lang" disabled>${options}</select>
         <div class="pair-rate-input">
-          <span style="color:#5c5c55;">$</span>
+          <span style="color:#475569;">$</span>
           <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" value="${existing.rate_per_hour.toFixed(2)}">
-          <span style="color:#5c5c55;font-size:12px;">/ч</span>
+          <span style="color:#475569;font-size:12px;">/ч</span>
         </div>
         <input type="date" class="pair-effective-date" value="${today}" title="Действует с (для новой ставки)">
         <label class="primary-check">
@@ -2581,9 +2574,9 @@
       div.innerHTML = `
         <select class="pair-lang">${options}</select>
         <div class="pair-rate-input">
-          <span style="color:#5c5c55;">$</span>
+          <span style="color:#475569;">$</span>
           <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" placeholder="25.00">
-          <span style="color:#5c5c55;font-size:12px;">/ч</span>
+          <span style="color:#475569;font-size:12px;">/ч</span>
         </div>
         <input type="date" class="pair-effective-date" value="${today}" title="Действует с">
         <label class="primary-check">
@@ -2628,7 +2621,7 @@
     count.textContent = (data && data.length) || 0;
 
     if (!data || data.length === 0) {
-      block.innerHTML = '<div style="color:#93938a; font-size: 12px; padding: 6px 0;">История пуста.</div>';
+      block.innerHTML = '<div style="color:#94A3B8; font-size: 12px; padding: 6px 0;">История пуста.</div>';
       return;
     }
 
@@ -2642,7 +2635,7 @@
             : ''}
           <span class="rate-history-new">$${Number(h.new_rate).toFixed(2)}</span>
         </span>
-        <span style="font-size: 11px; color: #93938a;">${escapeHtml(h.reason || '')}</span>
+        <span style="font-size: 11px; color: #94A3B8;">${escapeHtml(h.reason || '')}</span>
       </div>
     `).join('');
   }
@@ -2895,10 +2888,10 @@
     const btnToggle = document.getElementById('btn-toggle-active');
     if (user.is_active) {
       btnToggle.textContent = 'Деактивировать';
-      btnToggle.style.color = '#a0392c';
+      btnToggle.style.color = '#DC2626';
     } else {
       btnToggle.textContent = 'Активировать';
-      btnToggle.style.color = '#2d6a3e';
+      btnToggle.style.color = '#16A34A';
     }
 
     // Заполняем селектор месяцев (последние 12 месяцев + текущий)
@@ -3086,7 +3079,7 @@
 
     if (day.day_type === 'absent') {
       body.innerHTML = `
-        <div style="padding: 24px; text-align: center; color: #2c4a6b; background: #e1ebf5; border-radius: 8px;">
+        <div style="padding: 24px; text-align: center; color: #1E40AF; background: #DBEAFE; border-radius: 8px;">
           <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Отгул</div>
           <div style="font-size: 12px;">Этот день отмечен как отгул. Оплата не начисляется.</div>
         </div>
@@ -3952,7 +3945,7 @@
             ${p.is_primary ? '<span class="badge badge-neutral" style="margin-left: 6px;">основная</span>' : ''}</td>
         <td>${p.proficiency || '—'}</td>
         <td style="font-family: 'JetBrains Mono', monospace; font-weight: 500;">$${Number(p.rate_per_hour).toFixed(2)}</td>
-        <td style="font-family: 'JetBrains Mono', monospace; color: #5c5c55;">${new Date(p.effective_from).toLocaleDateString('ru-RU')}</td>
+        <td style="font-family: 'JetBrains Mono', monospace; color: #475569;">${new Date(p.effective_from).toLocaleDateString('ru-RU')}</td>
       </tr>`;
     }
     html += '</tbody></table>';
@@ -3987,9 +3980,9 @@
     div.innerHTML = `
       <select class="pair-lang">${options}</select>
       <div class="pair-rate-input">
-        <span style="color:#5c5c55;">$</span>
+        <span style="color:#475569;">$</span>
         <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" placeholder="25.00">
-        <span style="color:#5c5c55;font-size:12px;">/ч</span>
+        <span style="color:#475569;font-size:12px;">/ч</span>
       </div>
       <label class="primary-check">
         <input type="radio" name="primary-pair" value="${id}" ${isPrimary ? 'checked' : ''}>
