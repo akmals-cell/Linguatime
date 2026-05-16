@@ -513,6 +513,263 @@
     padding: 10px 14px; border-radius: 6px; margin: 8px 0;
     font-size: 12px; color: #8a6515;
   }
+
+  /* ═══ DASHBOARD ═══ */
+  .dash-hero {
+    background: linear-gradient(135deg, #1a1a17 0%, #2d2d28 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .dash-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%; right: -10%;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(201, 98, 43, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .dash-hero-greeting {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .dash-hero-name {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    margin-bottom: 8px;
+  }
+  .dash-hero-meta {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .dash-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .dash-kpi {
+    background: white;
+    border: 1px solid #e8e8e1;
+    border-radius: 10px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .dash-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  }
+  .dash-kpi-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px;
+    font-size: 16px;
+  }
+  .dash-kpi-icon.purple { background: #efe7f4; color: #6b4188; }
+  .dash-kpi-icon.green { background: #e8f0e8; color: #2d6a3e; }
+  .dash-kpi-icon.orange { background: #fbeadf; color: #c9622b; }
+  .dash-kpi-icon.blue { background: #e1ebf5; color: #2c4a6b; }
+  .dash-kpi-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #93938a;
+    margin-bottom: 6px;
+  }
+  .dash-kpi-value {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .dash-kpi-meta {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #5c5c55;
+  }
+  .dash-kpi-meta.warning { color: #c9622b; }
+  .dash-kpi-meta.good { color: #2d6a3e; }
+
+  /* Двухколоночная сетка */
+  .dash-grid-2 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .dash-card {
+    background: white;
+    border: 1px solid #e8e8e1;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .dash-card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e8e8e1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .dash-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .dash-card-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #93938a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .dash-card-body { padding: 20px; }
+
+  /* График столбиков (часы по дням) */
+  .dash-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 140px;
+    padding-top: 10px;
+  }
+  .dash-chart-bar {
+    flex: 1;
+    background: linear-gradient(180deg, #2d6a3e 0%, rgba(45, 106, 62, 0.5) 100%);
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    min-height: 2px;
+    transition: opacity 0.15s;
+    cursor: pointer;
+  }
+  .dash-chart-bar:hover { opacity: 0.75; }
+  .dash-chart-bar.weekend {
+    background: linear-gradient(180deg, #5c5c55 0%, rgba(92, 92, 85, 0.4) 100%);
+  }
+  .dash-chart-bar.empty {
+    background: #fafaf7;
+    border: 1px dashed #e8e8e1;
+  }
+  .dash-chart-bar.today {
+    background: linear-gradient(180deg, #c9622b 0%, rgba(201, 98, 43, 0.5) 100%);
+  }
+  .dash-chart-bar[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%; left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a17;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    margin-bottom: 4px;
+    z-index: 10;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .dash-chart-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: #93938a;
+  }
+
+  /* Топ переводчиков */
+  .dash-leaderboard { display: flex; flex-direction: column; gap: 14px; }
+  .dash-leader-row {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .dash-leader-rank {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #fafaf7;
+    color: #5c5c55;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+  .dash-leader-rank.gold { background: #fbeadf; color: #c9622b; }
+  .dash-leader-info { flex: 1; min-width: 0; }
+  .dash-leader-name {
+    font-size: 13px; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .dash-leader-bar-track {
+    height: 4px;
+    background: #fafaf7;
+    border-radius: 100px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .dash-leader-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2d6a3e, #4a9961);
+    border-radius: 100px;
+  }
+  .dash-leader-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2d6a3e;
+    flex-shrink: 0;
+  }
+
+  /* Распределение по парам */
+  .dash-pairs { display: flex; flex-direction: column; gap: 10px; }
+  .dash-pair-row {
+    display: grid;
+    grid-template-columns: 60px 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .dash-pair-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1a1a17;
+  }
+  .dash-pair-bar-track {
+    height: 8px;
+    background: #fafaf7;
+    border-radius: 100px;
+    overflow: hidden;
+    border: 1px solid #e8e8e1;
+  }
+  .dash-pair-bar-fill {
+    height: 100%;
+    background: #1a1a17;
+    border-radius: 100px;
+  }
+  .dash-pair-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #5c5c55;
+    text-align: right;
+  }
+
+  .dash-empty {
+    text-align: center;
+    color: #93938a;
+    padding: 20px;
+    font-size: 13px;
+  }
 </style>
 </head>
 <body>
@@ -549,7 +806,8 @@
 
     <div id="nav-manager" class="sb-section hidden">
       <div class="sb-label">Управление</div>
-      <button class="sb-item active" data-page="translators">Переводчики</button>
+      <button class="sb-item active" data-page="dashboard">Дашборд</button>
+      <button class="sb-item" data-page="translators">Переводчики</button>
       <button class="sb-item" data-page="payroll">Зарплата</button>
     </div>
 
@@ -623,6 +881,80 @@
           <span><span class="legend-dot" style="background: #e1ebf5; border: 1px solid #2c4a6b;"></span>Отгул</span>
           <span><span class="legend-dot" style="background: #fafaf7; border: 1px solid #e8e8e1;"></span>Выходной</span>
           <span><span class="legend-dot" style="background: white; border: 2px solid #c9622b;"></span>Сегодня</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-dashboard" class="page hidden">
+      <div class="dash-hero">
+        <div class="dash-hero-greeting" id="dash-greeting">Добро пожаловать</div>
+        <div class="dash-hero-name" id="dash-name">—</div>
+        <div class="dash-hero-meta" id="dash-date">—</div>
+      </div>
+
+      <div id="dash-error" class="error hidden"></div>
+
+      <div class="dash-kpi-grid">
+        <div class="dash-kpi">
+          <div class="dash-kpi-icon purple">👥</div>
+          <div class="dash-kpi-label">Активных переводчиков</div>
+          <div class="dash-kpi-value" id="dash-kpi-active">—</div>
+          <div class="dash-kpi-meta" id="dash-kpi-active-meta">—</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-icon green">⏱️</div>
+          <div class="dash-kpi-label">Часов в этом мес.</div>
+          <div class="dash-kpi-value" id="dash-kpi-hours">—</div>
+          <div class="dash-kpi-meta" id="dash-kpi-hours-meta">—</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-icon blue">📅</div>
+          <div class="dash-kpi-label">До закрытия периода</div>
+          <div class="dash-kpi-value" id="dash-kpi-days">—</div>
+          <div class="dash-kpi-meta" id="dash-kpi-days-meta">—</div>
+        </div>
+        <div class="dash-kpi">
+          <div class="dash-kpi-icon orange">💰</div>
+          <div class="dash-kpi-label">К выплате (мес.)</div>
+          <div class="dash-kpi-value" id="dash-kpi-amount">—</div>
+          <div class="dash-kpi-meta">предварительно</div>
+        </div>
+      </div>
+
+      <div class="dash-grid-2">
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title">Часы по дням</div>
+            <div class="dash-card-meta" id="dash-chart-month">—</div>
+          </div>
+          <div class="dash-card-body">
+            <div class="dash-chart" id="dash-chart"></div>
+            <div class="dash-chart-axis" id="dash-chart-axis"></div>
+          </div>
+        </div>
+
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-title">Топ переводчиков</div>
+            <div class="dash-card-meta">за месяц</div>
+          </div>
+          <div class="dash-card-body">
+            <div class="dash-leaderboard" id="dash-leaderboard">
+              <div class="dash-empty">Загрузка…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <div class="dash-card-title">Распределение часов по парам</div>
+          <div class="dash-card-meta">за месяц</div>
+        </div>
+        <div class="dash-card-body">
+          <div class="dash-pairs" id="dash-pairs">
+            <div class="dash-empty">Загрузка…</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1018,9 +1350,9 @@
       document.getElementById('nav-manager').classList.remove('hidden');
       document.getElementById('nav-translator').classList.add('hidden');
       showScreen('app');
-      showPage('translators');
+      showPage('dashboard');
       await loadLanguagePairs();
-      await loadTranslators();
+      await loadDashboard();
     } else {
       document.getElementById('nav-translator').classList.remove('hidden');
       document.getElementById('nav-manager').classList.add('hidden');
@@ -1177,6 +1509,274 @@
     }
     html += '</tbody></table>';
     content.innerHTML = html;
+  }
+
+  // ====================================================================
+  // ДАШБОРД (для менеджера)
+  // ====================================================================
+  async function loadDashboard() {
+    hideError('dash-error');
+
+    // Приветствие
+    const hour = new Date().getHours();
+    const greeting = hour < 6 ? 'Доброй ночи' :
+                     hour < 12 ? 'Доброе утро' :
+                     hour < 18 ? 'Добрый день' : 'Добрый вечер';
+    document.getElementById('dash-greeting').textContent = greeting;
+    document.getElementById('dash-name').textContent = currentUser.name + '!';
+
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+    document.getElementById('dash-date').textContent = 'Сегодня ' + dateStr;
+
+    // Текущий период
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const monthLabel = MONTH_NAMES_RU[month] + ' ' + year;
+    document.getElementById('dash-chart-month').textContent = monthLabel;
+
+    const periodStart = formatDate(new Date(year, month, 1));
+    const periodEnd = formatDate(new Date(year, month + 1, 0));
+
+    // ─── Загружаем активных переводчиков и их пары ─────────────────────────
+    const { data: users, error: usersError } = await sb
+      .from('users')
+      .select(`
+        id, name, is_active,
+        translator_pairs ( language_pair_id, rate_per_hour,
+                            language_pairs (code) )
+      `)
+      .eq('role', 'translator');
+
+    if (usersError) {
+      showError('dash-error', 'Ошибка загрузки: ' + usersError.message);
+      return;
+    }
+
+    const activeUsers = (users || []).filter(u => u.is_active);
+    const inactiveCount = (users || []).length - activeUsers.length;
+
+    // ─── Загружаем все дни месяца по всем переводчикам ─────────────────────
+    const userIds = activeUsers.map(u => u.id);
+    let allDays = [];
+    if (userIds.length > 0) {
+      const { data: days } = await sb
+        .from('work_days')
+        .select(`
+          user_id, work_date, day_type,
+          work_intervals ( duration_minutes, language_pair_id ),
+          breaks ( duration_minutes )
+        `)
+        .in('user_id', userIds)
+        .gte('work_date', periodStart)
+        .lte('work_date', periodEnd);
+      allDays = days || [];
+    }
+
+    // ─── История ставок ────────────────────────────────────────────────────
+    const allHistoryByUser = await loadRateHistoryForUsers(userIds);
+
+    // ─── Считаем глобальные KPI и распределение ────────────────────────────
+    let totalMinutes = 0;
+    let totalAmount = 0;
+    const minutesByUser = {}; // user_id -> minutes
+    const minutesByPair = {}; // code -> minutes
+    const minutesByDay = {};  // date -> minutes
+    const codeByPair = {};
+
+    for (const u of activeUsers) {
+      minutesByUser[u.id] = 0;
+      for (const p of (u.translator_pairs || [])) {
+        codeByPair[p.language_pair_id] = p.language_pairs.code;
+      }
+    }
+
+    for (const d of allDays) {
+      if (d.day_type !== 'working') continue;
+      const user = activeUsers.find(u => u.id === d.user_id);
+      if (!user) continue;
+
+      const rateByPair = {};
+      for (const p of (user.translator_pairs || [])) {
+        rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
+      }
+      const userHistory = allHistoryByUser[d.user_id] || {};
+
+      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
+      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
+      const netMin = Math.max(0, intervalsSum - breaksSum);
+      if (netMin <= 0) continue;
+
+      const breakRatio = intervalsSum > 0 ? (netMin / intervalsSum) : 0;
+      let dayAmount = 0;
+      for (const interv of (d.work_intervals || [])) {
+        const rate = getRateForDate(d.work_date, interv.language_pair_id, userHistory, rateByPair);
+        const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
+        dayAmount += (intervalNetMin / 60) * rate;
+        const code = codeByPair[interv.language_pair_id] || '—';
+        minutesByPair[code] = (minutesByPair[code] || 0) + intervalNetMin;
+      }
+
+      totalMinutes += netMin;
+      totalAmount += dayAmount;
+      minutesByUser[d.user_id] += netMin;
+      minutesByDay[d.work_date] = (minutesByDay[d.work_date] || 0) + netMin;
+    }
+
+    // ─── Заполняем KPI ─────────────────────────────────────────────────────
+    document.getElementById('dash-kpi-active').textContent = activeUsers.length;
+    document.getElementById('dash-kpi-active-meta').textContent =
+      inactiveCount > 0
+        ? `+ ${inactiveCount} ${pluralize(inactiveCount, 'неактивный', 'неактивных', 'неактивных')}`
+        : 'все активны';
+
+    document.getElementById('dash-kpi-hours').textContent = formatHoursMinutes(totalMinutes);
+    const workingTranslators = activeUsers.filter(u => minutesByUser[u.id] > 0).length;
+    document.getElementById('dash-kpi-hours-meta').textContent =
+      workingTranslators > 0
+        ? `${workingTranslators} ${pluralize(workingTranslators, 'работал', 'работали', 'работали')} в мес.`
+        : 'никто не работал';
+
+    // Дней до закрытия периода
+    const lastDay = new Date(year, month + 1, 0);
+    const daysLeft = Math.max(0, Math.ceil((lastDay - today) / (1000 * 60 * 60 * 24)));
+    document.getElementById('dash-kpi-days').textContent = daysLeft;
+    const daysMeta = document.getElementById('dash-kpi-days-meta');
+    if (daysLeft === 0) {
+      daysMeta.textContent = 'период завершён';
+      daysMeta.className = 'dash-kpi-meta good';
+    } else if (daysLeft <= 3) {
+      daysMeta.textContent = 'скоро закрытие';
+      daysMeta.className = 'dash-kpi-meta warning';
+    } else {
+      daysMeta.textContent = pluralize(daysLeft, 'день в текущем мес.', 'дня в текущем мес.', 'дней в текущем мес.');
+      daysMeta.className = 'dash-kpi-meta';
+    }
+
+    document.getElementById('dash-kpi-amount').textContent = '$' + totalAmount.toFixed(2);
+
+    // ─── График по дням ────────────────────────────────────────────────────
+    renderDashChart(year, month, minutesByDay);
+
+    // ─── Топ переводчиков ──────────────────────────────────────────────────
+    renderDashLeaderboard(activeUsers, minutesByUser);
+
+    // ─── Распределение по парам ────────────────────────────────────────────
+    renderDashPairs(minutesByPair);
+  }
+
+  function renderDashChart(year, month, minutesByDay) {
+    const grid = document.getElementById('dash-chart');
+    const axis = document.getElementById('dash-chart-axis');
+    grid.innerHTML = '';
+    axis.innerHTML = '';
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = formatDate(new Date());
+    const maxMin = Math.max(...Object.values(minutesByDay), 1);
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const min = minutesByDay[dateStr] || 0;
+      const dayOfWeek = new Date(year, month, d).getDay();
+      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+
+      const bar = document.createElement('div');
+      bar.className = 'dash-chart-bar';
+      if (min === 0) bar.classList.add('empty');
+      else if (isWeekend) bar.classList.add('weekend');
+      if (dateStr === todayStr) bar.classList.add('today');
+
+      const heightPct = (min / maxMin) * 100;
+      bar.style.height = Math.max(2, heightPct) + '%';
+
+      if (min > 0) {
+        bar.dataset.tooltip = `${d} ${MONTH_NAMES_RU[month].toLowerCase()}: ${formatHoursMinutes(min)}`;
+      } else {
+        bar.dataset.tooltip = `${d}: нет часов`;
+      }
+      grid.appendChild(bar);
+    }
+
+    // Ось снизу — каждые 5 дней
+    for (let d = 1; d <= daysInMonth; d += 5) {
+      const lbl = document.createElement('span');
+      lbl.textContent = d;
+      lbl.style.flex = d === 1 ? '0 0 auto' : '1 1 auto';
+      axis.appendChild(lbl);
+    }
+    const lastLbl = document.createElement('span');
+    lastLbl.textContent = daysInMonth;
+    axis.appendChild(lastLbl);
+  }
+
+  function renderDashLeaderboard(users, minutesByUser) {
+    const block = document.getElementById('dash-leaderboard');
+    block.innerHTML = '';
+    const sorted = users
+      .map(u => ({ user: u, minutes: minutesByUser[u.id] || 0 }))
+      .filter(x => x.minutes > 0)
+      .sort((a, b) => b.minutes - a.minutes)
+      .slice(0, 5);
+
+    if (sorted.length === 0) {
+      block.innerHTML = '<div class="dash-empty">Никто не работал в этом месяце.</div>';
+      return;
+    }
+
+    const maxMin = sorted[0].minutes;
+    sorted.forEach((x, idx) => {
+      const initials = (x.user.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+      const widthPct = (x.minutes / maxMin) * 100;
+      const row = document.createElement('div');
+      row.className = 'dash-leader-row';
+      row.style.cursor = 'pointer';
+      row.onclick = () => {
+        showPage('translator-detail');
+        openTranslatorDetail(x.user.id);
+      };
+      row.innerHTML = `
+        <div class="dash-leader-rank ${idx === 0 ? 'gold' : ''}">${idx + 1}</div>
+        <div class="dash-leader-info">
+          <div class="dash-leader-name">${escapeHtml(x.user.name)}</div>
+          <div class="dash-leader-bar-track">
+            <div class="dash-leader-bar-fill" style="width: ${widthPct}%;"></div>
+          </div>
+        </div>
+        <div class="dash-leader-value">${formatHoursMinutes(x.minutes)}</div>
+      `;
+      block.appendChild(row);
+    });
+  }
+
+  function renderDashPairs(minutesByPair) {
+    const block = document.getElementById('dash-pairs');
+    block.innerHTML = '';
+    const sorted = Object.entries(minutesByPair)
+      .filter(([_, m]) => m > 0)
+      .sort((a, b) => b[1] - a[1]);
+
+    if (sorted.length === 0) {
+      block.innerHTML = '<div class="dash-empty">Нет данных за этот месяц.</div>';
+      return;
+    }
+
+    const maxMin = sorted[0][1];
+    sorted.forEach(([code, min]) => {
+      const widthPct = (min / maxMin) * 100;
+      const row = document.createElement('div');
+      row.className = 'dash-pair-row';
+      row.innerHTML = `
+        <div class="dash-pair-code">${escapeHtml(code)}</div>
+        <div class="dash-pair-bar-track">
+          <div class="dash-pair-bar-fill" style="width: ${widthPct}%;"></div>
+        </div>
+        <div class="dash-pair-value">${formatHoursMinutes(Math.round(min))}</div>
+      `;
+      block.appendChild(row);
+    });
   }
 
   // ====================================================================
@@ -3495,7 +4095,8 @@
     b.addEventListener('click', async () => {
       const page = b.dataset.page;
       showPage(page);
-      if (page === 'translators') await loadTranslators();
+      if (page === 'dashboard') await loadDashboard();
+      else if (page === 'translators') await loadTranslators();
       else if (page === 'my-profile') await loadMyProfile();
       else if (page === 'calendar') await loadCalendar();
       else if (page === 'payroll') await loadPayroll();
