@@ -2587,8 +2587,10 @@
   //   currentRates  — { pair_id: rate } (текущие, fallback)
   function getRateForDate(workDate, pairId, historyByPair, currentRates) {
     const history = historyByPair[pairId] || [];
-    // История уже отсортирована по effective_from DESC.
-    // Ищем первую запись, у которой effective_from <= workDate.
+    // История отсортирована по changed_at DESC (самые свежие изменения первыми).
+    // Ищем первую запись с effective_from <= workDate.
+    // Это даёт правильный ответ даже если более новое изменение откатывает
+    // ставку задним числом ("изменение с 1 мая" применится ко всему маю).
     for (const h of history) {
       const effective = h.effective_from || h.changed_at.split('T')[0];
       if (effective <= workDate) {
@@ -2600,14 +2602,17 @@
   }
 
   // Загружает историю ставок для набора пользователей и группирует по парам.
-  // Возвращает { user_id: { pair_id: [history items DESC by effective_from] } }
+  // Возвращает { user_id: { pair_id: [history items DESC by changed_at] } }
+  // Сортировка по changed_at: последнее изменение применяется первым.
+  // Если оно содержит effective_from в прошлом — оно корректно применится
+  // ко всем дням >= effective_from, даже к тем, что попадали под более старые ставки.
   async function loadRateHistoryForUsers(userIds) {
     if (userIds.length === 0) return {};
     const { data } = await sb
       .from('rate_history')
       .select('user_id, language_pair_id, new_rate, changed_at, effective_from')
       .in('user_id', userIds)
-      .order('effective_from', { ascending: false });
+      .order('changed_at', { ascending: false });
 
     const byUser = {};
     for (const h of (data || [])) {
