@@ -76,19 +76,37 @@
   }
   .sb-section { margin-bottom: 20px; }
   .sb-label {
-    font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.12em; color: #94A3B8; margin-bottom: 8px; padding: 0 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; text-transform: uppercase;
+    letter-spacing: 0.15em; color: #94A3B8; margin-bottom: 10px; padding: 0 12px; font-weight: 500;
   }
   .sb-item {
-    display: block; padding: 8px 10px; border-radius: 6px; color: #475569;
-    font-weight: 500; width: 100%; text-align: left; margin-bottom: 2px; transition: all 0.15s;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 8px; color: #475569;
+    font-weight: 500; width: 100%; text-align: left; margin-bottom: 2px;
+    transition: all 0.15s; border: none; background: none;
+    cursor: pointer; font-family: inherit; font-size: 14px;
   }
-  .sb-item:hover { background: #FAFAFA; color: #1E40AF; }
+  .sb-item .sb-icon {
+    width: 18px; height: 18px; flex-shrink: 0;
+    stroke: currentColor; opacity: 0.7;
+  }
+  .sb-item:hover { background: #F1F5F9; color: #0F1B3D; }
+  .sb-item:hover .sb-icon { opacity: 1; }
   .sb-item.active { background: #1E40AF; color: white; }
+  .sb-item.active .sb-icon { opacity: 1; }
 
-  .sb-user { margin-top: auto; padding: 16px 10px 0; border-top: 1px solid #E5E7EB; font-size: 12px; }
-  .sb-user-name { font-weight: 500; margin-bottom: 2px; }
-  .sb-user-email { color: #94A3B8; margin-bottom: 8px; word-break: break-all; }
+  .sb-user { margin-top: auto; padding: 14px 12px 0; border-top: 1px solid #E5E7EB; font-size: 12px; }
+  .sb-user-name { font-weight: 600; color: #0F1B3D; margin-bottom: 2px; font-size: 13px; }
+  .sb-user-email { color: #94A3B8; margin-bottom: 10px; word-break: break-all; font-size: 11px; }
+  .btn-logout {
+    width: 100%; padding: 6px 10px; font-size: 12px;
+    color: #94A3B8; background: none; border: 1px solid #E5E7EB;
+    border-radius: 6px; transition: all 0.15s; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-logout:hover {
+    color: #DC2626; border-color: #FECACA; background: #FEE2E2;
+  }
 
   .main { padding: 32px 40px; overflow-x: auto; }
 
@@ -516,42 +534,54 @@
 
   /* ═══ DASHBOARD ═══ */
   .dash-hero {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 18px;
     border-bottom: 1px solid #E5E7EB;
     display: flex;
-    align-items: baseline;
+    align-items: flex-end;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 12px;
   }
-  .dash-hero-left { display: flex; align-items: baseline; gap: 12px; }
-  .dash-hero-greeting {
+  .dash-hero-left { flex: 1; min-width: 280px; }
+  .dash-hero-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0F1B3D;
+    letter-spacing: -0.025em;
+    margin-bottom: 6px;
+  }
+  .dash-hero-summary {
     font-size: 14px;
-    color: #94A3B8;
+    color: #475569;
+    line-height: 1.45;
   }
-  .dash-hero-name {
-    font-size: 22px;
+  .dash-hero-summary strong {
+    color: #16A34A;
     font-weight: 600;
-    letter-spacing: -0.02em;
+  }
+  .dash-hero-summary .accent-blue {
     color: #1E40AF;
+    font-weight: 600;
   }
   .dash-hero-meta {
-    font-size: 13px;
+    font-size: 11px;
     color: #94A3B8;
     font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
   }
 
   .dash-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: 1.2fr 1fr 1fr 1fr;
     gap: 14px;
     margin-bottom: 24px;
   }
   .dash-kpi {
     background: white;
     border: 1px solid #E5E7EB;
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 20px 22px;
     position: relative;
     overflow: hidden;
@@ -559,19 +589,37 @@
   }
   .dash-kpi:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.08);
   }
+  /* Особая карточка — К выплате */
+  .dash-kpi.featured {
+    background: linear-gradient(135deg, #16A34A 0%, #22C55E 100%);
+    color: white;
+    border: none;
+  }
+  .dash-kpi.featured .dash-kpi-label { color: rgba(255,255,255,0.8); }
+  .dash-kpi.featured .dash-kpi-value { color: white; }
+  .dash-kpi.featured .dash-kpi-meta { color: rgba(255,255,255,0.85); }
+  .dash-kpi.featured .dash-kpi-icon {
+    background: rgba(255,255,255,0.18); color: white;
+  }
+
   .dash-kpi-icon {
     width: 36px; height: 36px;
     border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 12px;
-    font-size: 16px;
+    margin-bottom: 14px;
   }
-  .dash-kpi-icon.purple { background: #DBEAFE; color: #1E40AF; }
-  .dash-kpi-icon.green { background: #DCFCE7; color: #16A34A; }
-  .dash-kpi-icon.orange { background: #DBEAFE; color: #1E40AF; }
+  .dash-kpi-icon svg {
+    width: 18px; height: 18px;
+    stroke-width: 2;
+  }
   .dash-kpi-icon.blue { background: #DBEAFE; color: #1E40AF; }
+  .dash-kpi-icon.green { background: #DCFCE7; color: #16A34A; }
+  .dash-kpi-icon.amber { background: #FEF3C7; color: #B45309; }
+  .dash-kpi-icon.purple { background: #DBEAFE; color: #1E40AF; }
+  .dash-kpi-icon.orange { background: #FEF3C7; color: #B45309; }
+
   .dash-kpi-label {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
@@ -579,19 +627,22 @@
     letter-spacing: 0.1em;
     color: #94A3B8;
     margin-bottom: 6px;
+    font-weight: 500;
   }
   .dash-kpi-value {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     line-height: 1;
+    color: #0F1B3D;
   }
+  .dash-kpi.featured .dash-kpi-value { font-size: 32px; font-weight: 700; }
   .dash-kpi-meta {
-    margin-top: 6px;
-    font-size: 11px;
+    margin-top: 8px;
+    font-size: 12px;
     color: #475569;
   }
-  .dash-kpi-meta.warning { color: #1E40AF; }
+  .dash-kpi-meta.warning { color: #B45309; }
   .dash-kpi-meta.good { color: #16A34A; }
 
   /* Двухколоночная сетка */
@@ -797,21 +848,36 @@
 
     <div id="nav-manager" class="sb-section hidden">
       <div class="sb-label">Управление</div>
-      <button class="sb-item active" data-page="dashboard">Дашборд</button>
-      <button class="sb-item" data-page="translators">Переводчики</button>
-      <button class="sb-item" data-page="payroll">Зарплата</button>
+      <button class="sb-item active" data-page="dashboard">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        Дашборд
+      </button>
+      <button class="sb-item" data-page="translators">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Переводчики
+      </button>
+      <button class="sb-item" data-page="payroll">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Зарплата
+      </button>
     </div>
 
     <div id="nav-translator" class="sb-section hidden">
       <div class="sb-label">Моё время</div>
-      <button class="sb-item active" data-page="calendar">Календарь</button>
-      <button class="sb-item" data-page="my-profile">Мой профиль</button>
+      <button class="sb-item active" data-page="calendar">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Календарь
+      </button>
+      <button class="sb-item" data-page="my-profile">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Мой профиль
+      </button>
     </div>
 
     <div class="sb-user">
       <div class="sb-user-name" id="sb-user-name">—</div>
       <div class="sb-user-email" id="sb-user-email">—</div>
-      <button id="btn-logout" class="btn btn-ghost btn-sm" style="width:100%; justify-content: center;">Выйти</button>
+      <button id="btn-logout" class="btn-logout">Выйти</button>
     </div>
   </aside>
 
@@ -879,8 +945,8 @@
     <div id="page-dashboard" class="page hidden">
       <div class="dash-hero">
         <div class="dash-hero-left">
-          <span class="dash-hero-greeting" id="dash-greeting">Добрый день,</span>
-          <span class="dash-hero-name" id="dash-name">—</span>
+          <div class="dash-hero-title" id="dash-title">—</div>
+          <div class="dash-hero-summary" id="dash-summary">—</div>
         </div>
         <div class="dash-hero-meta" id="dash-date">—</div>
       </div>
@@ -888,29 +954,37 @@
       <div id="dash-error" class="error hidden"></div>
 
       <div class="dash-kpi-grid">
+        <div class="dash-kpi featured">
+          <div class="dash-kpi-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="dash-kpi-label">К выплате (мес.)</div>
+          <div class="dash-kpi-value" id="dash-kpi-amount">—</div>
+          <div class="dash-kpi-meta">предварительно</div>
+        </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon purple">👥</div>
+          <div class="dash-kpi-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
           <div class="dash-kpi-label">Активных переводчиков</div>
           <div class="dash-kpi-value" id="dash-kpi-active">—</div>
           <div class="dash-kpi-meta" id="dash-kpi-active-meta">—</div>
         </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon green">⏱️</div>
+          <div class="dash-kpi-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
           <div class="dash-kpi-label">Часов в этом мес.</div>
           <div class="dash-kpi-value" id="dash-kpi-hours">—</div>
           <div class="dash-kpi-meta" id="dash-kpi-hours-meta">—</div>
         </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon blue">📅</div>
+          <div class="dash-kpi-icon amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
           <div class="dash-kpi-label">До закрытия периода</div>
           <div class="dash-kpi-value" id="dash-kpi-days">—</div>
           <div class="dash-kpi-meta" id="dash-kpi-days-meta">—</div>
-        </div>
-        <div class="dash-kpi">
-          <div class="dash-kpi-icon orange">💰</div>
-          <div class="dash-kpi-label">К выплате (мес.)</div>
-          <div class="dash-kpi-value" id="dash-kpi-amount">—</div>
-          <div class="dash-kpi-meta">предварительно</div>
         </div>
       </div>
 
@@ -1510,24 +1584,24 @@
   async function loadDashboard() {
     hideError('dash-error');
 
-    // Приветствие
-    const hour = new Date().getHours();
-    const greeting = hour < 6 ? 'Доброй ночи,' :
-                     hour < 12 ? 'Доброе утро,' :
-                     hour < 18 ? 'Добрый день,' : 'Добрый вечер,';
-    document.getElementById('dash-greeting').textContent = greeting;
-    document.getElementById('dash-name').textContent = currentUser.name;
-
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('ru-RU', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-    });
-    document.getElementById('dash-date').textContent = dateStr;
-
     // Текущий период
+    const today = new Date();
     const year = today.getFullYear();
     const month = today.getMonth();
     const monthLabel = MONTH_NAMES_RU[month] + ' ' + year;
+
+    // Дата справа
+    const dateStr = today.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long'
+    });
+    document.getElementById('dash-date').textContent = dateStr;
+
+    // Заголовок — месяц
+    document.getElementById('dash-title').textContent = monthLabel;
+
+    // Сводку наполним позже, после загрузки данных
+    document.getElementById('dash-summary').innerHTML = 'Загрузка данных…';
+
     document.getElementById('dash-chart-month').textContent = monthLabel;
 
     const periodStart = formatDate(new Date(year, month, 1));
@@ -1649,6 +1723,21 @@
     }
 
     document.getElementById('dash-kpi-amount').textContent = '$' + totalAmount.toFixed(2);
+
+    // ─── Сводка-предложение в заголовке ────────────────────────────────────
+    const summaryParts = [];
+    if (workingTranslators > 0) {
+      summaryParts.push(`<strong>$${totalAmount.toFixed(2)}</strong> заработано командой`);
+      summaryParts.push(`<span class="accent-blue">${formatHoursMinutes(totalMinutes)}</span> отработано`);
+    } else {
+      summaryParts.push('Пока никто не работал в этом месяце');
+    }
+    if (daysLeft > 0 && daysLeft <= 5) {
+      summaryParts.push(`до закрытия периода ${daysLeft} ${pluralize(daysLeft, 'день', 'дня', 'дней')}`);
+    } else if (daysLeft === 0) {
+      summaryParts.push('период завершён, можно закрывать');
+    }
+    document.getElementById('dash-summary').innerHTML = summaryParts.join(' · ');
 
     // ─── График по дням ────────────────────────────────────────────────────
     renderDashChart(year, month, minutesByDay);
