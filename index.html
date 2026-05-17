@@ -3321,12 +3321,12 @@
   // ────────────────────────────────────────────────────────────────
   // Read-only просмотр дня (для менеджера)
   // ────────────────────────────────────────────────────────────────
-  // Глобальное состояние для модалки дня
-  let currentDayDate = null;
-  let currentDayShift = null; // shifts row or null
+  // Глобальное состояние для модалки просмотра дня (для менеджера)
+  let tdViewDate = null;
+  let tdViewShift = null; // shifts row or null
 
   async function openDayViewModal(dateStr) {
-    currentDayDate = dateStr;
+    tdViewDate = dateStr;
     const date = new Date(dateStr + 'T00:00:00');
     const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
     const monthName = MONTH_NAMES_RU[date.getMonth()];
@@ -3359,10 +3359,10 @@
     ]);
 
     const day = dayRes.data;
-    currentDayShift = shiftRes.data;
+    tdViewShift = shiftRes.data;
 
     // Рендерим блок СМЕНЫ всегда (даже если работы не было)
-    const shiftHtml = renderShiftSection(currentDayShift);
+    const shiftHtml = renderShiftSection(tdViewShift);
 
     if (!day) {
       // Нет записи о работе — показываем только смену и подсказку
@@ -3403,8 +3403,8 @@
     if (grossMin > 0) dayAmount = dayAmount * (netMin / grossMin);
 
     // Овертайм: фактические минуты vs плановые
-    const plannedMin = currentDayShift
-      ? currentDayShift.planned_minutes
+    const plannedMin = tdViewShift
+      ? tdViewShift.planned_minutes
       : (tdUser.default_shift_minutes || 480);
     const overtimeMin = netMin - plannedMin;
     let overtimeHtml = '';
@@ -3520,25 +3520,25 @@
   // ────────────────────────────────────────────────────────────────
   function openShiftModal() {
     hideError('shift-modal-error');
-    const date = new Date(currentDayDate + 'T00:00:00');
+    const date = new Date(tdViewDate + 'T00:00:00');
     const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
     const monthName = MONTH_NAMES_RU[date.getMonth()];
     document.getElementById('shift-modal-title').textContent =
-      currentDayShift ? 'Изменить смену' : 'Назначить смену';
+      tdViewShift ? 'Изменить смену' : 'Назначить смену';
     document.getElementById('shift-modal-subtitle').textContent =
       `${date.getDate()} ${monthName.toLowerCase()}, ${dayName}`;
 
     // Префилл — либо текущая смена, либо дефолт
-    const start = currentDayShift
-      ? currentDayShift.planned_start.substring(0, 5)
+    const start = tdViewShift
+      ? tdViewShift.planned_start.substring(0, 5)
       : (tdUser.default_shift_start || '09:00:00').substring(0, 5);
-    const end = currentDayShift
-      ? currentDayShift.planned_end.substring(0, 5)
+    const end = tdViewShift
+      ? tdViewShift.planned_end.substring(0, 5)
       : (tdUser.default_shift_end || '18:00:00').substring(0, 5);
 
     document.getElementById('shift-start').value = start;
     document.getElementById('shift-end').value = end;
-    document.getElementById('shift-note').value = currentDayShift?.note || '';
+    document.getElementById('shift-note').value = tdViewShift?.note || '';
     updateShiftModalDuration();
 
     document.getElementById('shift-start').oninput = updateShiftModalDuration;
@@ -3589,7 +3589,7 @@
       const crossesMidnight = (end <= start);
       const payload = {
         user_id: tdUser.id,
-        shift_date: currentDayDate,
+        shift_date: tdViewDate,
         planned_start: start + ':00',
         planned_end: end + ':00',
         planned_minutes: minutes,
@@ -3598,11 +3598,11 @@
         note: note || null,
       };
 
-      if (currentDayShift) {
+      if (tdViewShift) {
         // UPDATE
         const { error } = await sb.from('shifts')
           .update(payload)
-          .eq('id', currentDayShift.id);
+          .eq('id', tdViewShift.id);
         if (error) throw new Error(error.message);
       } else {
         // INSERT
@@ -3612,7 +3612,7 @@
 
       closeShiftModal();
       // Перезагружаем модалку дня и календарь
-      await openDayViewModal(currentDayDate);
+      await openDayViewModal(tdViewDate);
       await loadTranslatorDetailMonth();
     } catch (e) {
       showError('shift-modal-error', e.message);
@@ -3622,16 +3622,16 @@
   }
 
   async function deleteShift() {
-    if (!currentDayShift) return;
+    if (!tdViewShift) return;
     if (!confirm('Удалить назначенную смену? Будет использоваться стандартная смена переводчика.')) return;
 
     try {
       const { error } = await sb.from('shifts')
         .delete()
-        .eq('id', currentDayShift.id);
+        .eq('id', tdViewShift.id);
       if (error) throw new Error(error.message);
 
-      await openDayViewModal(currentDayDate);
+      await openDayViewModal(tdViewDate);
       await loadTranslatorDetailMonth();
     } catch (e) {
       alert('Ошибка удаления: ' + e.message);
@@ -3640,8 +3640,8 @@
 
   function closeDayViewModal() {
     document.getElementById('day-view-modal').classList.remove('open');
-    currentDayDate = null;
-    currentDayShift = null;
+    tdViewDate = null;
+    tdViewShift = null;
   }
 
   // ====================================================================
