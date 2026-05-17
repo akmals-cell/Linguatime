@@ -1292,6 +1292,14 @@
           <span><span class="legend-dot" style="background: #FAFAFA; border: 1px solid #E5E7EB;"></span>Выходной</span>
         </div>
       </div>
+
+      <!-- История запросов на изменение графика -->
+      <div class="section" id="td-shift-history-section" style="display: none;">
+        <h3 style="margin-bottom: 12px; font-size: 14px; color: #0F1B3D; font-weight: 600;">
+          История запросов на изменение графика
+        </h3>
+        <div id="td-shift-history-list"></div>
+      </div>
     </div>
 
     <div id="page-my-profile" class="page hidden">
@@ -3358,6 +3366,30 @@
 
     showPage('translator-detail');
     await loadTranslatorDetailMonth();
+    await loadTranslatorShiftHistory();
+  }
+
+  // Загружает и отображает историю запросов на изменение графика для tdUser
+  async function loadTranslatorShiftHistory() {
+    if (!tdUser) return;
+    const section = document.getElementById('td-shift-history-section');
+    const list = document.getElementById('td-shift-history-list');
+
+    const { data, error } = await sb.from('shift_change_requests')
+      .select(`id, status, created_at, reviewed_at, reason, review_note,
+               requested_start, requested_end, requested_minutes, shift_date,
+               final_start, final_end, final_minutes, final_effective_from`)
+      .eq('user_id', tdUser.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error || !data || data.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = '';
+    list.innerHTML = data.map(r => renderShiftRequestHistoryItem(r, true)).join('');
   }
 
   function fillMonthSelector() {
@@ -5029,8 +5061,8 @@
     const content = document.getElementById('my-shift-content');
     const btn = document.getElementById('btn-request-shift');
 
-    // Параллельно: профиль (текущий график) и pending запрос
-    const [profileRes, pendingReqRes, historyRes] = await Promise.all([
+    // Параллельно: профиль (текущий график), pending запрос и ВСЯ история запросов
+    const [profileRes, pendingReqRes, allRequestsRes] = await Promise.all([
       sb.from('users')
         .select('default_shift_start, default_shift_end, default_shift_minutes')
         .eq('id', currentUser.id)
@@ -5040,11 +5072,13 @@
         .eq('user_id', currentUser.id)
         .eq('status', 'pending')
         .maybeSingle(),
-      sb.from('shift_history')
-        .select('new_start, new_end, new_minutes, effective_from, changed_at, reason')
+      sb.from('shift_change_requests')
+        .select(`id, status, created_at, reviewed_at, reason, review_note,
+                 requested_start, requested_end, requested_minutes, shift_date,
+                 final_start, final_end, final_minutes, final_effective_from`)
         .eq('user_id', currentUser.id)
-        .order('effective_from', { ascending: false })
-        .limit(3)
+        .order('created_at', { ascending: false })
+        .limit(20)
     ]);
 
     const profile = profileRes.data;
@@ -5064,7 +5098,7 @@
       </div>
     `;
 
-    // Pending запрос
+    // Pending запрос — выделенный блок
     if (pendingReqRes.data) {
       const r = pendingReqRes.data;
       const rs = r.requested_start.substring(0,5);
@@ -5089,27 +5123,97 @@
       btn.style.opacity = '';
     }
 
-    // История изменений (последние 3)
-    if (historyRes.data && historyRes.data.length > 0) {
-      html += `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #E5E7EB;">
-        <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace;">
-          Недавние изменения
-        </div>`;
-      for (const h of historyRes.data) {
-        const ns = h.new_start.substring(0,5);
-        const ne = h.new_end.substring(0,5);
-        html += `
-          <div style="display: flex; gap: 12px; padding: 4px 0; font-size: 12px; font-family: 'JetBrains Mono', monospace;">
-            <span style="color: #94A3B8;">${formatDateRu(h.effective_from)}</span>
-            <span style="color: #1E40AF; font-weight: 600;">${ns}–${ne}</span>
-            <span style="color: #475569;">(${formatHoursMinutes(h.new_minutes)})</span>
+    // ─── ПОЛНАЯ ИСТОРИЯ ЗАПРОСОВ ───────────────────────────────────────
+    const allReqs = allRequestsRes.data || [];
+    if (allReqs.length > 0) {
+      html += `
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #E5E7EB;">
+          <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 500;">
+            История запросов
           </div>
-        `;
+          <div class="shift-history-list">
+      `;
+
+      for (const r of allReqs) {
+        html += renderShiftRequestHistoryItem(r, false);
       }
-      html += `</div>`;
+
+      html += `</div></div>`;
     }
 
     content.innerHTML = html;
+  }
+
+  // Универсальный рендер строки истории запроса (для переводчика и менеджера)
+  // isManagerView = true → шире карточка, добавляется имя переводчика (передаётся отдельно)
+  function renderShiftRequestHistoryItem(r, isManagerView, translatorName = null) {
+    const rs = r.requested_start.substring(0,5);
+    const re = r.requested_end.substring(0,5);
+    const reqDur = formatHoursMinutes(r.requested_minutes);
+    const submitDate = new Date(r.created_at).toLocaleDateString('ru-RU');
+
+    let statusLabel, statusClass, leftBorder;
+    if (r.status === 'pending') {
+      statusLabel = '● Ожидает';
+      statusClass = 'pending';
+      leftBorder = '#B45309';
+    } else if (r.status === 'approved') {
+      statusLabel = '● Одобрен';
+      statusClass = 'approved';
+      leftBorder = '#16A34A';
+    } else {
+      statusLabel = '● Отклонён';
+      statusClass = 'rejected';
+      leftBorder = '#DC2626';
+    }
+
+    let finalBlock = '';
+    if (r.status === 'approved' && r.final_start) {
+      const fs = r.final_start.substring(0,5);
+      const fe = r.final_end.substring(0,5);
+      const fDur = formatHoursMinutes(r.final_minutes);
+      const fDate = r.final_effective_from ? formatDateRu(r.final_effective_from) : formatDateRu(r.shift_date);
+      const sameAsRequested = (fs === rs && fe === re && r.final_minutes === r.requested_minutes
+                               && r.final_effective_from === r.shift_date);
+      if (sameAsRequested) {
+        finalBlock = `<div style="font-size: 12px; color: #16A34A; margin-top: 4px;">✓ Одобрено как запрошено</div>`;
+      } else {
+        finalBlock = `<div style="font-size: 12px; color: #16A34A; margin-top: 4px; font-family: 'JetBrains Mono', monospace;">
+          ✓ Утверждено: <strong>${fs}–${fe} (${fDur}) с ${fDate}</strong>
+        </div>`;
+      }
+    } else if (r.status === 'rejected') {
+      finalBlock = `<div style="font-size: 12px; color: #DC2626; margin-top: 4px;">✕ Отклонено</div>`;
+    }
+
+    let noteBlock = '';
+    if (r.review_note) {
+      noteBlock = `<div style="font-size: 12px; color: #475569; margin-top: 6px; font-style: italic;">
+        Менеджер: «${escapeHtml(r.review_note)}»
+      </div>`;
+    }
+
+    const decisionDate = r.reviewed_at
+      ? ` · решено ${new Date(r.reviewed_at).toLocaleDateString('ru-RU')}`
+      : '';
+
+    return `
+      <div style="padding: 10px 12px; border-left: 3px solid ${leftBorder}; background: #FAFAFA; border-radius: 6px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <div style="font-size: 12px; color: #94A3B8; font-family: 'JetBrains Mono', monospace;">
+            ${isManagerView && translatorName ? `<strong style="color: #0F1B3D;">${escapeHtml(translatorName)}</strong> · ` : ''}
+            подан ${submitDate}${decisionDate}
+          </div>
+          <span class="req-status-badge ${statusClass}">${statusLabel}</span>
+        </div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #0F1B3D;">
+          Запросил: ${rs}–${re} (${reqDur}) с ${formatDateRu(r.shift_date)}
+        </div>
+        <div style="font-style: italic; color: #475569; font-size: 12px; margin-top: 4px;">«${escapeHtml(r.reason)}»</div>
+        ${finalBlock}
+        ${noteBlock}
+      </div>
+    `;
   }
 
   async function loadMyPairsTable() {
