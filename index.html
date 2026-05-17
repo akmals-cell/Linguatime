@@ -139,6 +139,7 @@
   .badge-good { background: #DCFCE7; color: #16A34A; }
   .badge-warn { background: #FEF3C7; color: #B45309; }
   .badge-neutral { background: #FAFAFA; color: #475569; border: 1px solid #E5E7EB; }
+  .badge-info { background: #DBEAFE; color: #1E40AF; }
 
   .emp-cell { display: flex; align-items: center; gap: 10px; }
   .emp-avatar {
@@ -1331,6 +1332,29 @@
         </div>
       </div>
 
+      <div style="margin-top: 16px; margin-bottom: 8px;">
+        <div class="field-label">Стандартная смена</div>
+        <div style="font-size: 11px; color: #94A3B8; margin-bottom: 8px;">
+          Дефолтный график переводчика. Используется для расчёта овертайма, если на конкретный день не назначена смена.
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Начало</label>
+          <input type="time" id="edit-shift-start" class="input" value="09:00">
+        </div>
+        <div class="field">
+          <label class="field-label">Окончание</label>
+          <input type="time" id="edit-shift-end" class="input" value="18:00">
+        </div>
+        <div class="field">
+          <label class="field-label">Длительность</label>
+          <div id="edit-shift-duration" style="padding: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #16A34A; font-weight: 600;">
+            8ч 00м
+          </div>
+        </div>
+      </div>
+
       <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
         <div class="field-label" style="margin: 0;">Языковые пары и ставки</div>
         <button class="btn btn-ghost btn-sm" onclick="addEditPairRow()">+ Пара</button>
@@ -1481,6 +1505,7 @@
 
     const { data, error } = await sb.from('users')
       .select(`id, email, name, timezone, is_active, created_at,
+               default_shift_start, default_shift_end, default_shift_minutes,
                translator_pairs ( id, rate_per_hour, is_primary, proficiency,
                                   language_pairs (code, display_name) )`)
       .eq('role', 'translator')
@@ -2599,12 +2624,48 @@
   let editPairRowCounter = 0;
   let editExistingPairs = [];   // оригинальные пары переводчика для сравнения
 
+  // Считает длительность смены HH:MM → HH:MM в минутах. Поддерживает переход через полночь.
+  function calcShiftMinutes(startStr, endStr) {
+    if (!startStr || !endStr) return 0;
+    const [sh, sm] = startStr.split(':').map(Number);
+    const [eh, em] = endStr.split(':').map(Number);
+    let startMin = sh * 60 + sm;
+    let endMin = eh * 60 + em;
+    if (endMin <= startMin) endMin += 24 * 60; // переход через полночь
+    return endMin - startMin;
+  }
+
+  function updateShiftDuration() {
+    const start = document.getElementById('edit-shift-start').value;
+    const end = document.getElementById('edit-shift-end').value;
+    const minutes = calcShiftMinutes(start, end);
+    const display = document.getElementById('edit-shift-duration');
+    if (minutes > 0) {
+      display.textContent = formatHoursMinutes(minutes);
+      display.style.color = '#16A34A';
+    } else {
+      display.textContent = '—';
+      display.style.color = '#94A3B8';
+    }
+  }
+
   async function openEditModal() {
     if (!tdUser) return;
 
     editPairRowCounter = 0;
     document.getElementById('edit-name').value = tdUser.name || '';
     document.getElementById('edit-timezone').value = tdUser.timezone || 'Asia/Tashkent';
+
+    // Дефолтная смена
+    const shiftStart = (tdUser.default_shift_start || '09:00:00').substring(0, 5);
+    const shiftEnd = (tdUser.default_shift_end || '18:00:00').substring(0, 5);
+    document.getElementById('edit-shift-start').value = shiftStart;
+    document.getElementById('edit-shift-end').value = shiftEnd;
+    updateShiftDuration();
+
+    // Слушатели для пересчёта длительности при изменении
+    document.getElementById('edit-shift-start').oninput = updateShiftDuration;
+    document.getElementById('edit-shift-end').oninput = updateShiftDuration;
     document.getElementById('edit-pairs-list').innerHTML = '';
     hideError('edit-error');
 
@@ -2761,9 +2822,20 @@
 
     const name = document.getElementById('edit-name').value.trim();
     const timezone = document.getElementById('edit-timezone').value;
+    const shiftStart = document.getElementById('edit-shift-start').value;
+    const shiftEnd = document.getElementById('edit-shift-end').value;
+    const shiftMinutes = calcShiftMinutes(shiftStart, shiftEnd);
 
     if (!name) {
       showError('edit-error', 'Имя не может быть пустым.');
+      return;
+    }
+    if (!shiftStart || !shiftEnd || shiftMinutes <= 0) {
+      showError('edit-error', 'Укажите корректную стандартную смену.');
+      return;
+    }
+    if (shiftMinutes > 16 * 60) {
+      showError('edit-error', 'Стандартная смена не может быть больше 16 часов.');
       return;
     }
 
@@ -2827,10 +2899,16 @@
     btn.disabled = true; btn.textContent = 'Сохранение…';
 
     try {
-      // 1) Обновляем имя и часовой пояс
+      // 1) Обновляем имя, часовой пояс и дефолтную смену
       const { error: profileErr } = await sb
         .from('users')
-        .update({ name, timezone })
+        .update({
+          name,
+          timezone,
+          default_shift_start: shiftStart + ':00',
+          default_shift_end: shiftEnd + ':00',
+          default_shift_minutes: shiftMinutes,
+        })
         .eq('id', tdUser.id);
       if (profileErr) throw new Error('Профиль: ' + profileErr.message);
 
@@ -2954,6 +3032,7 @@
       .from('users')
       .select(`
         id, email, name, timezone, is_active, created_at,
+        default_shift_start, default_shift_end, default_shift_minutes,
         translator_pairs ( language_pair_id, rate_per_hour, is_primary, language_pairs (code, display_name) )
       `)
       .eq('id', userId)
@@ -2983,9 +3062,16 @@
     document.getElementById('td-avatar').textContent = initials;
     document.getElementById('td-name').textContent = user.name;
     document.getElementById('td-email').textContent = user.email;
-    document.getElementById('td-pairs').innerHTML = tdMyPairs.map(p =>
+
+    // Бейджи: смена + языковые пары
+    const shiftStart = (user.default_shift_start || '09:00:00').substring(0, 5);
+    const shiftEnd = (user.default_shift_end || '18:00:00').substring(0, 5);
+    const shiftMin = user.default_shift_minutes || 480;
+    const shiftBadge = `<span class="badge badge-info" title="Стандартная смена">⏱ ${shiftStart}–${shiftEnd} · ${formatHoursMinutes(shiftMin)}</span>`;
+    const pairsBadges = tdMyPairs.map(p =>
       `<span class="badge badge-neutral">${p.language_pairs.code} · $${Number(p.rate_per_hour).toFixed(2)}/ч</span>`
     ).join('');
+    document.getElementById('td-pairs').innerHTML = shiftBadge + pairsBadges;
 
     // Кнопка деактивации
     const btnToggle = document.getElementById('btn-toggle-active');
