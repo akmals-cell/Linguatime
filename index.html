@@ -141,6 +141,52 @@
   .badge-neutral { background: #FAFAFA; color: #475569; border: 1px solid #E5E7EB; }
   .badge-info { background: #DBEAFE; color: #1E40AF; }
 
+  /* ═══ Смена в просмотре дня ═══ */
+  .shift-section {
+    background: #FAFAFA;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    border-left: 3px solid #1E40AF;
+  }
+  .shift-section.assigned { border-left-color: #16A34A; background: #F0FDF4; }
+  .shift-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .shift-section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #94A3B8; font-weight: 500;
+  }
+  .shift-section-actions { display: flex; gap: 6px; }
+  .shift-section-btn {
+    padding: 4px 10px; font-size: 11px; border-radius: 4px;
+    border: 1px solid #E5E7EB; background: white; color: #475569;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.15s;
+  }
+  .shift-section-btn:hover { background: #F1F5F9; color: #1E40AF; border-color: #1E40AF; }
+  .shift-section-btn.danger:hover { background: #FEE2E2; color: #DC2626; border-color: #FECACA; }
+  .shift-section-content {
+    display: flex; align-items: baseline; gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .shift-section-time { font-size: 16px; font-weight: 600; color: #0F1B3D; }
+  .shift-section-duration { font-size: 13px; color: #475569; }
+  .shift-section-note { margin-top: 6px; font-size: 12px; color: #475569; font-family: inherit; }
+
+  /* Виджет овертайма / недоработки */
+  .overtime-widget {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .overtime-widget.over { background: #FEF3C7; color: #B45309; }
+  .overtime-widget.under { background: #DBEAFE; color: #1E40AF; }
+  .overtime-widget.exact { background: #DCFCE7; color: #16A34A; }
+
   .emp-cell { display: flex; align-items: center; gap: 10px; }
   .emp-avatar {
     width: 32px; height: 32px; border-radius: 50%; background: #1E40AF; color: white;
@@ -1295,6 +1341,49 @@
       <button id="btn-delete-day" class="btn btn-ghost hidden" onclick="deleteDay()" style="color: #DC2626; margin-right: auto;">Удалить запись</button>
       <button class="btn btn-ghost" onclick="closeDayModal()">Отмена</button>
       <button id="btn-save-day" class="btn" onclick="saveDay()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div id="shift-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 480px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="shift-modal-title">Назначить смену</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="shift-modal-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeShiftModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="shift-modal-error" class="error hidden"></div>
+
+      <div style="font-size: 12px; color: #94A3B8; margin-bottom: 12px;">
+        Особая смена для одного дня. Перекрывает дефолтную смену переводчика для расчёта овертайма.
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Начало</label>
+          <input type="time" id="shift-start" class="input">
+        </div>
+        <div class="field">
+          <label class="field-label">Окончание</label>
+          <input type="time" id="shift-end" class="input">
+        </div>
+        <div class="field">
+          <label class="field-label">Длительность</label>
+          <div id="shift-duration" style="padding: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #16A34A; font-weight: 600;">—</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top: 12px;">
+        <label class="field-label">Заметка (опционально)</label>
+        <input type="text" id="shift-note" class="input" placeholder="Например: ночная смена за коллегу">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeShiftModal()">Отмена</button>
+      <button id="btn-save-shift" class="btn" onclick="saveShift()">Сохранить</button>
     </div>
   </div>
 </div>
@@ -3214,12 +3303,8 @@
         cell.appendChild(t);
       }
 
-      // Клик на день — открыть read-only просмотр (только если что-то записано)
-      if (info) {
-        cell.addEventListener('click', () => openDayViewModal(dateStr));
-      } else {
-        cell.style.cursor = 'default';
-      }
+      // Клик на день — открыть просмотр (любой день, чтобы можно было назначить смену)
+      cell.addEventListener('click', () => openDayViewModal(dateStr));
       grid.appendChild(cell);
     }
   }
@@ -3236,7 +3321,12 @@
   // ────────────────────────────────────────────────────────────────
   // Read-only просмотр дня (для менеджера)
   // ────────────────────────────────────────────────────────────────
+  // Глобальное состояние для модалки дня
+  let currentDayDate = null;
+  let currentDayShift = null; // shifts row or null
+
   async function openDayViewModal(dateStr) {
+    currentDayDate = dateStr;
     const date = new Date(dateStr + 'T00:00:00');
     const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
     const monthName = MONTH_NAMES_RU[date.getMonth()];
@@ -3249,26 +3339,44 @@
 
     document.getElementById('day-view-modal').classList.add('open');
 
-    const { data: day, error } = await sb
-      .from('work_days')
-      .select(`
-        id, day_type, note,
-        work_intervals ( id, language_pair_id, start_at, end_at, duration_minutes,
-                         language_pairs (code) ),
-        breaks ( id, start_at, end_at, duration_minutes, note )
-      `)
-      .eq('user_id', tdUser.id)
-      .eq('work_date', dateStr)
-      .maybeSingle();
+    // Параллельно загружаем день и смену
+    const [dayRes, shiftRes] = await Promise.all([
+      sb.from('work_days')
+        .select(`
+          id, day_type, note,
+          work_intervals ( id, language_pair_id, start_at, end_at, duration_minutes,
+                           language_pairs (code) ),
+          breaks ( id, start_at, end_at, duration_minutes, note )
+        `)
+        .eq('user_id', tdUser.id)
+        .eq('work_date', dateStr)
+        .maybeSingle(),
+      sb.from('shifts')
+        .select('id, planned_start, planned_end, planned_minutes, note')
+        .eq('user_id', tdUser.id)
+        .eq('shift_date', dateStr)
+        .maybeSingle()
+    ]);
 
-    if (error || !day) {
-      body.innerHTML = '<div class="day-readonly-empty">Запись не найдена.</div>';
+    const day = dayRes.data;
+    currentDayShift = shiftRes.data;
+
+    // Рендерим блок СМЕНЫ всегда (даже если работы не было)
+    const shiftHtml = renderShiftSection(currentDayShift);
+
+    if (!day) {
+      // Нет записи о работе — показываем только смену и подсказку
+      body.innerHTML = shiftHtml + `
+        <div class="day-readonly-empty" style="margin-top: 12px;">
+          На этот день нет записей о работе.
+        </div>
+      `;
       return;
     }
 
     if (day.day_type === 'absent') {
-      body.innerHTML = `
-        <div style="padding: 24px; text-align: center; color: #1E40AF; background: #DBEAFE; border-radius: 8px;">
+      body.innerHTML = shiftHtml + `
+        <div style="padding: 18px; text-align: center; color: #1E40AF; background: #DBEAFE; border-radius: 8px; margin-top: 12px;">
           <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Отгул</div>
           <div style="font-size: 12px;">Этот день отмечен как отгул. Оплата не начисляется.</div>
         </div>
@@ -3284,7 +3392,6 @@
     const breaksMin = breaks.reduce((s, b) => s + (b.duration_minutes || 0), 0);
     const netMin = Math.max(0, grossMin - breaksMin);
 
-    // Для каждого интервала ищем актуальную ставку на дату dateStr
     const intervalRates = intervals.map(i =>
       getRateForDate(dateStr, i.language_pair_id, tdHistoryByPair, tdRateByPair)
     );
@@ -3295,7 +3402,26 @@
     });
     if (grossMin > 0) dayAmount = dayAmount * (netMin / grossMin);
 
-    let html = `
+    // Овертайм: фактические минуты vs плановые
+    const plannedMin = currentDayShift
+      ? currentDayShift.planned_minutes
+      : (tdUser.default_shift_minutes || 480);
+    const overtimeMin = netMin - plannedMin;
+    let overtimeHtml = '';
+    if (Math.abs(overtimeMin) >= 1) {
+      const cls = overtimeMin > 0 ? 'over' : 'under';
+      const sign = overtimeMin > 0 ? '+' : '−';
+      overtimeHtml = `
+        <span class="overtime-widget ${cls}" title="Разница с плановой сменой">
+          ${sign}${formatHoursMinutes(Math.abs(overtimeMin))}
+          ${overtimeMin > 0 ? '· овертайм' : '· недоработка'}
+        </span>
+      `;
+    } else {
+      overtimeHtml = `<span class="overtime-widget exact">Точно по плану</span>`;
+    }
+
+    let html = shiftHtml + `
       <div class="day-readonly-section">
         <div class="day-readonly-title">Рабочие интервалы</div>
         ${intervals.length === 0
@@ -3330,6 +3456,7 @@
         <div class="day-summary-cell">
           <div class="day-summary-label">Чистое время</div>
           <div class="day-summary-value green">${formatHoursMinutes(netMin)}</div>
+          <div style="margin-top: 4px;">${overtimeHtml}</div>
         </div>
         <div class="day-summary-cell">
           <div class="day-summary-label">Брейки</div>
@@ -3345,8 +3472,176 @@
     body.innerHTML = html;
   }
 
+  // Рендерит блок смены (либо назначенной, либо дефолтной)
+  function renderShiftSection(shift) {
+    if (shift) {
+      const start = shift.planned_start.substring(0, 5);
+      const end = shift.planned_end.substring(0, 5);
+      const dur = formatHoursMinutes(shift.planned_minutes);
+      return `
+        <div class="shift-section assigned">
+          <div class="shift-section-header">
+            <span class="shift-section-label">Особая смена назначена</span>
+            <div class="shift-section-actions">
+              <button class="shift-section-btn" onclick="openShiftModal()">✎ Изменить</button>
+              <button class="shift-section-btn danger" onclick="deleteShift()">× Удалить</button>
+            </div>
+          </div>
+          <div class="shift-section-content">
+            <span class="shift-section-time">${start} – ${end}</span>
+            <span class="shift-section-duration">· ${dur} плана</span>
+          </div>
+          ${shift.note ? `<div class="shift-section-note">${escapeHtml(shift.note)}</div>` : ''}
+        </div>
+      `;
+    } else {
+      const defStart = (tdUser.default_shift_start || '09:00:00').substring(0, 5);
+      const defEnd = (tdUser.default_shift_end || '18:00:00').substring(0, 5);
+      const defMin = tdUser.default_shift_minutes || 480;
+      return `
+        <div class="shift-section">
+          <div class="shift-section-header">
+            <span class="shift-section-label">Стандартная смена (дефолт)</span>
+            <div class="shift-section-actions">
+              <button class="shift-section-btn" onclick="openShiftModal()">+ Назначить особую</button>
+            </div>
+          </div>
+          <div class="shift-section-content">
+            <span class="shift-section-time">${defStart} – ${defEnd}</span>
+            <span class="shift-section-duration">· ${formatHoursMinutes(defMin)} плана</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // НАЗНАЧЕНИЕ / ИЗМЕНЕНИЕ СМЕНЫ
+  // ────────────────────────────────────────────────────────────────
+  function openShiftModal() {
+    hideError('shift-modal-error');
+    const date = new Date(currentDayDate + 'T00:00:00');
+    const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
+    const monthName = MONTH_NAMES_RU[date.getMonth()];
+    document.getElementById('shift-modal-title').textContent =
+      currentDayShift ? 'Изменить смену' : 'Назначить смену';
+    document.getElementById('shift-modal-subtitle').textContent =
+      `${date.getDate()} ${monthName.toLowerCase()}, ${dayName}`;
+
+    // Префилл — либо текущая смена, либо дефолт
+    const start = currentDayShift
+      ? currentDayShift.planned_start.substring(0, 5)
+      : (tdUser.default_shift_start || '09:00:00').substring(0, 5);
+    const end = currentDayShift
+      ? currentDayShift.planned_end.substring(0, 5)
+      : (tdUser.default_shift_end || '18:00:00').substring(0, 5);
+
+    document.getElementById('shift-start').value = start;
+    document.getElementById('shift-end').value = end;
+    document.getElementById('shift-note').value = currentDayShift?.note || '';
+    updateShiftModalDuration();
+
+    document.getElementById('shift-start').oninput = updateShiftModalDuration;
+    document.getElementById('shift-end').oninput = updateShiftModalDuration;
+
+    document.getElementById('shift-modal').classList.add('open');
+  }
+
+  function closeShiftModal() {
+    document.getElementById('shift-modal').classList.remove('open');
+  }
+
+  function updateShiftModalDuration() {
+    const start = document.getElementById('shift-start').value;
+    const end = document.getElementById('shift-end').value;
+    const minutes = calcShiftMinutes(start, end);
+    const display = document.getElementById('shift-duration');
+    if (minutes > 0) {
+      display.textContent = formatHoursMinutes(minutes);
+      display.style.color = '#16A34A';
+    } else {
+      display.textContent = '—';
+      display.style.color = '#94A3B8';
+    }
+  }
+
+  async function saveShift() {
+    hideError('shift-modal-error');
+    const btn = document.getElementById('btn-save-shift');
+
+    const start = document.getElementById('shift-start').value;
+    const end = document.getElementById('shift-end').value;
+    const note = document.getElementById('shift-note').value.trim();
+    const minutes = calcShiftMinutes(start, end);
+
+    if (!start || !end || minutes <= 0) {
+      showError('shift-modal-error', 'Укажите корректное время смены.');
+      return;
+    }
+    if (minutes > 16 * 60) {
+      showError('shift-modal-error', 'Смена не может быть больше 16 часов.');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Сохранение…';
+
+    try {
+      const crossesMidnight = (end <= start);
+      const payload = {
+        user_id: tdUser.id,
+        shift_date: currentDayDate,
+        planned_start: start + ':00',
+        planned_end: end + ':00',
+        planned_minutes: minutes,
+        crosses_midnight: crossesMidnight,
+        assigned_by: currentUser.id,
+        note: note || null,
+      };
+
+      if (currentDayShift) {
+        // UPDATE
+        const { error } = await sb.from('shifts')
+          .update(payload)
+          .eq('id', currentDayShift.id);
+        if (error) throw new Error(error.message);
+      } else {
+        // INSERT
+        const { error } = await sb.from('shifts').insert(payload);
+        if (error) throw new Error(error.message);
+      }
+
+      closeShiftModal();
+      // Перезагружаем модалку дня и календарь
+      await openDayViewModal(currentDayDate);
+      await loadTranslatorDetailMonth();
+    } catch (e) {
+      showError('shift-modal-error', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Сохранить';
+    }
+  }
+
+  async function deleteShift() {
+    if (!currentDayShift) return;
+    if (!confirm('Удалить назначенную смену? Будет использоваться стандартная смена переводчика.')) return;
+
+    try {
+      const { error } = await sb.from('shifts')
+        .delete()
+        .eq('id', currentDayShift.id);
+      if (error) throw new Error(error.message);
+
+      await openDayViewModal(currentDayDate);
+      await loadTranslatorDetailMonth();
+    } catch (e) {
+      alert('Ошибка удаления: ' + e.message);
+    }
+  }
+
   function closeDayViewModal() {
     document.getElementById('day-view-modal').classList.remove('open');
+    currentDayDate = null;
+    currentDayShift = null;
   }
 
   // ====================================================================
@@ -4300,6 +4595,9 @@
   });
   document.getElementById('edit-modal').addEventListener('click', e => {
     if (e.target.id === 'edit-modal') closeEditModal();
+  });
+  document.getElementById('shift-modal').addEventListener('click', e => {
+    if (e.target.id === 'shift-modal') closeShiftModal();
   });
 
   checkSession();
