@@ -187,6 +187,81 @@
   .overtime-widget.under { background: #DBEAFE; color: #1E40AF; }
   .overtime-widget.exact { background: #DCFCE7; color: #16A34A; }
 
+  /* ═══ ЗАПРОСЫ НА ИЗМЕНЕНИЕ СМЕНЫ ═══ */
+  .sb-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    background: #DC2626; color: white;
+    font-size: 10px; font-weight: 700;
+    border-radius: 100px;
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .sb-item.active .sb-badge { background: white; color: #1E40AF; }
+
+  .req-card {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    align-items: start;
+  }
+  .req-card.pending { border-left: 3px solid #B45309; }
+  .req-card.approved { border-left: 3px solid #16A34A; opacity: 0.7; }
+  .req-card.rejected { border-left: 3px solid #DC2626; opacity: 0.7; }
+
+  .req-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #1E40AF; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+    flex-shrink: 0;
+  }
+  .req-info { min-width: 0; }
+  .req-translator-name { font-weight: 600; font-size: 14px; color: #0F1B3D; }
+  .req-date {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: #94A3B8; margin-top: 2px;
+  }
+  .req-change {
+    margin-top: 8px; padding: 8px 10px;
+    background: #FAFAFA; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  }
+  .req-change-from { color: #94A3B8; }
+  .req-change-arrow { margin: 0 6px; color: #94A3B8; }
+  .req-change-to { color: #1E40AF; font-weight: 600; }
+  .req-reason {
+    margin-top: 8px; font-size: 13px; color: #475569;
+    font-style: italic;
+  }
+  .req-reason::before { content: '«'; }
+  .req-reason::after { content: '»'; }
+  .req-actions { display: flex; flex-direction: column; gap: 6px; }
+  .req-status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .req-status-badge.pending { background: #FEF3C7; color: #B45309; }
+  .req-status-badge.approved { background: #DCFCE7; color: #16A34A; }
+  .req-status-badge.rejected { background: #FEE2E2; color: #DC2626; }
+
+  /* Бейдж статуса запроса в календаре переводчика */
+  .cal-day-req {
+    position: absolute; top: 4px; right: 4px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #B45309;
+  }
+  .cal-day-req.approved { background: #16A34A; }
+  .cal-day-req.rejected { background: #DC2626; }
+
   .emp-cell { display: flex; align-items: center; gap: 10px; }
   .emp-avatar {
     width: 32px; height: 32px; border-radius: 50%; background: #1E40AF; color: white;
@@ -917,6 +992,11 @@
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Переводчики
       </button>
+      <button class="sb-item" data-page="requests">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Запросы
+        <span id="sb-req-badge" class="sb-badge hidden">0</span>
+      </button>
       <button class="sb-item" data-page="payroll">
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Зарплата
@@ -1087,6 +1167,27 @@
       </div>
     </div>
 
+    <div id="page-requests" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Запросы на изменение смены</div>
+          <div class="page-subtitle" id="req-subtitle">Загрузка…</div>
+        </div>
+        <div>
+          <select class="select" id="req-filter" style="width: auto;">
+            <option value="pending">Ожидают решения</option>
+            <option value="all">Все запросы</option>
+            <option value="approved">Одобренные</option>
+            <option value="rejected">Отклонённые</option>
+          </select>
+        </div>
+      </div>
+      <div id="req-error" class="error hidden"></div>
+      <div id="req-list">
+        <div class="loading-state">Загрузка…</div>
+      </div>
+    </div>
+
     <div id="page-payroll" class="page hidden">
       <div class="page-header">
         <div>
@@ -1197,10 +1298,26 @@
       <div class="page-header">
         <div>
           <div class="page-title">Мой профиль</div>
-          <div class="page-subtitle">Языковые пары и ставки</div>
+          <div class="page-subtitle">Языковые пары, ставки и график</div>
         </div>
       </div>
+
+      <!-- Блок графика -->
       <div class="section">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <h3 style="margin: 0; font-size: 14px; color: #0F1B3D; font-weight: 600;">Мой стандартный график</h3>
+          <button class="btn btn-ghost btn-sm" onclick="openShiftRequestModal()" id="btn-request-shift">
+            ✎ Запросить изменение
+          </button>
+        </div>
+        <div id="my-shift-content">
+          <div class="loading-state">Загрузка…</div>
+        </div>
+      </div>
+
+      <!-- Блок ставок и пар -->
+      <div class="section">
+        <h3 style="margin-bottom: 12px; font-size: 14px; color: #0F1B3D; font-weight: 600;">Языковые пары и ставки</h3>
         <div id="my-profile-content">
           <div class="loading-state">Загрузка…</div>
         </div>
@@ -1281,6 +1398,17 @@
     <div class="modal-body">
       <div id="day-error" class="error hidden"></div>
 
+      <!-- Информация о смене на этот день (только просмотр) -->
+      <div id="day-shift-info" class="shift-section" style="margin-bottom: 14px;">
+        <div class="shift-section-header">
+          <span class="shift-section-label" id="day-shift-label">Ваша смена сегодня</span>
+        </div>
+        <div class="shift-section-content">
+          <span class="shift-section-time" id="day-shift-time">—</span>
+          <span class="shift-section-duration" id="day-shift-dur"></span>
+        </div>
+      </div>
+
       <!-- Тип дня -->
       <div class="field-label" style="margin-bottom: 6px;">Тип дня</div>
       <div class="day-type-chips">
@@ -1341,6 +1469,58 @@
       <button id="btn-delete-day" class="btn btn-ghost hidden" onclick="deleteDay()" style="color: #DC2626; margin-right: auto;">Удалить запись</button>
       <button class="btn btn-ghost" onclick="closeDayModal()">Отмена</button>
       <button id="btn-save-day" class="btn" onclick="saveDay()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div id="shift-request-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 520px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Запрос на изменение графика</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Меняет ваш стандартный график. Требует одобрения менеджера.</div>
+      </div>
+      <button class="modal-close" onclick="closeShiftRequestModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="shift-req-error" class="error hidden"></div>
+
+      <div style="background: #FAFAFA; padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 4px;">Текущий график</div>
+        <div id="shift-req-current">—</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Новое начало</label>
+          <input type="time" id="shift-req-start" class="input">
+        </div>
+        <div class="field">
+          <label class="field-label">Новое окончание</label>
+          <input type="time" id="shift-req-end" class="input">
+        </div>
+        <div class="field">
+          <label class="field-label">Длительность</label>
+          <div id="shift-req-duration" style="padding: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #16A34A; font-weight: 600;">—</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top: 12px;">
+        <label class="field-label">Действует с <span style="color: #DC2626;">*</span></label>
+        <input type="date" id="shift-req-effective" class="input">
+        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+          С этой даты новый график станет вашим стандартным.
+        </div>
+      </div>
+
+      <div class="field" style="margin-top: 12px;">
+        <label class="field-label">Причина <span style="color: #DC2626;">*</span></label>
+        <textarea id="shift-req-reason" class="input" rows="3" placeholder="Например: изменился личный график, новая работа во второй половине дня, и т.д."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeShiftRequestModal()">Отмена</button>
+      <button id="btn-send-shift-req" class="btn" onclick="sendShiftRequest()">Отправить запрос</button>
     </div>
   </div>
 </div>
@@ -1547,6 +1727,7 @@
       showPage('dashboard');
       await loadLanguagePairs();
       await loadDashboard();
+      refreshRequestsBadge();
     } else {
       document.getElementById('nav-translator').classList.remove('hidden');
       document.getElementById('nav-manager').classList.add('hidden');
@@ -3905,6 +4086,443 @@
   }
 
   // ====================================================================
+  // ЗАПРОСЫ НА ИЗМЕНЕНИЕ СМЕНЫ
+  // ====================================================================
+
+  // ──── Переводчик: открыть модалку запроса изменения графика ──────────
+  async function openShiftRequestModal() {
+    hideError('shift-req-error');
+
+    // Загружаем текущий дефолтный график
+    const { data: profile } = await sb.from('users')
+      .select('default_shift_start, default_shift_end, default_shift_minutes')
+      .eq('id', currentUser.id)
+      .single();
+
+    const currentStart = (profile?.default_shift_start || '09:00:00').substring(0, 5);
+    const currentEnd = (profile?.default_shift_end || '18:00:00').substring(0, 5);
+    const currentMin = profile?.default_shift_minutes || 480;
+
+    document.getElementById('shift-req-current').textContent =
+      `${currentStart} – ${currentEnd} · ${formatHoursMinutes(currentMin)}`;
+
+    // Предзаполняем форму текущим графиком
+    document.getElementById('shift-req-start').value = currentStart;
+    document.getElementById('shift-req-end').value = currentEnd;
+
+    // Дата начала действия — по умолчанию +7 дней от сегодня
+    const inWeek = new Date();
+    inWeek.setDate(inWeek.getDate() + 7);
+    document.getElementById('shift-req-effective').value = inWeek.toISOString().split('T')[0];
+
+    document.getElementById('shift-req-reason').value = '';
+    updateShiftReqDuration();
+
+    document.getElementById('shift-req-start').oninput = updateShiftReqDuration;
+    document.getElementById('shift-req-end').oninput = updateShiftReqDuration;
+
+    document.getElementById('shift-request-modal').classList.add('open');
+  }
+
+  function closeShiftRequestModal() {
+    document.getElementById('shift-request-modal').classList.remove('open');
+  }
+
+  function updateShiftReqDuration() {
+    const start = document.getElementById('shift-req-start').value;
+    const end = document.getElementById('shift-req-end').value;
+    const minutes = calcShiftMinutes(start, end);
+    const display = document.getElementById('shift-req-duration');
+    if (minutes > 0) {
+      display.textContent = formatHoursMinutes(minutes);
+      display.style.color = '#16A34A';
+    } else {
+      display.textContent = '—';
+      display.style.color = '#94A3B8';
+    }
+  }
+
+  async function sendShiftRequest() {
+    hideError('shift-req-error');
+    const btn = document.getElementById('btn-send-shift-req');
+
+    const start = document.getElementById('shift-req-start').value;
+    const end = document.getElementById('shift-req-end').value;
+    const effectiveFrom = document.getElementById('shift-req-effective').value;
+    const reason = document.getElementById('shift-req-reason').value.trim();
+    const minutes = calcShiftMinutes(start, end);
+
+    if (!start || !end || minutes <= 0) {
+      showError('shift-req-error', 'Укажите корректное время.');
+      return;
+    }
+    if (minutes > 16 * 60) {
+      showError('shift-req-error', 'Смена не может быть больше 16 часов.');
+      return;
+    }
+    if (!effectiveFrom) {
+      showError('shift-req-error', 'Укажите дату начала действия нового графика.');
+      return;
+    }
+    if (!reason) {
+      showError('shift-req-error', 'Укажите причину изменения графика.');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Отправка…';
+
+    try {
+      // Проверим, нет ли уже pending запроса
+      const { data: existing } = await sb
+        .from('shift_change_requests')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (existing) {
+        showError('shift-req-error', 'У вас уже есть незавершённый запрос. Дождитесь решения менеджера.');
+        return;
+      }
+
+      const { error } = await sb.from('shift_change_requests').insert({
+        user_id: currentUser.id,
+        shift_date: effectiveFrom,         // используем поле shift_date как effective_from
+        requested_start: start + ':00',
+        requested_end: end + ':00',
+        requested_minutes: minutes,
+        reason,
+      });
+      if (error) throw new Error(error.message);
+
+      closeShiftRequestModal();
+      alert('Запрос отправлен. Менеджер рассмотрит его в ближайшее время.');
+      await loadMyProfile(); // обновим страницу профиля чтобы показать pending
+    } catch (e) {
+      showError('shift-req-error', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Отправить запрос';
+    }
+  }
+
+  // ──── Менеджер: страница запросов ──────────────────────────────────
+  async function loadRequests() {
+    hideError('req-error');
+    const list = document.getElementById('req-list');
+    list.innerHTML = '<div class="loading-state">Загрузка…</div>';
+
+    const filter = document.getElementById('req-filter').value;
+    let q = sb.from('shift_change_requests')
+      .select(`
+        id, shift_date, requested_start, requested_end, requested_minutes,
+        final_start, final_end, final_minutes, final_effective_from,
+        reason, status, reviewed_at, review_note, created_at,
+        user_id,
+        users:user_id ( name, email, default_shift_start, default_shift_end, default_shift_minutes )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (filter !== 'all') {
+      q = q.eq('status', filter);
+    }
+
+    const { data: requests, error } = await q;
+    if (error) {
+      showError('req-error', 'Ошибка загрузки: ' + error.message);
+      return;
+    }
+
+    // Подсчёт для подзаголовка
+    const allReqs = await sb.from('shift_change_requests').select('status');
+    const counts = { pending: 0, approved: 0, rejected: 0 };
+    for (const r of (allReqs.data || [])) counts[r.status]++;
+    document.getElementById('req-subtitle').textContent =
+      `${counts.pending} ожидают · ${counts.approved} одобрено · ${counts.rejected} отклонено`;
+
+    // Обновляем бейдж в сайдбаре
+    updateRequestsBadge(counts.pending);
+
+    if (!requests || requests.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-text">Нет запросов по выбранному фильтру.</div>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = requests.map(r => renderRequestCard(r)).join('');
+  }
+
+  function renderRequestCard(r) {
+    const user = r.users;
+    const initials = (user.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+
+    // Текущий график переводчика
+    const ds = (user.default_shift_start || '09:00:00').substring(0, 5);
+    const de = (user.default_shift_end || '18:00:00').substring(0, 5);
+    const dm = user.default_shift_minutes || 480;
+    const currentLabel = `${ds}–${de} (${formatHoursMinutes(dm)})`;
+
+    // Запрошенный график
+    const rs = r.requested_start.substring(0,5);
+    const re = r.requested_end.substring(0,5);
+    const reqLabel = `${rs}–${re} (${formatHoursMinutes(r.requested_minutes)})`;
+
+    // Дата начала
+    const effDate = formatDateRu(r.shift_date);
+
+    if (r.status === 'pending') {
+      // Pending: показываем форму редактирования с возможностью одобрить
+      return `
+        <div class="req-card pending">
+          <div class="req-avatar">${initials}</div>
+          <div class="req-info" style="grid-column: 2 / -1;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+              <div>
+                <div class="req-translator-name">${escapeHtml(user.name)}</div>
+                <div class="req-date">Подал ${new Date(r.created_at).toLocaleDateString('ru-RU')}</div>
+              </div>
+              <span class="req-status-badge pending">● Ожидает</span>
+            </div>
+
+            <div class="req-change" style="margin-top: 10px;">
+              <span class="req-change-from">Сейчас: ${currentLabel}</span>
+              <span class="req-change-arrow">→</span>
+              <span class="req-change-to">Хочет: ${reqLabel} с ${effDate}</span>
+            </div>
+
+            <div class="req-reason">${escapeHtml(r.reason)}</div>
+
+            <div style="margin-top: 14px; padding: 12px; background: #FAFAFA; border-radius: 8px;">
+              <div style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Решение менеджера · можете скорректировать перед одобрением
+              </div>
+              <div class="field-row">
+                <div class="field" style="margin: 0;">
+                  <label class="field-label">Начало</label>
+                  <input type="time" id="rev-start-${r.id}" class="input" value="${rs}">
+                </div>
+                <div class="field" style="margin: 0;">
+                  <label class="field-label">Окончание</label>
+                  <input type="time" id="rev-end-${r.id}" class="input" value="${re}">
+                </div>
+                <div class="field" style="margin: 0;">
+                  <label class="field-label">Действует с</label>
+                  <input type="date" id="rev-date-${r.id}" class="input" value="${r.shift_date}">
+                </div>
+              </div>
+              <div class="field" style="margin-top: 10px; margin-bottom: 0;">
+                <label class="field-label">Заметка (опционально)</label>
+                <input type="text" id="rev-note-${r.id}" class="input" placeholder="Например: согласовано до конца квартала">
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end;">
+                <button class="btn btn-ghost btn-sm" onclick="reviewRequest('${r.id}', 'rejected')">Отклонить</button>
+                <button class="btn btn-sm" onclick="reviewRequest('${r.id}', 'approved')">Одобрить с этими параметрами</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // approved / rejected: только просмотр
+    let finalLabel = '';
+    if (r.status === 'approved' && r.final_start) {
+      const fs = r.final_start.substring(0,5);
+      const fe = r.final_end.substring(0,5);
+      const fd = r.final_effective_from ? formatDateRu(r.final_effective_from) : effDate;
+      finalLabel = `<div class="req-change" style="margin-top: 8px; background: #DCFCE7;">
+        <span class="req-change-from" style="color: #475569;">Утверждено:</span>
+        <span class="req-change-to">${fs}–${fe} (${formatHoursMinutes(r.final_minutes)}) с ${fd}</span>
+      </div>`;
+    }
+    if (r.review_note) {
+      finalLabel += `<div class="req-reason" style="margin-top: 6px;">${escapeHtml(r.review_note)}</div>`;
+    }
+
+    const statusClass = r.status === 'approved' ? 'approved' : 'rejected';
+    const statusLabel = r.status === 'approved' ? '● Одобрен' : '● Отклонён';
+    return `
+      <div class="req-card ${statusClass}">
+        <div class="req-avatar">${initials}</div>
+        <div class="req-info">
+          <div class="req-translator-name">${escapeHtml(user.name)}</div>
+          <div class="req-date">Подал ${new Date(r.created_at).toLocaleDateString('ru-RU')} · решено ${new Date(r.reviewed_at).toLocaleDateString('ru-RU')}</div>
+          <div class="req-change">
+            <span class="req-change-from">Запросил: ${reqLabel} с ${effDate}</span>
+          </div>
+          <div class="req-reason">${escapeHtml(r.reason)}</div>
+          ${finalLabel}
+        </div>
+        <div class="req-actions">
+          <span class="req-status-badge ${statusClass}">${statusLabel}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function formatDateRu(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getDate()} ${MONTH_NAMES_RU[d.getMonth()].toLowerCase()} ${d.getFullYear()}`;
+  }
+
+  async function reviewRequest(reqId, decision) {
+    let finalStart, finalEnd, finalDate, finalMin, reviewNote;
+
+    if (decision === 'approved') {
+      // Читаем значения из инпутов
+      finalStart = document.getElementById(`rev-start-${reqId}`).value;
+      finalEnd = document.getElementById(`rev-end-${reqId}`).value;
+      finalDate = document.getElementById(`rev-date-${reqId}`).value;
+      reviewNote = document.getElementById(`rev-note-${reqId}`).value.trim();
+      finalMin = calcShiftMinutes(finalStart, finalEnd);
+
+      if (!finalStart || !finalEnd || finalMin <= 0) {
+        alert('Укажите корректное время начала и окончания.');
+        return;
+      }
+      if (!finalDate) {
+        alert('Укажите дату начала действия графика.');
+        return;
+      }
+    } else {
+      reviewNote = prompt('Причина отклонения (опционально):') || '';
+    }
+
+    const action = decision === 'approved' ? 'одобрить' : 'отклонить';
+    if (!confirm(`Точно ${action} запрос?`)) return;
+
+    try {
+      // Загружаем запрос
+      const { data: req, error: reqErr } = await sb
+        .from('shift_change_requests')
+        .select('*')
+        .eq('id', reqId)
+        .single();
+      if (reqErr || !req) throw new Error('Запрос не найден');
+
+      // При одобрении: обновляем дефолт + записываем историю
+      if (decision === 'approved') {
+        // Текущий дефолт переводчика (для истории)
+        const { data: u } = await sb.from('users')
+          .select('default_shift_start, default_shift_end, default_shift_minutes')
+          .eq('id', req.user_id)
+          .single();
+
+        // 1) Запись в shift_history (старый → новый)
+        await sb.from('shift_history').insert({
+          user_id: req.user_id,
+          old_start: u?.default_shift_start,
+          old_end: u?.default_shift_end,
+          old_minutes: u?.default_shift_minutes,
+          new_start: finalStart + ':00',
+          new_end: finalEnd + ':00',
+          new_minutes: finalMin,
+          effective_from: finalDate,
+          changed_by: currentUser.id,
+          reason: `По запросу: ${req.reason}` + (reviewNote ? ` · ${reviewNote}` : ''),
+          request_id: reqId,
+        });
+
+        // 2) Обновляем дефолтный график переводчика
+        await sb.from('users').update({
+          default_shift_start: finalStart + ':00',
+          default_shift_end: finalEnd + ':00',
+          default_shift_minutes: finalMin,
+        }).eq('id', req.user_id);
+      }
+
+      // 3) Обновляем сам запрос
+      const updatePayload = {
+        status: decision,
+        reviewed_by: currentUser.id,
+        reviewed_at: new Date().toISOString(),
+        review_note: reviewNote || null,
+      };
+      if (decision === 'approved') {
+        updatePayload.final_start = finalStart + ':00';
+        updatePayload.final_end = finalEnd + ':00';
+        updatePayload.final_minutes = finalMin;
+        updatePayload.final_effective_from = finalDate;
+      }
+      const { error: updErr } = await sb
+        .from('shift_change_requests')
+        .update(updatePayload)
+        .eq('id', reqId);
+      if (updErr) throw new Error(updErr.message);
+
+      // Перезагружаем список
+      await loadRequests();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+    }
+  }
+
+  // ──── Бейдж количества pending в сайдбаре ──────────────────────────
+  async function refreshRequestsBadge() {
+    if (!currentUser || currentUser.role !== 'manager') return;
+    const { data, error } = await sb
+      .from('shift_change_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    // Альтернативно: count в Supabase JS делается так:
+    const { count } = await sb
+      .from('shift_change_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    updateRequestsBadge(count || 0);
+  }
+
+  function updateRequestsBadge(count) {
+    const badge = document.getElementById('sb-req-badge');
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = String(count);
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // Подгружает данные о смене и обновляет блок-подсказку в модалке ввода дня (только просмотр)
+  async function loadDayShiftInfo(dateStr) {
+    const [shiftRes, profileRes] = await Promise.all([
+      sb.from('shifts')
+        .select('planned_start, planned_end, planned_minutes')
+        .eq('user_id', currentUser.id)
+        .eq('shift_date', dateStr)
+        .maybeSingle(),
+      sb.from('users')
+        .select('default_shift_start, default_shift_end, default_shift_minutes')
+        .eq('id', currentUser.id)
+        .single()
+    ]);
+
+    const block = document.getElementById('day-shift-info');
+    const label = document.getElementById('day-shift-label');
+    const timeEl = document.getElementById('day-shift-time');
+    const durEl = document.getElementById('day-shift-dur');
+
+    let start, end, minutes;
+    if (shiftRes.data) {
+      start = shiftRes.data.planned_start.substring(0, 5);
+      end = shiftRes.data.planned_end.substring(0, 5);
+      minutes = shiftRes.data.planned_minutes;
+      label.textContent = 'Особая смена на этот день';
+      block.className = 'shift-section assigned';
+    } else {
+      start = (profileRes.data?.default_shift_start || '09:00:00').substring(0, 5);
+      end = (profileRes.data?.default_shift_end || '18:00:00').substring(0, 5);
+      minutes = profileRes.data?.default_shift_minutes || 480;
+      label.textContent = 'Стандартная смена';
+      block.className = 'shift-section';
+    }
+    timeEl.textContent = `${start} – ${end}`;
+    durEl.textContent = `· ${formatHoursMinutes(minutes)} плана`;
+  }
+
+  // ====================================================================
   // МОДАЛКА: ВВОД РАБОЧЕГО ДНЯ
   // ====================================================================
   let currentDayDate = null;
@@ -3958,6 +4576,9 @@
     document.getElementById('day-warnings').classList.add('hidden');
     hideError('day-error');
     setDayType('working');
+
+    // Загружаем смену на этот день для подсказки
+    await loadDayShiftInfo(dateStr);
 
     // Существующая запись?
     const { data: existingDay } = await sb
@@ -4400,6 +5021,98 @@
   }
 
   async function loadMyProfile() {
+    await loadMyShiftBlock();
+    await loadMyPairsTable();
+  }
+
+  async function loadMyShiftBlock() {
+    const content = document.getElementById('my-shift-content');
+    const btn = document.getElementById('btn-request-shift');
+
+    // Параллельно: профиль (текущий график) и pending запрос
+    const [profileRes, pendingReqRes, historyRes] = await Promise.all([
+      sb.from('users')
+        .select('default_shift_start, default_shift_end, default_shift_minutes')
+        .eq('id', currentUser.id)
+        .single(),
+      sb.from('shift_change_requests')
+        .select('id, requested_start, requested_end, requested_minutes, shift_date, reason, created_at')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'pending')
+        .maybeSingle(),
+      sb.from('shift_history')
+        .select('new_start, new_end, new_minutes, effective_from, changed_at, reason')
+        .eq('user_id', currentUser.id)
+        .order('effective_from', { ascending: false })
+        .limit(3)
+    ]);
+
+    const profile = profileRes.data;
+    const start = (profile?.default_shift_start || '09:00:00').substring(0, 5);
+    const end = (profile?.default_shift_end || '18:00:00').substring(0, 5);
+    const minutes = profile?.default_shift_minutes || 480;
+
+    let html = `
+      <div class="shift-section">
+        <div class="shift-section-header">
+          <span class="shift-section-label">Действует сейчас</span>
+        </div>
+        <div class="shift-section-content">
+          <span class="shift-section-time">${start} – ${end}</span>
+          <span class="shift-section-duration">· ${formatHoursMinutes(minutes)} плана</span>
+        </div>
+      </div>
+    `;
+
+    // Pending запрос
+    if (pendingReqRes.data) {
+      const r = pendingReqRes.data;
+      const rs = r.requested_start.substring(0,5);
+      const re = r.requested_end.substring(0,5);
+      html += `
+        <div style="background: #FEF3C7; border-left: 3px solid #B45309; padding: 10px 14px; border-radius: 8px; margin-top: 12px;">
+          <div style="font-size: 11px; font-weight: 600; color: #B45309; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
+            ⏱ Запрос на рассмотрении у менеджера
+          </div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #0F1B3D;">
+            ${rs}–${re} (${formatHoursMinutes(r.requested_minutes)}) с ${formatDateRu(r.shift_date)}
+          </div>
+          <div style="font-style: italic; color: #475569; font-size: 12px; margin-top: 4px;">«${escapeHtml(r.reason)}»</div>
+        </div>
+      `;
+      btn.textContent = '⏱ Запрос в ожидании';
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+    } else {
+      btn.textContent = '✎ Запросить изменение';
+      btn.disabled = false;
+      btn.style.opacity = '';
+    }
+
+    // История изменений (последние 3)
+    if (historyRes.data && historyRes.data.length > 0) {
+      html += `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #E5E7EB;">
+        <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace;">
+          Недавние изменения
+        </div>`;
+      for (const h of historyRes.data) {
+        const ns = h.new_start.substring(0,5);
+        const ne = h.new_end.substring(0,5);
+        html += `
+          <div style="display: flex; gap: 12px; padding: 4px 0; font-size: 12px; font-family: 'JetBrains Mono', monospace;">
+            <span style="color: #94A3B8;">${formatDateRu(h.effective_from)}</span>
+            <span style="color: #1E40AF; font-weight: 600;">${ns}–${ne}</span>
+            <span style="color: #475569;">(${formatHoursMinutes(h.new_minutes)})</span>
+          </div>
+        `;
+      }
+      html += `</div>`;
+    }
+
+    content.innerHTML = html;
+  }
+
+  async function loadMyPairsTable() {
     const content = document.getElementById('my-profile-content');
     const { data, error } = await sb.from('translator_pairs')
       .select(`id, rate_per_hour, is_primary, proficiency, effective_from,
@@ -4574,6 +5287,7 @@
       showPage(page);
       if (page === 'dashboard') await loadDashboard();
       else if (page === 'translators') await loadTranslators();
+      else if (page === 'requests') await loadRequests();
       else if (page === 'my-profile') await loadMyProfile();
       else if (page === 'calendar') await loadCalendar();
       else if (page === 'payroll') await loadPayroll();
@@ -4599,6 +5313,10 @@
   document.getElementById('shift-modal').addEventListener('click', e => {
     if (e.target.id === 'shift-modal') closeShiftModal();
   });
+  document.getElementById('shift-request-modal').addEventListener('click', e => {
+    if (e.target.id === 'shift-request-modal') closeShiftRequestModal();
+  });
+  document.getElementById('req-filter').addEventListener('change', () => loadRequests());
 
   checkSession();
 </script>
