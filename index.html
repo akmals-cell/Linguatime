@@ -327,7 +327,7 @@
   /* ═══ KPI КАРТОЧКИ ═══ */
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 14px;
     margin-bottom: 24px;
   }
@@ -1104,12 +1104,12 @@
           <div class="dash-kpi-meta">предварительно</div>
         </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="dash-kpi-icon amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           </div>
-          <div class="dash-kpi-label">Активных переводчиков</div>
-          <div class="dash-kpi-value" id="dash-kpi-active">—</div>
-          <div class="dash-kpi-meta" id="dash-kpi-active-meta">—</div>
+          <div class="dash-kpi-label">Овертайм команды</div>
+          <div class="dash-kpi-value" id="dash-kpi-overtime">—</div>
+          <div class="dash-kpi-meta" id="dash-kpi-overtime-meta">за этот месяц</div>
         </div>
         <div class="dash-kpi">
           <div class="dash-kpi-icon green">
@@ -1120,7 +1120,7 @@
           <div class="dash-kpi-meta" id="dash-kpi-hours-meta">—</div>
         </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon amber">
+          <div class="dash-kpi-icon blue">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
           <div class="dash-kpi-label">До закрытия периода</div>
@@ -1266,6 +1266,11 @@
           <div class="kpi-label">Отработано</div>
           <div class="kpi-value" id="td-hours">—</div>
           <div class="kpi-meta" id="td-hours-meta">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Овертайм</div>
+          <div class="kpi-value" id="td-overtime">—</div>
+          <div class="kpi-meta" id="td-overtime-meta">—</div>
         </div>
         <div class="kpi kpi-blue">
           <div class="kpi-label">Отгулов</div>
@@ -1928,7 +1933,7 @@
     const { data: users, error: usersError } = await sb
       .from('users')
       .select(`
-        id, name, is_active,
+        id, name, is_active, default_shift_minutes,
         translator_pairs ( language_pair_id, rate_per_hour,
                             language_pairs (code) )
       `)
@@ -2009,12 +2014,55 @@
       minutesByDay[d.work_date] = (minutesByDay[d.work_date] || 0) + netMin;
     }
 
+    // ─── Считаем овертайм команды ────────────────────────────────────────
+    const allShiftsByUser = await loadShiftsForUsers(
+      activeUsers.map(u => u.id), periodStart, periodEnd
+    );
+    let totalOvertime = 0;
+    const overtimeByUser = {};
+    for (const u of activeUsers) overtimeByUser[u.id] = 0;
+
+    for (const d of allDays) {
+      if (d.day_type !== 'working') continue;
+      const user = activeUsers.find(u => u.id === d.user_id);
+      if (!user) continue;
+
+      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
+      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
+      const netMin = Math.max(0, intervalsSum - breaksSum);
+      if (netMin <= 0) continue;
+
+      const userShifts = allShiftsByUser[d.user_id] || {};
+      const defaultMin = user.default_shift_minutes || 480;
+      const planned = getPlannedMinutes(d.work_date, userShifts, defaultMin);
+      const ot = netMin - planned;
+      totalOvertime += ot;
+      overtimeByUser[d.user_id] += ot;
+    }
+
     // ─── Заполняем KPI ─────────────────────────────────────────────────────
-    document.getElementById('dash-kpi-active').textContent = activeUsers.length;
-    document.getElementById('dash-kpi-active-meta').textContent =
-      inactiveCount > 0
-        ? `+ ${inactiveCount} ${pluralize(inactiveCount, 'неактивный', 'неактивных', 'неактивных')}`
-        : 'все активны';
+    const overtimeEl = document.getElementById('dash-kpi-overtime');
+    const overtimeMetaEl = document.getElementById('dash-kpi-overtime-meta');
+    if (Math.abs(totalOvertime) < 1) {
+      overtimeEl.innerHTML = '0<span class="kpi-unit">мин</span>';
+      overtimeEl.style.color = '';
+      overtimeMetaEl.textContent = 'команда точно по плану';
+    } else if (totalOvertime > 0) {
+      overtimeEl.textContent = '+' + formatHoursMinutes(totalOvertime);
+      overtimeEl.style.color = '#B45309';
+      // Топ овертаймщик
+      const topUserId = Object.keys(overtimeByUser).sort((a, b) => overtimeByUser[b] - overtimeByUser[a])[0];
+      const topUser = activeUsers.find(u => u.id === topUserId);
+      if (topUser && overtimeByUser[topUserId] > 0) {
+        overtimeMetaEl.textContent = `больше всех: ${topUser.name}`;
+      } else {
+        overtimeMetaEl.textContent = 'переработано командой';
+      }
+    } else {
+      overtimeEl.textContent = '−' + formatHoursMinutes(Math.abs(totalOvertime));
+      overtimeEl.style.color = '#1E40AF';
+      overtimeMetaEl.textContent = 'недоработано командой';
+    }
 
     document.getElementById('dash-kpi-hours').textContent = formatHoursMinutes(totalMinutes);
     const workingTranslators = activeUsers.filter(u => minutesByUser[u.id] > 0).length;
@@ -2324,11 +2372,11 @@
     const periodStart = formatDate(new Date(payrollYear, payrollMonth, 1));
     const periodEnd = formatDate(new Date(payrollYear, payrollMonth + 1, 0));
 
-    // 1) Все активные переводчики и их пары
+    // 1) Все активные переводчики и их пары + дефолтная смена
     const { data: users, error: usersError } = await sb
       .from('users')
       .select(`
-        id, name, email, is_active,
+        id, name, email, is_active, default_shift_minutes,
         translator_pairs ( language_pair_id, rate_per_hour, is_primary,
                             language_pairs (code) )
       `)
@@ -2363,11 +2411,14 @@
       return;
     }
 
-    // Загружаем историю ставок для всех переводчиков сразу
-    const allHistoryByUser = await loadRateHistoryForUsers(userIds);
+    // Загружаем историю ставок и смены для всех переводчиков сразу
+    const [allHistoryByUser, allShiftsByUser] = await Promise.all([
+      loadRateHistoryForUsers(userIds),
+      loadShiftsForUsers(userIds, periodStart, periodEnd)
+    ]);
 
     // 3) Считаем по каждому переводчику
-    const result = []; // [{ user, totalMinutes, totalAmount, breakdown: { code: {hours, rate, amount} } }]
+    const result = [];
     for (const u of users) {
       const rateByPair = {};
       const codeByPair = {};
@@ -2376,15 +2427,25 @@
         codeByPair[p.language_pair_id] = p.language_pairs.code;
       }
       const userHistory = allHistoryByUser[u.id] || {};
+      const userShifts = allShiftsByUser[u.id] || {};
+      const defaultMin = u.default_shift_minutes || 480;
 
       const userDays = (days || []).filter(d => d.user_id === u.id);
-      const breakdown = {}; // code -> { minutes, rate, amount }
+      const breakdown = {};
       let totalMinutes = 0;
+      let totalPlannedMinutes = 0; // сумма плановых минут за рабочие дни
+      let totalOvertimeMinutes = 0; // = totalMinutes − totalPlannedMinutes
 
       for (const d of userDays) {
         const c = calcDayWithBreakdown(d, userHistory, rateByPair, codeByPair);
         if (c.netMinutes <= 0) continue;
         totalMinutes += c.netMinutes;
+
+        // Овертайм
+        const planned = getPlannedMinutes(d.work_date, userShifts, defaultMin);
+        totalPlannedMinutes += planned;
+        totalOvertimeMinutes += (c.netMinutes - planned);
+
         for (const [code, b] of Object.entries(c.breakdown)) {
           if (!breakdown[code]) breakdown[code] = { minutes: 0, amount: 0, rate: b.rate };
           breakdown[code].minutes += b.minutes;
@@ -2396,7 +2457,10 @@
       const totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
 
       if (totalMinutes > 0) {
-        result.push({ user: u, totalMinutes, totalAmount, breakdown });
+        result.push({
+          user: u, totalMinutes, totalAmount, breakdown,
+          totalPlannedMinutes, totalOvertimeMinutes
+        });
       }
     }
 
@@ -2470,6 +2534,7 @@
     // KPI
     const totalAmount = rows.reduce((s, r) => s + r.totalAmount, 0);
     const totalMinutes = rows.reduce((s, r) => s + r.totalMinutes, 0);
+    const totalOvertimeMinutes = rows.reduce((s, r) => s + (r.totalOvertimeMinutes || 0), 0);
     document.getElementById('payroll-kpi-count').textContent = String(rows.length);
     document.getElementById('payroll-kpi-hours').textContent = formatHoursMinutes(totalMinutes);
     document.getElementById('payroll-kpi-amount').textContent = '$' + totalAmount.toFixed(2);
@@ -2479,6 +2544,7 @@
       <th>Переводчик</th>
       <th>Разбивка по парам</th>
       <th style="text-align:right;">Часы</th>
+      <th style="text-align:right;">Овертайм</th>
       <th style="text-align:right;">К выплате</th>
     </tr></thead><tbody>`;
 
@@ -2495,6 +2561,17 @@
           </div>
         `).join('');
 
+      // Виджет овертайма
+      const ot = r.totalOvertimeMinutes || 0;
+      let otHtml;
+      if (Math.abs(ot) < 1) {
+        otHtml = `<span style="color: #94A3B8; font-family: 'JetBrains Mono', monospace; font-size: 12px;">точно</span>`;
+      } else if (ot > 0) {
+        otHtml = `<span class="overtime-widget over">+${formatHoursMinutes(ot)}</span>`;
+      } else {
+        otHtml = `<span class="overtime-widget under">−${formatHoursMinutes(Math.abs(ot))}</span>`;
+      }
+
       html += `<tr>
         <td><div class="emp-cell">
           <div class="emp-avatar">${initials}</div>
@@ -2503,13 +2580,25 @@
         </div></td>
         <td>${breakdownHtml}</td>
         <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${formatHoursMinutes(r.totalMinutes)}</td>
+        <td style="text-align:right;">${otHtml}</td>
         <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #16A34A;">$${r.totalAmount.toFixed(2)}</td>
       </tr>`;
+    }
+
+    // Итог
+    let totalOtHtml;
+    if (Math.abs(totalOvertimeMinutes) < 1) {
+      totalOtHtml = `<span style="color: rgba(255,255,255,0.5); font-family: 'JetBrains Mono', monospace; font-size: 12px;">точно</span>`;
+    } else if (totalOvertimeMinutes > 0) {
+      totalOtHtml = `<span style="color: #FBBF24; font-family: 'JetBrains Mono', monospace; font-weight: 600;">+${formatHoursMinutes(totalOvertimeMinutes)}</span>`;
+    } else {
+      totalOtHtml = `<span style="color: #93C5FD; font-family: 'JetBrains Mono', monospace; font-weight: 600;">−${formatHoursMinutes(Math.abs(totalOvertimeMinutes))}</span>`;
     }
 
     html += `<tr class="payroll-total-row">
       <td colspan="2" style="text-align: right; color: #94A3B8; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;">Итого по команде</td>
       <td style="text-align:right; font-family: 'JetBrains Mono', monospace;">${formatHoursMinutes(totalMinutes)}</td>
+      <td style="text-align:right;">${totalOtHtml}</td>
       <td style="text-align:right;" class="payroll-grand-total">$${totalAmount.toFixed(2)}</td>
     </tr>`;
 
@@ -2667,23 +2756,31 @@
       [closedNote],
       [`Сформирован: ${new Date().toLocaleString('ru-RU')}`],
       [],
-      ['№', 'Переводчик', 'Email', 'Часы', 'К выплате ($)'],
+      ['№', 'Переводчик', 'Email', 'Часы', 'Овертайм (ч)', 'К выплате ($)'],
     ];
     let totalMinutes = 0;
     let totalAmount = 0;
+    let totalOvertime = 0;
     currentPayrollRows.forEach((r, i) => {
+      const otHours = Number(((r.totalOvertimeMinutes || 0) / 60).toFixed(2));
       summaryData.push([
         i + 1,
         r.user.name || '—',
         r.user.email || '',
         Number((r.totalMinutes / 60).toFixed(2)),
+        otHours,
         Number(r.totalAmount.toFixed(2)),
       ]);
       totalMinutes += r.totalMinutes;
       totalAmount += r.totalAmount;
+      totalOvertime += (r.totalOvertimeMinutes || 0);
     });
     summaryData.push([]);
-    summaryData.push(['', 'ИТОГО:', '', Number((totalMinutes / 60).toFixed(2)), Number(totalAmount.toFixed(2))]);
+    summaryData.push(['', 'ИТОГО:', '',
+      Number((totalMinutes / 60).toFixed(2)),
+      Number((totalOvertime / 60).toFixed(2)),
+      Number(totalAmount.toFixed(2))
+    ]);
 
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
     wsSummary['!cols'] = [
@@ -2691,14 +2788,15 @@
       { wch: 28 },  // имя
       { wch: 26 },  // email
       { wch: 10 },  // часы
+      { wch: 12 },  // овертайм
       { wch: 14 },  // сумма
     ];
     // Объединим заголовок
     wsSummary['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } },
-      { s: { r: 3, c: 0 }, e: { r: 3, c: 4 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 5 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 5 } },
     ];
 
     // ─── Лист 2: Разбивка по парам ─────────────────────────────────────
@@ -2789,24 +2887,34 @@
     // Таблица сводки
     let totalMinutes = 0;
     let totalAmount = 0;
+    let totalOvertime = 0;
     const body = currentPayrollRows.map((r, i) => {
       totalMinutes += r.totalMinutes;
       totalAmount += r.totalAmount;
+      const ot = r.totalOvertimeMinutes || 0;
+      totalOvertime += ot;
+      const otStr = Math.abs(ot) < 1 ? '—'
+        : (ot > 0 ? '+' : '−') + formatHoursMinutes(Math.abs(ot));
       return [
         i + 1,
         transliterate(r.user.name || '—'),
         r.user.email || '',
         formatHoursMinutes(r.totalMinutes),
+        otStr,
         '$' + r.totalAmount.toFixed(2),
       ];
     });
 
+    const totalOtStr = Math.abs(totalOvertime) < 1 ? '—'
+      : (totalOvertime > 0 ? '+' : '−') + formatHoursMinutes(Math.abs(totalOvertime));
+
     doc.autoTable({
       startY: 44,
-      head: [['#', 'Translator', 'Email', 'Hours', 'Amount']],
+      head: [['#', 'Translator', 'Email', 'Hours', 'Overtime', 'Amount']],
       body,
       foot: [['', transliterate('ИТОГО:'), '',
         formatHoursMinutes(totalMinutes),
+        totalOtStr,
         '$' + totalAmount.toFixed(2)
       ]],
       theme: 'grid',
@@ -2817,6 +2925,7 @@
         0: { halign: 'center', cellWidth: 10 },
         3: { halign: 'right' },
         4: { halign: 'right' },
+        5: { halign: 'right' },
       },
     });
 
@@ -3422,25 +3531,39 @@
     const periodStart = formatDate(new Date(tdCalYear, tdCalMonth, 1));
     const periodEnd = formatDate(new Date(tdCalYear, tdCalMonth + 1, 0));
 
-    const { data: days, error } = await sb
-      .from('work_days')
-      .select(`
-        id, work_date, day_type,
-        work_intervals ( id, duration_minutes, language_pair_id ),
-        breaks ( id, duration_minutes )
-      `)
-      .eq('user_id', tdUser.id)
-      .gte('work_date', periodStart)
-      .lte('work_date', periodEnd);
+    const [daysRes, shiftsRes] = await Promise.all([
+      sb.from('work_days')
+        .select(`
+          id, work_date, day_type,
+          work_intervals ( id, duration_minutes, language_pair_id ),
+          breaks ( id, duration_minutes )
+        `)
+        .eq('user_id', tdUser.id)
+        .gte('work_date', periodStart)
+        .lte('work_date', periodEnd),
+      sb.from('shifts')
+        .select('shift_date, planned_minutes')
+        .eq('user_id', tdUser.id)
+        .gte('shift_date', periodStart)
+        .lte('shift_date', periodEnd)
+    ]);
 
-    if (error) {
-      showError('td-error', 'Ошибка загрузки: ' + error.message);
+    if (daysRes.error) {
+      showError('td-error', 'Ошибка загрузки: ' + daysRes.error.message);
       return;
     }
 
+    // Маппинг смен по дате
+    const shiftsByDate = {};
+    for (const s of (shiftsRes.data || [])) {
+      shiftsByDate[s.shift_date] = s.planned_minutes;
+    }
+    const defaultMin = tdUser.default_shift_minutes || 480;
+
     const dayMap = {};
     let totalMinutes = 0, totalAmount = 0, absentDays = 0, workingDays = 0;
-    for (const d of days || []) {
+    let totalOvertime = 0;
+    for (const d of daysRes.data || []) {
       if (d.day_type === 'absent') {
         dayMap[d.work_date] = { type: 'absent' };
         absentDays++;
@@ -3452,6 +3575,9 @@
         totalMinutes += calc.netMinutes;
         totalAmount += calc.amount;
         workingDays++;
+
+        const planned = getPlannedMinutes(d.work_date, shiftsByDate, defaultMin);
+        totalOvertime += (calc.netMinutes - planned);
       }
     }
 
@@ -3463,6 +3589,25 @@
       (absentDays === 0 ? 'дней' : pluralize(absentDays, 'день', 'дня', 'дней')) +
       '</span>';
     document.getElementById('td-amount').textContent = '$' + totalAmount.toFixed(2);
+
+    // Овертайм в новой KPI карточке
+    const otEl = document.getElementById('td-overtime');
+    const otMetaEl = document.getElementById('td-overtime-meta');
+    if (otEl) {
+      if (Math.abs(totalOvertime) < 1) {
+        otEl.innerHTML = '0<span class="kpi-unit">мин</span>';
+        otEl.style.color = '';
+        otMetaEl.textContent = 'точно по плану';
+      } else if (totalOvertime > 0) {
+        otEl.innerHTML = '+' + formatHoursMinutes(totalOvertime);
+        otEl.style.color = '#B45309';
+        otMetaEl.textContent = 'переработано';
+      } else {
+        otEl.innerHTML = '−' + formatHoursMinutes(Math.abs(totalOvertime));
+        otEl.style.color = '#1E40AF';
+        otMetaEl.textContent = 'недоработано';
+      }
+    }
 
     renderTdCalendar(dayMap);
   }
@@ -3933,6 +4078,34 @@
       amount += (intervalNetMin / 60) * rate;
     }
     return { netMinutes: netMin, amount };
+  }
+
+  // Загружает смены (shifts) для группы переводчиков за период.
+  // Возвращает { user_id: { date: planned_minutes } }
+  async function loadShiftsForUsers(userIds, periodStart, periodEnd) {
+    if (userIds.length === 0) return {};
+    const { data } = await sb.from('shifts')
+      .select('user_id, shift_date, planned_minutes')
+      .in('user_id', userIds)
+      .gte('shift_date', periodStart)
+      .lte('shift_date', periodEnd);
+
+    const byUser = {};
+    for (const s of (data || [])) {
+      if (!byUser[s.user_id]) byUser[s.user_id] = {};
+      byUser[s.user_id][s.shift_date] = s.planned_minutes;
+    }
+    return byUser;
+  }
+
+  // Считает план для конкретной даты переводчика
+  // shifts: { date: planned_minutes }
+  // defaultMin: дефолтные минуты переводчика (fallback)
+  function getPlannedMinutes(workDate, shiftsByDate, defaultMin) {
+    if (shiftsByDate && shiftsByDate[workDate] !== undefined) {
+      return shiftsByDate[workDate];
+    }
+    return defaultMin;
   }
 
   // Универсальная функция расчёта дня с разбивкой по парам (для ведомости).
