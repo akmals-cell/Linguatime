@@ -140,6 +140,7 @@
   .badge-warn { background: #FEF3C7; color: #B45309; }
   .badge-neutral { background: #FAFAFA; color: #475569; border: 1px solid #E5E7EB; }
   .badge-info { background: #DBEAFE; color: #1E40AF; }
+  .badge-super { background: linear-gradient(135deg, #1E40AF 0%, #16A34A 100%); color: white; font-weight: 600; }
 
   /* ═══ Смена в просмотре дня ═══ */
   .shift-section {
@@ -992,6 +993,10 @@
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Переводчики
       </button>
+      <button class="sb-item" data-page="managers">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Менеджеры
+      </button>
       <button class="sb-item" data-page="requests">
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Запросы
@@ -1167,6 +1172,20 @@
       </div>
     </div>
 
+    <div id="page-managers" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Менеджеры</div>
+          <div class="page-subtitle" id="managers-subtitle">Загрузка…</div>
+        </div>
+        <div id="managers-actions-wrap"></div>
+      </div>
+      <div id="managers-error" class="error hidden"></div>
+      <div id="managers-content">
+        <div class="loading-state">Загрузка…</div>
+      </div>
+    </div>
+
     <div id="page-requests" class="page hidden">
       <div class="page-header">
         <div>
@@ -1337,6 +1356,41 @@
       </div>
     </div>
   </main>
+</div>
+
+<div id="add-manager-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 480px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Новый менеджер</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Создаёт новый аккаунт с правами менеджера</div>
+      </div>
+      <button class="modal-close" onclick="closeAddManagerModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="add-manager-error" class="error hidden"></div>
+
+      <div class="field">
+        <label class="field-label">Имя <span style="color: #DC2626;">*</span></label>
+        <input type="text" id="mgr-name" class="input" placeholder="Например: Иван Иванов">
+      </div>
+      <div class="field">
+        <label class="field-label">Email <span style="color: #DC2626;">*</span></label>
+        <input type="email" id="mgr-email" class="input" placeholder="ivan@example.com">
+      </div>
+      <div class="field">
+        <label class="field-label">Пароль <span style="color: #DC2626;">*</span></label>
+        <input type="text" id="mgr-password" class="input" placeholder="Минимум 6 символов">
+        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+          Передайте менеджеру этот пароль вручную. При первом входе он сможет его сменить.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAddManagerModal()">Отмена</button>
+      <button id="btn-save-manager" class="btn" onclick="createManager()">Создать менеджера</button>
+    </div>
+  </div>
 </div>
 
 <div id="add-modal" class="modal-backdrop">
@@ -1713,7 +1767,7 @@
 
   async function loadProfile(userId) {
     const { data, error } = await sb.from('users')
-      .select('id, email, name, role, timezone, is_active')
+      .select('id, email, name, role, timezone, is_active, is_super_admin')
       .eq('id', userId).single();
 
     if (error || !data) {
@@ -1781,6 +1835,197 @@
       .select('id, code, display_name').eq('active', true).order('code');
     languagePairs = data || [];
   }
+
+  // ====================================================================
+  // СТРАНИЦА: МЕНЕДЖЕРЫ
+  // ====================================================================
+  async function loadManagers() {
+    hideError('managers-error');
+    const content = document.getElementById('managers-content');
+    const subtitle = document.getElementById('managers-subtitle');
+    const actionsWrap = document.getElementById('managers-actions-wrap');
+    content.innerHTML = '<div class="loading-state">Загрузка…</div>';
+
+    // Загружаем менеджеров
+    const { data: managers, error } = await sb.from('users')
+      .select('id, email, name, is_active, is_super_admin, created_at')
+      .eq('role', 'manager')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      showError('managers-error', 'Ошибка загрузки: ' + error.message);
+      content.innerHTML = '';
+      return;
+    }
+
+    const activeManagers = managers.filter(m => m.is_active);
+    subtitle.textContent =
+      `${activeManagers.length} ${pluralize(activeManagers.length, 'активный', 'активных', 'активных')}` +
+      (managers.length > activeManagers.length
+        ? ` · ${managers.length - activeManagers.length} неактивных`
+        : '');
+
+    // Кнопка «Добавить менеджера» — только для super-admin
+    if (currentUser.is_super_admin) {
+      actionsWrap.innerHTML = `
+        <button class="btn" onclick="openAddManagerModal()">+ Добавить менеджера</button>
+      `;
+    } else {
+      actionsWrap.innerHTML = '';
+    }
+
+    if (managers.length === 0) {
+      content.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-text">В системе пока нет менеджеров.</div>
+        </div>
+      `;
+      return;
+    }
+
+    let html = `<table><thead><tr>
+      <th>Менеджер</th>
+      <th>Email</th>
+      <th>Статус</th>
+      <th>Добавлен</th>
+      <th></th>
+    </tr></thead><tbody>`;
+
+    for (const m of managers) {
+      const initials = (m.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+      const isCurrent = m.id === currentUser.id;
+
+      // Бейджи
+      let badges = '';
+      if (m.is_super_admin) {
+        badges += `<span class="badge badge-super" style="margin-left: 8px;">★ super-admin</span>`;
+      }
+      if (isCurrent) {
+        badges += `<span class="badge badge-info" style="margin-left: 6px;">это вы</span>`;
+      }
+
+      // Статус
+      const statusBadge = m.is_active
+        ? '<span class="badge badge-good">● Активен</span>'
+        : '<span class="badge badge-warn">● Неактивен</span>';
+
+      // Кнопка деактивации/активации (только super-admin, не себя, не других super-admin)
+      let actionBtn = '';
+      if (currentUser.is_super_admin && !isCurrent && !m.is_super_admin) {
+        if (m.is_active) {
+          actionBtn = `<button class="btn btn-ghost btn-sm" onclick="toggleManagerActive('${m.id}', false, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Деактивировать</button>`;
+        } else {
+          actionBtn = `<button class="btn btn-ghost btn-sm" onclick="toggleManagerActive('${m.id}', true, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Активировать</button>`;
+        }
+      }
+
+      const created = new Date(m.created_at).toLocaleDateString('ru-RU');
+
+      html += `<tr>
+        <td>
+          <div class="emp-cell">
+            <div class="emp-avatar">${initials}</div>
+            <div>
+              <div class="emp-name">${escapeHtml(m.name)}${badges}</div>
+            </div>
+          </div>
+        </td>
+        <td style="color: #475569;">${escapeHtml(m.email)}</td>
+        <td>${statusBadge}</td>
+        <td style="font-family: 'JetBrains Mono', monospace; color: #475569; font-size: 12px;">${created}</td>
+        <td style="text-align: right;">${actionBtn}</td>
+      </tr>`;
+    }
+
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  }
+
+  // ──── Модалка создания менеджера ────────────────────────────────────
+  function openAddManagerModal() {
+    if (!currentUser.is_super_admin) {
+      alert('Только super-admin может добавлять менеджеров.');
+      return;
+    }
+    hideError('add-manager-error');
+    document.getElementById('mgr-name').value = '';
+    document.getElementById('mgr-email').value = '';
+    document.getElementById('mgr-password').value = '';
+    document.getElementById('add-manager-modal').classList.add('open');
+    setTimeout(() => document.getElementById('mgr-name').focus(), 50);
+  }
+
+  function closeAddManagerModal() {
+    document.getElementById('add-manager-modal').classList.remove('open');
+  }
+
+  async function createManager() {
+    hideError('add-manager-error');
+    const btn = document.getElementById('btn-save-manager');
+
+    const name = document.getElementById('mgr-name').value.trim();
+    const email = document.getElementById('mgr-email').value.trim().toLowerCase();
+    const password = document.getElementById('mgr-password').value;
+
+    if (!name) { showError('add-manager-error', 'Введите имя.'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError('add-manager-error', 'Введите корректный email.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      showError('add-manager-error', 'Пароль должен быть не короче 6 символов.');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Создание…';
+
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) throw new Error('Сессия истекла. Войдите заново.');
+
+      const response = await fetch(CREATE_TRANSLATOR_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email, password, name,
+          role: 'manager',
+          timezone: 'Asia/Tashkent',
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Не удалось создать менеджера');
+      }
+
+      closeAddManagerModal();
+      await loadManagers();
+    } catch (e) {
+      showError('add-manager-error', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Создать менеджера';
+    }
+  }
+
+  // ──── Активация/деактивация менеджера ───────────────────────────────
+  async function toggleManagerActive(userId, makeActive, managerName) {
+    const action = makeActive ? 'активировать' : 'деактивировать';
+    if (!confirm(`Точно ${action} менеджера ${managerName}?`)) return;
+
+    try {
+      const { error } = await sb.from('users')
+        .update({ is_active: makeActive })
+        .eq('id', userId);
+      if (error) throw new Error(error.message);
+      await loadManagers();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+    }
+  }
+
 
   async function loadTranslators() {
     const content = document.getElementById('translators-content');
@@ -5564,6 +5809,7 @@
       showPage(page);
       if (page === 'dashboard') await loadDashboard();
       else if (page === 'translators') await loadTranslators();
+      else if (page === 'managers') await loadManagers();
       else if (page === 'requests') await loadRequests();
       else if (page === 'my-profile') await loadMyProfile();
       else if (page === 'calendar') await loadCalendar();
@@ -5592,6 +5838,9 @@
   });
   document.getElementById('shift-request-modal').addEventListener('click', e => {
     if (e.target.id === 'shift-request-modal') closeShiftRequestModal();
+  });
+  document.getElementById('add-manager-modal').addEventListener('click', e => {
+    if (e.target.id === 'add-manager-modal') closeAddManagerModal();
   });
   document.getElementById('req-filter').addEventListener('change', () => loadRequests());
 
