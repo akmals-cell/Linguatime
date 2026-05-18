@@ -980,6 +980,64 @@
       <input type="password" id="password" class="input" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button id="btn-login" class="btn btn-block">Войти</button>
+    <div style="text-align: center; margin-top: 16px;">
+      <a href="#" id="btn-forgot-link" style="font-size: 13px; color: #1E40AF; text-decoration: none;">Забыли пароль?</a>
+    </div>
+  </div>
+</div>
+
+<!-- Экран «Забыли пароль» — отправка email со ссылкой -->
+<div id="screen-forgot" class="auth-wrap hidden">
+  <div class="auth-card">
+    <div class="brand">LinguaTime</div>
+    <div class="brand-tag">Восстановление пароля</div>
+    <div id="forgot-error" class="error hidden"></div>
+    <div id="forgot-success" class="hidden" style="background: #DCFCE7; border-left: 3px solid #16A34A; padding: 14px; border-radius: 8px; margin-bottom: 16px;">
+      <div style="font-size: 13px; font-weight: 600; color: #16A34A; margin-bottom: 4px;">✓ Ссылка отправлена</div>
+      <div style="font-size: 13px; color: #475569;">
+        Проверьте почту. Если письма нет — посмотрите в папке «Спам».
+      </div>
+    </div>
+    <div id="forgot-form-wrap">
+      <div style="font-size: 13px; color: #475569; margin-bottom: 16px;">
+        Введите ваш email и мы отправим ссылку для сброса пароля.
+      </div>
+      <div class="field">
+        <label class="field-label" for="forgot-email">Email</label>
+        <input type="email" id="forgot-email" class="input" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <button id="btn-forgot-send" class="btn btn-block">Отправить ссылку</button>
+    </div>
+    <div style="text-align: center; margin-top: 16px;">
+      <a href="#" id="btn-back-to-login" style="font-size: 13px; color: #1E40AF; text-decoration: none;">← Вернуться ко входу</a>
+    </div>
+  </div>
+</div>
+
+<!-- Экран установки нового пароля (пользователь приходит сюда по ссылке из email) -->
+<div id="screen-reset" class="auth-wrap hidden">
+  <div class="auth-card">
+    <div class="brand">LinguaTime</div>
+    <div class="brand-tag">Новый пароль</div>
+    <div id="reset-error" class="error hidden"></div>
+    <div id="reset-success" class="hidden" style="background: #DCFCE7; border-left: 3px solid #16A34A; padding: 14px; border-radius: 8px; margin-bottom: 16px;">
+      <div style="font-size: 13px; font-weight: 600; color: #16A34A; margin-bottom: 4px;">✓ Пароль изменён</div>
+      <div style="font-size: 13px; color: #475569;">Сейчас войдём в систему…</div>
+    </div>
+    <div id="reset-form-wrap">
+      <div style="font-size: 13px; color: #475569; margin-bottom: 16px;">
+        Придумайте новый пароль для вашей учётной записи.
+      </div>
+      <div class="field">
+        <label class="field-label" for="reset-password">Новый пароль</label>
+        <input type="password" id="reset-password" class="input" placeholder="Минимум 6 символов" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label class="field-label" for="reset-password2">Повторите пароль</label>
+        <input type="password" id="reset-password2" class="input" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <button id="btn-reset-save" class="btn btn-block">Сохранить пароль</button>
+    </div>
   </div>
 </div>
 
@@ -1753,7 +1811,8 @@
   let pairRowCounter = 0;
 
   function showScreen(id) {
-    ['loading', 'login', 'app'].forEach(s => document.getElementById('screen-' + s).classList.add('hidden'));
+    ['loading', 'login', 'forgot', 'reset', 'app'].forEach(s =>
+      document.getElementById('screen-' + s).classList.add('hidden'));
     document.getElementById('screen-' + id).classList.remove('hidden');
   }
   function showPage(pageId) {
@@ -1765,10 +1824,28 @@
   }
 
   async function checkSession() {
+    // Сначала проверяем, не вернулся ли пользователь по ссылке recovery
+    // Supabase кладёт хеш-параметры вида #access_token=...&type=recovery
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      // Не делаем ничего здесь — onAuthStateChange ниже среагирует на PASSWORD_RECOVERY
+      // и переключит экран
+      return;
+    }
+
     const { data: { session } } = await sb.auth.getSession();
     if (session) await loadProfile(session.user.id);
     else showScreen('login');
   }
+
+  // Supabase шлёт событие PASSWORD_RECOVERY когда пользователь приходит по ссылке из email
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      showScreen('reset');
+      // Очищаем хеш чтобы при следующем входе не срабатывало
+      // (но только после того как покажем экран — Supabase ещё использует параметры)
+    }
+  });
 
   async function loadProfile(userId) {
     const { data, error } = await sb.from('users')
@@ -1833,6 +1910,79 @@
     document.getElementById('password').value = '';
     hideError('login-error');
     showScreen('login');
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  // ВОССТАНОВЛЕНИЕ ПАРОЛЯ
+  // ────────────────────────────────────────────────────────────────────
+
+  async function handleForgotPassword() {
+    hideError('forgot-error');
+    const email = document.getElementById('forgot-email').value.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError('forgot-error', 'Введите корректный email.');
+      return;
+    }
+    const btn = document.getElementById('btn-forgot-send');
+    btn.disabled = true; btn.textContent = 'Отправляем…';
+
+    // Указываем куда вернуть пользователя после клика по ссылке в письме
+    const redirectTo = window.location.origin + window.location.pathname;
+
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    btn.disabled = false; btn.textContent = 'Отправить ссылку';
+
+    if (error) {
+      showError('forgot-error', 'Ошибка: ' + error.message);
+      return;
+    }
+
+    // Из соображений безопасности всегда показываем «отправлено», даже если email не найден
+    // (чтобы не палить регистрации). Supabase делает то же самое.
+    document.getElementById('forgot-form-wrap').classList.add('hidden');
+    document.getElementById('forgot-success').classList.remove('hidden');
+  }
+
+  async function handleResetPassword() {
+    hideError('reset-error');
+    const pw1 = document.getElementById('reset-password').value;
+    const pw2 = document.getElementById('reset-password2').value;
+    if (!pw1 || pw1.length < 6) {
+      showError('reset-error', 'Пароль должен быть не короче 6 символов.');
+      return;
+    }
+    if (pw1 !== pw2) {
+      showError('reset-error', 'Пароли не совпадают.');
+      return;
+    }
+
+    const btn = document.getElementById('btn-reset-save');
+    btn.disabled = true; btn.textContent = 'Сохраняем…';
+
+    const { data, error } = await sb.auth.updateUser({ password: pw1 });
+
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Сохранить пароль';
+      showError('reset-error', 'Ошибка: ' + error.message);
+      return;
+    }
+
+    // Успех! Показываем сообщение и автоматически входим
+    document.getElementById('reset-form-wrap').classList.add('hidden');
+    document.getElementById('reset-success').classList.remove('hidden');
+
+    // Очищаем хеш (recovery параметры) и через 1.5 сек загружаем профиль
+    setTimeout(async () => {
+      window.history.replaceState(null, '', window.location.pathname);
+      if (data && data.user) {
+        await loadProfile(data.user.id);
+      } else {
+        showScreen('login');
+      }
+    }, 1500);
   }
 
   async function loadLanguagePairs() {
@@ -5807,6 +5957,33 @@
   });
   document.getElementById('email').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('password').focus();
+  });
+
+  // Восстановление пароля
+  document.getElementById('btn-forgot-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    hideError('forgot-error');
+    document.getElementById('forgot-form-wrap').classList.remove('hidden');
+    document.getElementById('forgot-success').classList.add('hidden');
+    document.getElementById('forgot-email').value =
+      document.getElementById('email').value;
+    showScreen('forgot');
+    setTimeout(() => document.getElementById('forgot-email').focus(), 50);
+  });
+  document.getElementById('btn-back-to-login').addEventListener('click', (e) => {
+    e.preventDefault();
+    showScreen('login');
+  });
+  document.getElementById('btn-forgot-send').addEventListener('click', handleForgotPassword);
+  document.getElementById('forgot-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleForgotPassword();
+  });
+  document.getElementById('btn-reset-save').addEventListener('click', handleResetPassword);
+  document.getElementById('reset-password2').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleResetPassword();
+  });
+  document.getElementById('reset-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('reset-password2').focus();
   });
   document.querySelectorAll('.sb-item').forEach(b => {
     b.addEventListener('click', async () => {
