@@ -1790,7 +1790,9 @@
       <div class="loading-state">Загрузка…</div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeDayViewModal()">Закрыть</button>
+      <button id="btn-manager-fill-day" class="btn hidden" onclick="openDayModalAsManager()">+ Заполнить за переводчика</button>
+      <button id="btn-manager-edit-day" class="btn hidden" onclick="openDayModalAsManager()">✎ Редактировать</button>
+      <button class="btn btn-ghost" onclick="closeDayViewModal()" style="margin-left: auto;">Закрыть</button>
     </div>
   </div>
 </div>
@@ -4078,6 +4080,19 @@
 
   // ────────────────────────────────────────────────────────────────
   // Read-only просмотр дня (для менеджера)
+  // Менеджер: открыть модалку ввода/редактирования дня за переводчика
+  async function openDayModalAsManager() {
+    const dateStr = tdViewDate || document.getElementById('day-view-modal').dataset.date;
+    if (!dateStr || !tdUser) {
+      alert('Ошибка: дата или переводчик не определены.');
+      return;
+    }
+    // Закроем модалку просмотра
+    closeDayViewModal();
+    // Откроем модалку ввода с targetUser = tdUser (она сама добавит .open в конце)
+    await openDayModal(dateStr, tdUser);
+  }
+
   // ────────────────────────────────────────────────────────────────
   // Глобальное состояние для модалки просмотра дня (для менеджера)
   let tdViewDate = null;
@@ -4095,6 +4110,10 @@
 
     const body = document.getElementById('day-view-body');
     body.innerHTML = '<div class="loading-state">Загрузка…</div>';
+
+    // Сначала прячем обе кнопки — покажем нужную ниже
+    document.getElementById('btn-manager-fill-day').classList.add('hidden');
+    document.getElementById('btn-manager-edit-day').classList.add('hidden');
 
     document.getElementById('day-view-modal').classList.add('open');
 
@@ -4119,6 +4138,13 @@
 
     const day = dayRes.data;
     tdViewShift = shiftRes.data;
+
+    // Показываем нужную кнопку в футере
+    if (day) {
+      document.getElementById('btn-manager-edit-day').classList.remove('hidden');
+    } else {
+      document.getElementById('btn-manager-fill-day').classList.remove('hidden');
+    }
 
     // Рендерим блок СМЕНЫ всегда (даже если работы не было)
     const shiftHtml = renderShiftSection(tdViewShift);
@@ -5110,15 +5136,16 @@
 
   // Подгружает данные о смене и обновляет блок-подсказку в модалке ввода дня (только просмотр)
   async function loadDayShiftInfo(dateStr) {
+    const userId = (targetUser && targetUser.id) ? targetUser.id : currentUser.id;
     const [shiftRes, profileRes] = await Promise.all([
       sb.from('shifts')
         .select('planned_start, planned_end, planned_minutes')
-        .eq('user_id', currentUser.id)
+        .eq('user_id', userId)
         .eq('shift_date', dateStr)
         .maybeSingle(),
       sb.from('users')
         .select('default_shift_start, default_shift_end, default_shift_minutes')
-        .eq('id', currentUser.id)
+        .eq('id', userId)
         .single()
     ]);
 
@@ -5155,16 +5182,19 @@
   let breakRowCounter = 0;
   let myLanguagePairs = []; // [{ language_pair_id, code, rate_per_hour }]
 
-  async function ensureMyLanguagePairs() {
-    if (myLanguagePairs.length > 0) return;
+  // Кого редактируем (себя или переводчика-за-кого-менеджер вводит)
+  let targetUser = null; // объект пользователя, чей день мы редактируем
+  let targetUserPairs = []; // языковые пары этого пользователя
+
+  async function loadUserLanguagePairs(userId) {
     const { data } = await sb
       .from('translator_pairs')
       .select(`
         language_pair_id, rate_per_hour, is_primary,
         language_pairs ( code, display_name )
       `)
-      .eq('user_id', currentUser.id);
-    myLanguagePairs = (data || [])
+      .eq('user_id', userId);
+    return (data || [])
       .sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
       .map(p => ({
         language_pair_id: p.language_pair_id,
@@ -5173,10 +5203,30 @@
       }));
   }
 
-  async function openDayModal(dateStr) {
-    await ensureMyLanguagePairs();
-    if (myLanguagePairs.length === 0) {
-      alert('У вас нет назначенных языковых пар. Обратитесь к менеджеру.');
+  async function ensureMyLanguagePairs() {
+    if (myLanguagePairs.length > 0) return;
+    myLanguagePairs = await loadUserLanguagePairs(currentUser.id);
+  }
+
+  // Открыть модалку ввода дня
+  // forUser: если задан — менеджер вводит за переводчика. Иначе переводчик за себя.
+  async function openDayModal(dateStr, forUser = null) {
+    // Определяем target user
+    if (forUser) {
+      targetUser = forUser;
+      targetUserPairs = await loadUserLanguagePairs(forUser.id);
+    } else {
+      // Переводчик за себя
+      await ensureMyLanguagePairs();
+      targetUser = currentUser;
+      targetUserPairs = myLanguagePairs;
+    }
+
+    if (targetUserPairs.length === 0) {
+      const msg = forUser
+        ? `У переводчика ${targetUser.name} нет назначенных языковых пар. Сначала добавьте пары.`
+        : 'У вас нет назначенных языковых пар. Обратитесь к менеджеру.';
+      alert(msg);
       return;
     }
 
@@ -5189,9 +5239,11 @@
     const date = new Date(dateStr + 'T00:00:00');
     const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
     const monthName = MONTH_NAMES_RU[date.getMonth()];
-    document.getElementById('day-modal-title').textContent =
-      `${date.getDate()} ${monthName.toLowerCase()}`;
-    document.getElementById('day-modal-subtitle').textContent = dayName;
+    let title = `${date.getDate()} ${monthName.toLowerCase()}`;
+    if (forUser) title += ` · ${targetUser.name}`;
+    document.getElementById('day-modal-title').textContent = title;
+    document.getElementById('day-modal-subtitle').textContent =
+      forUser ? `${dayName} · ввод менеджером` : dayName;
 
     document.getElementById('intervals-list').innerHTML = '';
     document.getElementById('breaks-list').innerHTML = '';
@@ -5211,7 +5263,7 @@
         work_intervals ( id, language_pair_id, start_at, end_at, duration_minutes ),
         breaks ( id, start_at, end_at, duration_minutes, note )
       `)
-      .eq('user_id', currentUser.id)
+      .eq('user_id', targetUser.id)
       .eq('work_date', dateStr)
       .maybeSingle();
 
@@ -5247,6 +5299,9 @@
 
   function closeDayModal() {
     document.getElementById('day-modal').classList.remove('open');
+    // Сбрасываем targetUser чтобы при следующем открытии переводчиком вернулось к currentUser
+    targetUser = null;
+    targetUserPairs = [];
   }
 
   function setDayType(type) {
@@ -5267,7 +5322,8 @@
   function addIntervalRow(prefill = null) {
     intervalRowCounter++;
     const id = 'iv-' + intervalRowCounter;
-    const options = myLanguagePairs.map(p =>
+    const pairs = (targetUserPairs && targetUserPairs.length > 0) ? targetUserPairs : myLanguagePairs;
+    const options = pairs.map(p =>
       `<option value="${p.language_pair_id}" ${prefill && prefill.languagePairId === p.language_pair_id ? 'selected' : ''}>${p.code} ($${Number(p.rate_per_hour).toFixed(2)}/ч)</option>`
     ).join('');
     const div = document.createElement('div');
@@ -5498,10 +5554,16 @@
 
     btn.disabled = true; btn.textContent = 'Сохранение…';
     try {
+      const isManagerEdit = targetUser && targetUser.id !== currentUser.id;
+
       if (currentDayType === 'absent') {
         await upsertDay({ day_type: 'absent', intervals: [], breaks: [] });
         closeDayModal();
-        await loadCalendar();
+        if (isManagerEdit) {
+          await loadTranslatorDetailMonth();
+        } else {
+          await loadCalendar();
+        }
         return;
       }
       const intervals = [];
@@ -5535,7 +5597,11 @@
       }
       await upsertDay({ day_type: 'working', intervals, breaks });
       closeDayModal();
-      await loadCalendar();
+      if (isManagerEdit) {
+        await loadTranslatorDetailMonth();
+      } else {
+        await loadCalendar();
+      }
     } catch (e) {
       showError('day-error', 'Ошибка: ' + e.message);
     } finally {
@@ -5544,11 +5610,12 @@
   }
 
   async function upsertDay({ day_type, intervals, breaks }) {
+    const userId = (targetUser && targetUser.id) ? targetUser.id : currentUser.id;
     let workDayId = currentDayId;
     if (!workDayId) {
       const { data: newDay, error: insertErr } = await sb
         .from('work_days')
-        .insert({ user_id: currentUser.id, work_date: currentDayDate, day_type })
+        .insert({ user_id: userId, work_date: currentDayDate, day_type })
         .select('id').single();
       if (insertErr) throw new Error(insertErr.message);
       workDayId = newDay.id;
@@ -5594,8 +5661,13 @@
       showError('day-error', 'Ошибка удаления: ' + error.message);
       return;
     }
+    const isManagerEdit = targetUser && targetUser.id !== currentUser.id;
     closeDayModal();
-    await loadCalendar();
+    if (isManagerEdit) {
+      await loadTranslatorDetailMonth();
+    } else {
+      await loadCalendar();
+    }
   }
 
   // Локальное "HH:MM" на дату currentDayDate → UTC ISO для записи в БД
