@@ -4085,6 +4085,7 @@
 
   async function openDayViewModal(dateStr) {
     tdViewDate = dateStr;
+    document.getElementById('day-view-modal').dataset.date = dateStr;
     const date = new Date(dateStr + 'T00:00:00');
     const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
     const monthName = MONTH_NAMES_RU[date.getMonth()];
@@ -4278,7 +4279,14 @@
   // ────────────────────────────────────────────────────────────────
   function openShiftModal() {
     hideError('shift-modal-error');
-    const date = new Date(tdViewDate + 'T00:00:00');
+    // Защита: читаем дату из data-attribute если переменная потерялась
+    const dateStr = tdViewDate || document.getElementById('day-view-modal').dataset.date;
+    if (!dateStr) {
+      alert('Ошибка: дата не определена. Закройте модалку и откройте день заново.');
+      return;
+    }
+    tdViewDate = dateStr; // восстанавливаем переменную
+    const date = new Date(dateStr + 'T00:00:00');
     const dayName = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'][date.getDay()];
     const monthName = MONTH_NAMES_RU[date.getMonth()];
     document.getElementById('shift-modal-title').textContent =
@@ -4332,6 +4340,13 @@
     const note = document.getElementById('shift-note').value.trim();
     const minutes = calcShiftMinutes(start, end);
 
+    // Защита: читаем дату из переменной или data-attribute
+    const dateStr = tdViewDate || document.getElementById('day-view-modal').dataset.date;
+    if (!dateStr) {
+      showError('shift-modal-error', 'Ошибка: дата смены не определена. Закройте модалку и откройте день заново.');
+      return;
+    }
+
     if (!start || !end || minutes <= 0) {
       showError('shift-modal-error', 'Укажите корректное время смены.');
       return;
@@ -4347,7 +4362,7 @@
       const crossesMidnight = (end <= start);
       const payload = {
         user_id: tdUser.id,
-        shift_date: tdViewDate,
+        shift_date: dateStr,
         planned_start: start + ':00',
         planned_end: end + ':00',
         planned_minutes: minutes,
@@ -4370,7 +4385,7 @@
 
       closeShiftModal();
       // Перезагружаем модалку дня и календарь
-      await openDayViewModal(tdViewDate);
+      await openDayViewModal(dateStr);
       await loadTranslatorDetailMonth();
     } catch (e) {
       showError('shift-modal-error', e.message);
@@ -4383,13 +4398,15 @@
     if (!tdViewShift) return;
     if (!confirm('Удалить назначенную смену? Будет использоваться стандартная смена переводчика.')) return;
 
+    const dateStr = tdViewDate || document.getElementById('day-view-modal').dataset.date;
+
     try {
       const { error } = await sb.from('shifts')
         .delete()
         .eq('id', tdViewShift.id);
       if (error) throw new Error(error.message);
 
-      await openDayViewModal(tdViewDate);
+      if (dateStr) await openDayViewModal(dateStr);
       await loadTranslatorDetailMonth();
     } catch (e) {
       alert('Ошибка удаления: ' + e.message);
@@ -4397,7 +4414,13 @@
   }
 
   function closeDayViewModal() {
+    // Если поверх открыта shift-modal — НЕ закрываем day-view и не обнуляем состояние
+    const shiftModal = document.getElementById('shift-modal');
+    if (shiftModal && shiftModal.classList.contains('open')) {
+      return;
+    }
     document.getElementById('day-view-modal').classList.remove('open');
+    document.getElementById('day-view-modal').dataset.date = '';
     tdViewDate = null;
     tdViewShift = null;
   }
