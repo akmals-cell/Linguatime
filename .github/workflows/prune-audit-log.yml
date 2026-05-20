@@ -1,0 +1,58 @@
+name: Prune audit_log daily
+
+# ═══════════════════════════════════════════════════════════════════════
+# LinguaTime · GitHub Actions: автоочистка audit_log
+# ═══════════════════════════════════════════════════════════════════════
+# Раз в день вызывает функцию prune_audit_log(180) в Supabase через
+# REST RPC. Функция удаляет записи audit_log старше 180 дней.
+#
+# Secrets, которые должны быть настроены в репозитории:
+#   • SUPABASE_URL              — https://srpiqxfeosusayqqfvrq.supabase.co
+#   • SUPABASE_SERVICE_ROLE_KEY — service_role ключ (НЕ anon)
+#
+# Расписание: каждый день в 03:00 UTC (08:00 по Ташкенту).
+# Можно запустить вручную через Actions → Run workflow.
+# ═══════════════════════════════════════════════════════════════════════
+
+on:
+  schedule:
+    # cron в UTC. '0 3 * * *' = каждый день в 03:00 UTC
+    - cron: '0 3 * * *'
+  
+  # Возможность запустить вручную через UI GitHub Actions
+  workflow_dispatch:
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Call prune_audit_log RPC
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          
+          echo "→ Calling prune_audit_log RPC..."
+          
+          RESPONSE=$(curl -sS -w "\n%{http_code}" \
+            -X POST "${SUPABASE_URL}/rest/v1/rpc/prune_audit_log" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"retention_days": 180}')
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "HTTP status: $HTTP_CODE"
+          echo "Response body: $BODY"
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::RPC call failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+          
+          echo "::notice::Pruned $BODY records from audit_log"
