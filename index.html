@@ -1682,6 +1682,17 @@
         </div>
       </div>
 
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Ставка действует с</label>
+          <input type="date" id="new-effective-from" class="input">
+          <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+            С этой даты ставка будет применяться при расчёте зарплаты.
+            По умолчанию — 1-е число текущего месяца.
+          </div>
+        </div>
+      </div>
+
       <div style="margin-top: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
         <div class="field-label" style="margin: 0;">Языковые пары и ставки</div>
         <button class="btn btn-ghost btn-sm" onclick="addPairRow()">+ Пара</button>
@@ -6118,6 +6129,13 @@
     document.getElementById('new-email').value = '';
     document.getElementById('new-password').value = '';
     document.getElementById('new-timezone').value = 'Asia/Tashkent';
+    // Дефолт effective_from — первое число текущего месяца
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yyyy = firstOfMonth.getFullYear();
+    const mm = String(firstOfMonth.getMonth() + 1).padStart(2, '0');
+    const dd = '01';
+    document.getElementById('new-effective-from').value = `${yyyy}-${mm}-${dd}`;
     document.getElementById('pairs-list').innerHTML = '';
     pairRowCounter = 0;
     addPairRow(true);
@@ -6160,9 +6178,11 @@
     const email = document.getElementById('new-email').value.trim();
     const password = document.getElementById('new-password').value;
     const timezone = document.getElementById('new-timezone').value;
+    const effectiveFrom = document.getElementById('new-effective-from').value;
 
     if (!name || !email || !password) { showError('add-error', 'Заполните имя, email и пароль.'); return; }
     if (password.length < 6) { showError('add-error', 'Пароль должен быть не менее 6 символов.'); return; }
+    if (!effectiveFrom) { showError('add-error', 'Укажите дату вступления ставки в силу.'); return; }
 
     const rows = document.querySelectorAll('#pairs-list .pair-editor');
     if (rows.length === 0) { showError('add-error', 'Добавьте хотя бы одну языковую пару.'); return; }
@@ -6200,7 +6220,7 @@
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ email, password, name, timezone, pairs })
+        body: JSON.stringify({ email, password, name, timezone, pairs, effective_from: effectiveFrom })
       });
 
       const result = await response.json();
