@@ -6303,75 +6303,107 @@
   // ═══════════════════════════════════════════════════════════════════
   // Mobile navigation: burger menu + bottom nav + topbar title
   // ═══════════════════════════════════════════════════════════════════
-  (function setupMobileNav() {
-    const burger = document.getElementById('mobile-burger-btn');
-    const sidebar = document.querySelector('.sidebar');
-    const backdrop = document.getElementById('mobile-backdrop');
-    const topbarTitle = document.getElementById('mobile-topbar-title');
-    const bottomNav = document.getElementById('mobile-bottom-nav-translator');
+  // Использует ДЕЛЕГИРОВАНИЕ событий через document.addEventListener —
+  // это работает независимо от того, когда появились элементы в DOM
+  // и какие расширения браузера установлены.
+  // ═══════════════════════════════════════════════════════════════════
+  function setupMobileNav() {
+    try {
+      console.log('[mobile-nav] setup started');
 
-    if (!burger || !sidebar || !backdrop) return;
+      function openDrawer() {
+        const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.getElementById('mobile-backdrop');
+        if (sidebar) sidebar.classList.add('mobile-open');
+        if (backdrop) backdrop.classList.add('open');
+      }
 
-    function openDrawer() {
-      sidebar.classList.add('mobile-open');
-      backdrop.classList.add('open');
-    }
-    function closeDrawer() {
-      sidebar.classList.remove('mobile-open');
-      backdrop.classList.remove('open');
-    }
+      function closeDrawer() {
+        const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.getElementById('mobile-backdrop');
+        if (sidebar) sidebar.classList.remove('mobile-open');
+        if (backdrop) backdrop.classList.remove('open');
+      }
 
-    burger.addEventListener('click', openDrawer);
-    backdrop.addEventListener('click', closeDrawer);
+      function updateMobileTopbarTitle(activeItem) {
+        const topbarTitle = document.getElementById('mobile-topbar-title');
+        if (!topbarTitle || !activeItem) return;
+        const text = activeItem.textContent.trim().split('\n')[0].trim();
+        topbarTitle.textContent = text || 'LinguaTime';
+      }
 
-    document.querySelectorAll('.sb-item').forEach(item => {
-      item.addEventListener('click', () => {
-        closeDrawer();
-        updateMobileTopbarTitle(item);
-        syncBottomNav(item.dataset.page);
-      });
-    });
-
-    if (bottomNav) {
-      bottomNav.querySelectorAll('.mobile-bottom-nav-item').forEach(navItem => {
-        navItem.addEventListener('click', () => {
-          const page = navItem.dataset.page;
-          const sbItem = document.querySelector('.sb-item[data-page="' + page + '"]');
-          if (sbItem) sbItem.click();
+      function syncBottomNav(page) {
+        const bottomNav = document.getElementById('mobile-bottom-nav-translator');
+        if (!bottomNav) return;
+        bottomNav.querySelectorAll('.mobile-bottom-nav-item').forEach(b => {
+          b.classList.toggle('active', b.dataset.page === page);
         });
+      }
+
+      function refreshBottomNavVisibility() {
+        const bottomNav = document.getElementById('mobile-bottom-nav-translator');
+        if (!bottomNav) return;
+        const transNav = document.getElementById('nav-translator');
+        const isTranslator = transNav && !transNav.classList.contains('hidden');
+        bottomNav.style.display = isTranslator ? 'flex' : 'none';
+      }
+
+      // ── ГЛОБАЛЬНЫЙ обработчик кликов через делегирование ────────
+      // Работает на любом элементе с нужным id/классом, в т.ч. если
+      // он появился позже в DOM. Не зависит от момента загрузки.
+      document.addEventListener('click', function(e) {
+        // Тап по бургеру → открыть drawer
+        if (e.target.closest('#mobile-burger-btn')) {
+          openDrawer();
+          return;
+        }
+        // Тап по затемнению → закрыть drawer
+        if (e.target.closest('#mobile-backdrop')) {
+          closeDrawer();
+          return;
+        }
+        // Тап по пункту sidebar (в открытом drawer) → закрыть + обновить заголовок
+        const sbItem = e.target.closest('.sb-item');
+        if (sbItem) {
+          closeDrawer();
+          updateMobileTopbarTitle(sbItem);
+          syncBottomNav(sbItem.dataset.page);
+          return;
+        }
+        // Тап по нижней навигации переводчика → кликаем соответствующий sb-item
+        const navItem = e.target.closest('.mobile-bottom-nav-item');
+        if (navItem) {
+          const page = navItem.dataset.page;
+          const target = document.querySelector('.sb-item[data-page="' + page + '"]');
+          if (target) target.click();
+          return;
+        }
       });
-    }
 
-    function updateMobileTopbarTitle(activeItem) {
-      if (!topbarTitle || !activeItem) return;
-      const text = activeItem.textContent.trim().split('\n')[0].trim();
-      topbarTitle.textContent = text || 'LinguaTime';
-    }
-
-    function syncBottomNav(page) {
-      if (!bottomNav) return;
-      bottomNav.querySelectorAll('.mobile-bottom-nav-item').forEach(b => {
-        b.classList.toggle('active', b.dataset.page === page);
-      });
-    }
-
-    function refreshBottomNavVisibility() {
-      if (!bottomNav) return;
+      // Наблюдаем за изменением видимости nav-translator
       const transNav = document.getElementById('nav-translator');
-      const isTranslator = transNav && !transNav.classList.contains('hidden');
-      bottomNav.style.display = isTranslator ? 'flex' : 'none';
-    }
+      if (transNav) {
+        const observer = new MutationObserver(refreshBottomNavVisibility);
+        observer.observe(transNav, { attributes: true, attributeFilter: ['class'] });
+      }
+      refreshBottomNavVisibility();
 
-    const observer = new MutationObserver(refreshBottomNavVisibility);
-    const transNav = document.getElementById('nav-translator');
-    if (transNav) {
-      observer.observe(transNav, { attributes: true, attributeFilter: ['class'] });
-    }
-    refreshBottomNavVisibility();
+      // На старте — обновляем заголовок по активному пункту
+      const initialActive = document.querySelector('.sb-item.active');
+      if (initialActive) updateMobileTopbarTitle(initialActive);
 
-    const initialActive = document.querySelector('.sb-item.active');
-    if (initialActive) updateMobileTopbarTitle(initialActive);
-  })();
+      console.log('[mobile-nav] setup completed');
+    } catch (err) {
+      console.error('[mobile-nav] setup failed:', err);
+    }
+  }
+
+  // Запускаем сразу + страховка через DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupMobileNav);
+  } else {
+    setupMobileNav();
+  }
 </script>
 <div class="mobile-backdrop" id="mobile-backdrop"></div>
 </body>
