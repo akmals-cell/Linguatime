@@ -5647,8 +5647,23 @@
     }
 
     // ── Каждый брейк должен быть ВНУТРИ хотя бы одного интервала ────────
+    // Учитываем ночные смены: интервал может быть сдвинут на +24ч
+    // (если start > end → end += 1440). Брейк, нарисованный во второй
+    // (послеполночной) части смены, имеет числа меньше start интервала,
+    // и тогда нужно сравнивать брейк со сдвигом +24ч.
     for (const br of breaks) {
-      const isInside = intervals.some(iv => iv.start <= br.start && br.end <= iv.end);
+      const isInside = intervals.some(iv => {
+        // Прямая проверка: брейк лежит в [iv.start, iv.end]
+        if (iv.start <= br.start && br.end <= iv.end) return true;
+        // Ночная смена: пробуем сдвинуть брейк на +24ч
+        // (актуально, если интервал пересекает полночь, т.е. iv.end > 1440)
+        if (iv.end > 24 * 60) {
+          const brStartShifted = br.start + 24 * 60;
+          const brEndShifted = br.end + 24 * 60;
+          if (iv.start <= brStartShifted && brEndShifted <= iv.end) return true;
+        }
+        return false;
+      });
       if (!isInside && intervals.length > 0) {
         warnings.push(`Брейк #${br.idx} находится вне рабочих интервалов.`);
         invalidRows.add(br.rowId);
