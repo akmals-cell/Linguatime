@@ -1074,109 +1074,41 @@
     await renderPayrollLive();
   }
 
-  // Расчёт «на лету» из текущих work_days, intervals, breaks, ставок
+  // Расчёт «на лету» — серверная RPC payroll_for_period.
+  // SQL-функция считает gross/net/breaks/ставки-на-дату/овертайм одним запросом,
+  // что экономит ~5 запросов на страницу и десятки KB трафика по сравнению со
+  // старой JS-реализацией.
   async function renderPayrollLive() {
     const periodStart = formatDate(new Date(payrollYear, payrollMonth, 1));
-    const periodEnd = formatDate(new Date(payrollYear, payrollMonth + 1, 0));
+    const periodEnd   = formatDate(new Date(payrollYear, payrollMonth + 1, 0));
 
-    // 1) Все активные переводчики и их пары + дефолтная смена
-    const { data: users, error: usersError } = await sb
-      .from('users')
-      .select(`
-        id, name, email, is_active, default_shift_minutes,
-        translator_pairs ( language_pair_id, rate_per_hour, is_primary,
-                            language_pairs (code) )
-      `)
-      .eq('role', 'translator')
-      .order('name');
+    const { data, error } = await sb.rpc('payroll_for_period', {
+      p_period_start: periodStart,
+      p_period_end:   periodEnd,
+    });
 
-    if (usersError) {
-      showError('payroll-error', 'Ошибка загрузки переводчиков: ' + usersError.message);
+    if (error) {
+      showError('payroll-error', 'Ошибка расчёта: ' + error.message);
       return;
     }
 
-    const userIds = users.map(u => u.id);
-    if (userIds.length === 0) {
-      renderPayrollEmpty('Нет переводчиков в системе.');
-      return;
-    }
-
-    // 2) Дни и интервалы за период
-    const { data: days, error: daysError } = await sb
-      .from('work_days')
-      .select(`
-        user_id, work_date, day_type,
-        work_intervals ( duration_minutes, language_pair_id ),
-        breaks ( duration_minutes )
-      `)
-      .in('user_id', userIds)
-      .gte('work_date', periodStart)
-      .lte('work_date', periodEnd);
-
-    if (daysError) {
-      showError('payroll-error', 'Ошибка загрузки дней: ' + daysError.message);
-      return;
-    }
-
-    // Загружаем историю ставок и смены для всех переводчиков сразу
-    const [allHistoryByUser, allShiftsByUser] = await Promise.all([
-      loadRateHistoryForUsers(userIds),
-      loadShiftsForUsers(userIds, periodStart, periodEnd)
-    ]);
-
-    // Группируем дни по user_id за один проход — вместо .filter() в цикле
-    const daysByUser = new Map();
-    for (const d of (days || [])) {
-      if (!daysByUser.has(d.user_id)) daysByUser.set(d.user_id, []);
-      daysByUser.get(d.user_id).push(d);
-    }
-
-    // 3) Считаем по каждому переводчику
-    const result = [];
-    for (const u of users) {
-      const rateByPair = {};
-      const codeByPair = {};
-      for (const p of (u.translator_pairs || [])) {
-        rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
-        codeByPair[p.language_pair_id] = p.language_pairs.code;
-      }
-      const userHistory = allHistoryByUser[u.id] || {};
-      const userShifts = allShiftsByUser[u.id] || {};
-      const defaultMin = u.default_shift_minutes || 480;
-
-      const userDays = daysByUser.get(u.id) || [];
-      const breakdown = {};
-      let totalMinutes = 0;
-      let totalPlannedMinutes = 0; // сумма плановых минут за рабочие дни
-      let totalOvertimeMinutes = 0; // = totalMinutes − totalPlannedMinutes
-
-      for (const d of userDays) {
-        const c = calcDayWithBreakdown(d, userHistory, rateByPair, codeByPair);
-        if (c.netMinutes <= 0) continue;
-        totalMinutes += c.netMinutes;
-
-        // Овертайм
-        const planned = getPlannedMinutes(d.work_date, userShifts, defaultMin);
-        totalPlannedMinutes += planned;
-        totalOvertimeMinutes += (c.netMinutes - planned);
-
-        for (const [code, b] of Object.entries(c.breakdown)) {
-          if (!breakdown[code]) breakdown[code] = { minutes: 0, amount: 0, rate: b.rate };
-          breakdown[code].minutes += b.minutes;
-          breakdown[code].amount += b.amount;
-          breakdown[code].rate = b.rate;
-        }
-      }
-
-      const totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
-
-      if (totalMinutes > 0) {
-        result.push({
-          user: u, totalMinutes, totalAmount, breakdown,
-          totalPlannedMinutes, totalOvertimeMinutes
-        });
-      }
-    }
+    // RPC возвращает массив объектов в форме, ожидаемой renderPayrollTable.
+    // Числа на всякий случай приводим к Number — Supabase может вернуть строки
+    // для NUMERIC-полей при большой точности.
+    const result = (data || []).map(row => ({
+      user: row.user,
+      totalMinutes:         row.totalMinutes,
+      totalAmount:          Number(row.totalAmount),
+      totalPlannedMinutes:  row.totalPlannedMinutes,
+      totalOvertimeMinutes: row.totalOvertimeMinutes,
+      breakdown: Object.fromEntries(
+        Object.entries(row.breakdown || {}).map(([code, b]) => [code, {
+          minutes: b.minutes,
+          amount:  Number(b.amount),
+          rate:    Number(b.rate),
+        }])
+      ),
+    }));
 
     renderPayrollTable(result);
   }
@@ -1350,82 +1282,28 @@
         periodId = newPeriod.id;
       }
 
-      // 2) Рассчитываем актуальную ведомость и создаём записи payroll_entries
-      // Используем тот же расчёт, что и renderPayrollLive
-      const { data: users } = await sb
-        .from('users')
-        .select(`
-          id, name,
-          translator_pairs ( language_pair_id, rate_per_hour,
-                              language_pairs (code) )
-        `)
-        .eq('role', 'translator');
+      // 2) Рассчитываем актуальную ведомость через ту же RPC, что использует
+      //    страница «Зарплата». Гарантия: цифры в payroll_entries совпадут с
+      //    тем, что менеджер видел в момент закрытия.
+      const { data: payrollRows, error: rpcErr } = await sb.rpc('payroll_for_period', {
+        p_period_start: periodStart,
+        p_period_end:   periodEnd,
+      });
+      if (rpcErr) throw new Error('Расчёт ведомости: ' + rpcErr.message);
 
-      const userIds = (users || []).map(u => u.id);
-      const { data: days } = await sb
-        .from('work_days')
-        .select(`
-          user_id, work_date, day_type,
-          work_intervals ( duration_minutes, language_pair_id ),
-          breaks ( duration_minutes )
-        `)
-        .in('user_id', userIds)
-        .gte('work_date', periodStart)
-        .lte('work_date', periodEnd);
-
-      // Загружаем историю ставок для всех переводчиков сразу
-      const allHistoryByUser = await loadRateHistoryForUsers(userIds);
-
-      // Группируем дни по user_id один раз — вместо filter() внутри цикла
-      const daysByUser = new Map();
-      for (const d of (days || [])) {
-        if (!daysByUser.has(d.user_id)) daysByUser.set(d.user_id, []);
-        daysByUser.get(d.user_id).push(d);
-      }
-
-      const entriesToInsert = [];
-      for (const u of (users || [])) {
-        const rateByPair = {};
-        const codeByPair = {};
-        for (const p of (u.translator_pairs || [])) {
-          rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
-          codeByPair[p.language_pair_id] = p.language_pairs.code;
-        }
-        const userHistory = allHistoryByUser[u.id] || {};
-        const userDays = daysByUser.get(u.id) || [];
-        const breakdown = {};
-        let totalMinutes = 0;
-
-        for (const d of userDays) {
-          const c = calcDayWithBreakdown(d, userHistory, rateByPair, codeByPair);
-          if (c.netMinutes <= 0) continue;
-          totalMinutes += c.netMinutes;
-          // Сливаем breakdown
-          for (const [code, b] of Object.entries(c.breakdown)) {
-            if (!breakdown[code]) breakdown[code] = { minutes: 0, amount: 0, rate: b.rate };
-            breakdown[code].minutes += b.minutes;
-            breakdown[code].amount += b.amount;
-            breakdown[code].rate = b.rate; // последняя использованная ставка
-          }
-        }
-
-        const totalAmount = Object.values(breakdown).reduce((s, b) => s + b.amount, 0);
-        if (totalMinutes > 0) {
-          entriesToInsert.push({
-            period_id: periodId,
-            user_id: u.id,
-            total_hours: Number((totalMinutes / 60).toFixed(2)),
-            total_amount: Number(totalAmount.toFixed(2)),
-            breakdown_by_pair: Object.entries(breakdown).map(([code, b]) => ({
-              pair_code: code,
-              hours: Number((b.minutes / 60).toFixed(2)),
-              rate: b.rate,
-              amount: Number(b.amount.toFixed(2)),
-            })),
-            analytics_breakdown: null, // в этап 8 наполним
-          });
-        }
-      }
+      const entriesToInsert = (payrollRows || []).map(row => ({
+        period_id: periodId,
+        user_id: row.user.id,
+        total_hours:  Number((row.totalMinutes / 60).toFixed(2)),
+        total_amount: Number(Number(row.totalAmount).toFixed(2)),
+        breakdown_by_pair: Object.entries(row.breakdown || {}).map(([code, b]) => ({
+          pair_code: code,
+          hours:  Number((b.minutes / 60).toFixed(2)),
+          rate:   Number(b.rate),
+          amount: Number(Number(b.amount).toFixed(2)),
+        })),
+        analytics_breakdown: null, // в этап 8 наполним
+      }));
 
       // 3) Удалим старые записи (на случай повторного закрытия) и вставим новые
       await sb.from('payroll_entries').delete().eq('period_id', periodId);
@@ -2991,36 +2869,10 @@
     return defaultMin;
   }
 
-  // Универсальная функция расчёта дня с разбивкой по парам (для ведомости).
-  // Возвращает { netMinutes, amount, breakdown: { code: { minutes, amount, rate (последняя)} } }
-  function calcDayWithBreakdown(day, historyByPair, currentRates, codeByPair) {
-    if (day.day_type !== 'working') return { netMinutes: 0, amount: 0, breakdown: {} };
-    const intervals = day.work_intervals || [];
-    const breaks = day.breaks || [];
-    const intervalsSum = intervals.reduce((s, i) => s + (i.duration_minutes || 0), 0);
-    const breaksSum = breaks.reduce((s, b) => s + (b.duration_minutes || 0), 0);
-    const netMin = Math.max(0, intervalsSum - breaksSum);
-    if (netMin <= 0) return { netMinutes: 0, amount: 0, breakdown: {} };
-
-    const breakRatio = intervalsSum > 0 ? (netMin / intervalsSum) : 0;
-    const breakdown = {};
-    let totalAmount = 0;
-
-    for (const interv of intervals) {
-      const langId = interv.language_pair_id;
-      const code = codeByPair[langId] || '—';
-      const rate = getRateForDate(day.work_date, langId, historyByPair, currentRates);
-      const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
-      const intervalAmount = (intervalNetMin / 60) * rate;
-
-      if (!breakdown[code]) breakdown[code] = { minutes: 0, amount: 0, rate };
-      breakdown[code].minutes += intervalNetMin;
-      breakdown[code].amount += intervalAmount;
-      breakdown[code].rate = rate; // запоминаем последнюю использованную (для отображения)
-      totalAmount += intervalAmount;
-    }
-    return { netMinutes: netMin, amount: totalAmount, breakdown };
-  }
+  // Расчёт с разбивкой по парам ранее делался функцией calcDayWithBreakdown.
+  // Теперь эту работу выполняет SQL-функция payroll_for_period (см. миграцию
+  // payroll_for_period.sql) — серверный расчёт быстрее и гарантирует
+  // консистентность ведомости на лету и в payroll_entries.
 
   // ====================================================================
   // КАЛЕНДАРЬ (для переводчика)
