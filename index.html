@@ -10,6 +10,11 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231E40AF'/%3E%3Cpath d='M 20 16 L 20 44 L 40 44' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='48' cy='44' r='6' fill='%2316A34A'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231E40AF'/%3E%3Cpath d='M 20 16 L 20 44 L 40 44' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='48' cy='44' r='6' fill='%2316A34A'/%3E%3C/svg%3E">
 
+<!-- Preconnect: ранний TCP/TLS-handshake к шрифтам и Supabase, сокращает первый запрос -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://srpiqxfeosusayqqfvrq.supabase.co" crossorigin>
+
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="styles.css">
@@ -570,20 +575,7 @@
         </div>
         <div class="field">
           <label class="field-label">Часовой пояс</label>
-          <select id="new-timezone" class="select">
-            <option value="Asia/Tashkent" selected>Asia/Tashkent (UTC+5)</option>
-            <option value="Asia/Almaty">Asia/Almaty (UTC+5)</option>
-            <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
-            <option value="Europe/Kyiv">Europe/Kyiv (UTC+2)</option>
-            <option value="Europe/London">Europe/London (UTC+0)</option>
-            <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
-            <option value="Asia/Seoul">Asia/Seoul (UTC+9)</option>
-            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
-            <option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</option>
-            <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
-            <option value="America/New_York">America/New_York (UTC-5)</option>
-            <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
-          </select>
+          <select id="new-timezone" class="select js-timezone-select"></select>
         </div>
       </div>
 
@@ -812,20 +804,7 @@
         </div>
         <div class="field">
           <label class="field-label">Часовой пояс</label>
-          <select id="edit-timezone" class="select">
-            <option value="Asia/Tashkent">Asia/Tashkent (UTC+5)</option>
-            <option value="Asia/Almaty">Asia/Almaty (UTC+5)</option>
-            <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
-            <option value="Europe/Kyiv">Europe/Kyiv (UTC+2)</option>
-            <option value="Europe/London">Europe/London (UTC+0)</option>
-            <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
-            <option value="Asia/Seoul">Asia/Seoul (UTC+9)</option>
-            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
-            <option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</option>
-            <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
-            <option value="America/New_York">America/New_York (UTC-5)</option>
-            <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
-          </select>
+          <select id="edit-timezone" class="select js-timezone-select"></select>
         </div>
       </div>
 
@@ -896,9 +875,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js"></script>
+<!-- XLSX и jsPDF подгружаются лениво при первом клике на экспорт (см. ensureXlsx / ensureJspdf в app.js) -->
 <script src="app.js"></script>
 <div class="mobile-backdrop" id="mobile-backdrop"></div>
 </body>

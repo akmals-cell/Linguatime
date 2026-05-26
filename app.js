@@ -8,12 +8,104 @@
   let languagePairs = [];
   let pairRowCounter = 0;
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Инфраструктура: TTL-кеш, ленивая загрузка скриптов, debounce, часовые пояса.
+  // Добавлено для оптимизации — не меняет бизнес-логику.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // TTL-кеш для серверных запросов. Ключ — строка вида "rateHistory:uid1,uid2".
+  // Инвалидация по префиксу: invalidateCache('rateHistory:') чистит всю группу.
+  const CACHE_TTL_MS = 60 * 1000; // 60 секунд — компромисс свежесть/скорость
+  const callCache = new Map();    // key → { data, expires }
+
+  function cachedCall(key, ttlMs, loader) {
+    const hit = callCache.get(key);
+    if (hit && hit.expires > Date.now()) return Promise.resolve(hit.data);
+    return loader().then(data => {
+      callCache.set(key, { data, expires: Date.now() + ttlMs });
+      return data;
+    });
+  }
+  function invalidateCache(prefix) {
+    for (const key of Array.from(callCache.keys())) {
+      if (key.startsWith(prefix)) callCache.delete(key);
+    }
+  }
+
+  // Ленивая загрузка стороннего скрипта (XLSX, jsPDF). Кеширует промис, поэтому
+  // повторные вызовы дёшевы. Если один и тот же src уже на странице — резолвим сразу.
+  const scriptLoadPromises = new Map();
+  function loadScript(src) {
+    if (scriptLoadPromises.has(src)) return scriptLoadPromises.get(src);
+    const p = new Promise((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${src}"]`);
+      if (existing) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Не удалось загрузить ' + src));
+      document.head.appendChild(s);
+    });
+    scriptLoadPromises.set(src, p);
+    return p;
+  }
+  async function ensureXlsx() {
+    if (window.XLSX) return;
+    await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+  }
+  async function ensureJspdf() {
+    if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) return;
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.0/jspdf.plugin.autotable.min.js');
+  }
+
+  // Простой debounce — задерживает вызов до тех пор, пока не пройдёт ms тишины.
+  function debounce(fn, ms) {
+    let t;
+    return function debounced(...args) {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(this, args), ms);
+    };
+  }
+
+  // Список часовых поясов — единый источник правды, заполняет все селекты с классом
+  // js-timezone-select при старте приложения.
+  const TIMEZONES = [
+    ['Asia/Tashkent',       'Asia/Tashkent (UTC+5)'],
+    ['Asia/Almaty',         'Asia/Almaty (UTC+5)'],
+    ['Europe/Moscow',       'Europe/Moscow (UTC+3)'],
+    ['Europe/Kyiv',         'Europe/Kyiv (UTC+2)'],
+    ['Europe/London',       'Europe/London (UTC+0)'],
+    ['Europe/Berlin',       'Europe/Berlin (UTC+1)'],
+    ['Asia/Seoul',          'Asia/Seoul (UTC+9)'],
+    ['Asia/Tokyo',          'Asia/Tokyo (UTC+9)'],
+    ['Asia/Shanghai',       'Asia/Shanghai (UTC+8)'],
+    ['Asia/Dubai',          'Asia/Dubai (UTC+4)'],
+    ['America/New_York',    'America/New_York (UTC-5)'],
+    ['America/Los_Angeles', 'America/Los_Angeles (UTC-8)'],
+  ];
+  function fillTimezoneSelects() {
+    const html = TIMEZONES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    document.querySelectorAll('.js-timezone-select').forEach(sel => {
+      // Сохраняем выбранное значение, если оно есть
+      const prev = sel.value;
+      sel.innerHTML = html;
+      if (prev) sel.value = prev;
+      else sel.value = 'Asia/Tashkent'; // дефолт
+    });
+  }
+
+  // Текущая страница — для пропуска повторных загрузок при клике на тот же пункт меню.
+  let currentPage = null;
+
   function showScreen(id) {
     ['loading', 'login', 'forgot', 'reset', 'app'].forEach(s =>
       document.getElementById('screen-' + s).classList.add('hidden'));
     document.getElementById('screen-' + id).classList.remove('hidden');
   }
   function showPage(pageId) {
+    currentPage = pageId; // синхронизируем — listener использует это для skip-логики
     document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
     document.getElementById('page-' + pageId).classList.remove('hidden');
     document.querySelectorAll('.sb-item').forEach(b => b.classList.remove('active'));
@@ -184,9 +276,11 @@
   }
 
   async function loadLanguagePairs() {
-    const { data } = await sb.from('language_pairs')
-      .select('id, code, display_name').eq('active', true).order('code');
-    languagePairs = data || [];
+    languagePairs = await cachedCall('languagePairs', 5 * 60 * 1000, async () => {
+      const { data } = await sb.from('language_pairs')
+        .select('id, code, display_name').eq('active', true).order('code');
+      return data || [];
+    });
   }
 
   // ====================================================================
@@ -444,14 +538,23 @@
     // Подгружаем историю ставок для всех переводчиков
     const allHistoryByUser = await loadRateHistoryForUsers(userIds);
 
-    for (const d of daysData) {
-      if (d.day_type !== 'working') continue;
-      const user = data.find(u => u.id === d.user_id);
-      if (!user) continue;
+    // O(1) поиск пользователя по id вместо .find() — ускоряет dashboard при многих переводчиках
+    const usersById = new Map(data.map(u => [u.id, u]));
+    // Преcчитываем rateByPair один раз на пользователя, а не на каждый день
+    const rateByPairByUser = new Map();
+    for (const u of data) {
       const rateByPair = {};
-      for (const p of (user.translator_pairs || [])) {
+      for (const p of (u.translator_pairs || [])) {
         rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
       }
+      rateByPairByUser.set(u.id, rateByPair);
+    }
+
+    for (const d of daysData) {
+      if (d.day_type !== 'working') continue;
+      const user = usersById.get(d.user_id);
+      if (!user) continue;
+      const rateByPair = rateByPairByUser.get(d.user_id);
       const userHistory = allHistoryByUser[d.user_id] || {};
       const calc = calcDayWithHistory(d, userHistory, rateByPair);
       statsByUser[d.user_id].minutes += calc.netMinutes;
@@ -573,22 +676,26 @@
     const minutesByDay = {};  // date -> minutes
     const codeByPair = {};
 
+    // O(1) поиск пользователя и преcчитанные rateByPair — на dashboard с 30+ переводчиками
+    // экономия времени измеряется секундами.
+    const usersById = new Map(activeUsers.map(u => [u.id, u]));
+    const rateByPairByUser = new Map();
     for (const u of activeUsers) {
       minutesByUser[u.id] = 0;
+      const rateByPair = {};
       for (const p of (u.translator_pairs || [])) {
+        rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
         codeByPair[p.language_pair_id] = p.language_pairs.code;
       }
+      rateByPairByUser.set(u.id, rateByPair);
     }
 
     for (const d of allDays) {
       if (d.day_type !== 'working') continue;
-      const user = activeUsers.find(u => u.id === d.user_id);
+      const user = usersById.get(d.user_id);
       if (!user) continue;
 
-      const rateByPair = {};
-      for (const p of (user.translator_pairs || [])) {
-        rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
-      }
+      const rateByPair = rateByPairByUser.get(d.user_id);
       const userHistory = allHistoryByUser[d.user_id] || {};
 
       const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
@@ -622,7 +729,7 @@
 
     for (const d of allDays) {
       if (d.day_type !== 'working') continue;
-      const user = activeUsers.find(u => u.id === d.user_id);
+      const user = usersById.get(d.user_id);
       if (!user) continue;
 
       const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
@@ -650,7 +757,7 @@
       overtimeEl.style.color = '#B45309';
       // Топ овертаймщик
       const topUserId = Object.keys(overtimeByUser).sort((a, b) => overtimeByUser[b] - overtimeByUser[a])[0];
-      const topUser = activeUsers.find(u => u.id === topUserId);
+      const topUser = usersById.get(topUserId);
       if (topUser && overtimeByUser[topUserId] > 0) {
         overtimeMetaEl.textContent = `больше всех: ${topUser.name}`;
       } else {
@@ -715,13 +822,12 @@
   function renderDashChart(year, month, minutesByDay) {
     const grid = document.getElementById('dash-chart');
     const axis = document.getElementById('dash-chart-axis');
-    grid.innerHTML = '';
-    axis.innerHTML = '';
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const todayStr = formatDate(new Date());
     const maxMin = Math.max(...Object.values(minutesByDay), 1);
 
+    const gridFrag = document.createDocumentFragment();
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const min = minutesByDay[dateStr] || 0;
@@ -742,19 +848,22 @@
       } else {
         bar.dataset.tooltip = `${d}: нет часов`;
       }
-      grid.appendChild(bar);
+      gridFrag.appendChild(bar);
     }
+    grid.replaceChildren(gridFrag);
 
     // Ось снизу — каждые 5 дней
+    const axisFrag = document.createDocumentFragment();
     for (let d = 1; d <= daysInMonth; d += 5) {
       const lbl = document.createElement('span');
       lbl.textContent = d;
       lbl.style.flex = d === 1 ? '0 0 auto' : '1 1 auto';
-      axis.appendChild(lbl);
+      axisFrag.appendChild(lbl);
     }
     const lastLbl = document.createElement('span');
     lastLbl.textContent = daysInMonth;
-    axis.appendChild(lastLbl);
+    axisFrag.appendChild(lastLbl);
+    axis.replaceChildren(axisFrag);
   }
 
   function renderDashLeaderboard(users, minutesByUser) {
@@ -1015,6 +1124,13 @@
       loadShiftsForUsers(userIds, periodStart, periodEnd)
     ]);
 
+    // Группируем дни по user_id за один проход — вместо .filter() в цикле
+    const daysByUser = new Map();
+    for (const d of (days || [])) {
+      if (!daysByUser.has(d.user_id)) daysByUser.set(d.user_id, []);
+      daysByUser.get(d.user_id).push(d);
+    }
+
     // 3) Считаем по каждому переводчику
     const result = [];
     for (const u of users) {
@@ -1028,7 +1144,7 @@
       const userShifts = allShiftsByUser[u.id] || {};
       const defaultMin = u.default_shift_minutes || 480;
 
-      const userDays = (days || []).filter(d => d.user_id === u.id);
+      const userDays = daysByUser.get(u.id) || [];
       const breakdown = {};
       let totalMinutes = 0;
       let totalPlannedMinutes = 0; // сумма плановых минут за рабочие дни
@@ -1260,6 +1376,13 @@
       // Загружаем историю ставок для всех переводчиков сразу
       const allHistoryByUser = await loadRateHistoryForUsers(userIds);
 
+      // Группируем дни по user_id один раз — вместо filter() внутри цикла
+      const daysByUser = new Map();
+      for (const d of (days || [])) {
+        if (!daysByUser.has(d.user_id)) daysByUser.set(d.user_id, []);
+        daysByUser.get(d.user_id).push(d);
+      }
+
       const entriesToInsert = [];
       for (const u of (users || [])) {
         const rateByPair = {};
@@ -1269,7 +1392,7 @@
           codeByPair[p.language_pair_id] = p.language_pairs.code;
         }
         const userHistory = allHistoryByUser[u.id] || {};
-        const userDays = (days || []).filter(d => d.user_id === u.id);
+        const userDays = daysByUser.get(u.id) || [];
         const breakdown = {};
         let totalMinutes = 0;
 
@@ -1336,11 +1459,28 @@
   // Excel-файл с двумя листами:
   //   - "Сводка" — компактная ведомость
   //   - "Разбивка" — детально по парам
-  function exportPayrollExcel() {
+  async function exportPayrollExcel() {
     if (currentPayrollRows.length === 0) {
       alert('Нет данных для экспорта.');
       return;
     }
+
+    // Ленивая загрузка XLSX — библиотека ~900 КБ, грузится только при первом клике
+    const btn = document.getElementById('btn-export-excel');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Загрузка библиотеки…';
+    try {
+      await ensureXlsx();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      alert('Не удалось загрузить библиотеку XLSX: ' + e.message);
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = originalText;
+
     const monthLabel = payrollMonthLabel(payrollYear, payrollMonth);
     const isClosed = currentPeriod && currentPeriod.status === 'closed';
     const closedNote = isClosed
@@ -1447,11 +1587,28 @@
   }
 
   // PDF-ведомость: одна страница с таблицей и итогом
-  function exportPayrollPDF() {
+  async function exportPayrollPDF() {
     if (currentPayrollRows.length === 0) {
       alert('Нет данных для экспорта.');
       return;
     }
+
+    // Ленивая загрузка jsPDF — ~700 КБ, грузится только при первом клике
+    const btn = document.getElementById('btn-export-pdf');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Загрузка библиотеки…';
+    try {
+      await ensureJspdf();
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      alert('Не удалось загрузить библиотеку jsPDF: ' + e.message);
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = originalText;
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -1965,6 +2122,9 @@
         await sb.from('rate_history').insert(rateHistoryInserts);
       }
 
+      // Изменения ставок/пар влияют на расчёты dashboard/payroll/calendar — чистим кеши
+      invalidateCache('rateHistory:');
+
       // 4) Закрываем модалку и перезагружаем профиль
       closeEditModal();
       await openTranslatorDetail(tdUser.id);
@@ -2120,6 +2280,9 @@
     };
   }
 
+  // Состояние календаря менеджера (детализация переводчика) — для single-cell update
+  let tdCalState = null;
+
   async function loadTranslatorDetailMonth() {
     hideError('td-error');
 
@@ -2179,45 +2342,140 @@
       }
     }
 
-    document.getElementById('td-hours').textContent = formatHoursMinutes(totalMinutes);
+    tdCalState = {
+      year: tdCalYear, month: tdCalMonth,
+      dayMap, shiftsByDate, defaultMin,
+      totals: { minutes: totalMinutes, amount: totalAmount, workingDays, absentDays, overtime: totalOvertime },
+    };
+
+    updateTdKpis();
+    renderTdCalendar(dayMap);
+  }
+
+  function updateTdKpis() {
+    if (!tdCalState) return;
+    const { totals } = tdCalState;
+    document.getElementById('td-hours').textContent = formatHoursMinutes(totals.minutes);
     document.getElementById('td-hours-meta').textContent =
-      `${workingDays} ${pluralize(workingDays, 'рабочий день', 'рабочих дня', 'рабочих дней')}`;
+      `${totals.workingDays} ${pluralize(totals.workingDays, 'рабочий день', 'рабочих дня', 'рабочих дней')}`;
     document.getElementById('td-absent').innerHTML =
-      absentDays + '<span class="kpi-unit">' +
-      (absentDays === 0 ? 'дней' : pluralize(absentDays, 'день', 'дня', 'дней')) +
+      totals.absentDays + '<span class="kpi-unit">' +
+      (totals.absentDays === 0 ? 'дней' : pluralize(totals.absentDays, 'день', 'дня', 'дней')) +
       '</span>';
-    document.getElementById('td-amount').textContent = '$' + totalAmount.toFixed(2);
+    document.getElementById('td-amount').textContent = '$' + totals.amount.toFixed(2);
 
     // Овертайм в новой KPI карточке
     const otEl = document.getElementById('td-overtime');
     const otMetaEl = document.getElementById('td-overtime-meta');
     if (otEl) {
-      if (Math.abs(totalOvertime) < 1) {
+      if (Math.abs(totals.overtime) < 1) {
         otEl.innerHTML = '0<span class="kpi-unit">мин</span>';
         otEl.style.color = '';
         otMetaEl.textContent = 'точно по плану';
-      } else if (totalOvertime > 0) {
-        otEl.innerHTML = '+' + formatHoursMinutes(totalOvertime);
+      } else if (totals.overtime > 0) {
+        otEl.innerHTML = '+' + formatHoursMinutes(totals.overtime);
         otEl.style.color = '#B45309';
         otMetaEl.textContent = 'переработано';
       } else {
-        otEl.innerHTML = '−' + formatHoursMinutes(Math.abs(totalOvertime));
+        otEl.innerHTML = '−' + formatHoursMinutes(Math.abs(totals.overtime));
         otEl.style.color = '#1E40AF';
         otMetaEl.textContent = 'недоработано';
       }
     }
+  }
 
-    renderTdCalendar(dayMap);
+  // Single-cell обновление календаря в режиме менеджера. Используется и для дня
+  // (изменение часов/отгула), и для смены — обновление shiftsByDate тоже корректно
+  // пересчитывает овертайм.
+  async function refreshTdCalendarDay(dateStr) {
+    if (!tdCalState || tdCalState.year !== tdCalYear || tdCalState.month !== tdCalMonth) {
+      return loadTranslatorDetailMonth();
+    }
+    const periodStart = formatDate(new Date(tdCalYear, tdCalMonth, 1));
+    const periodEnd = formatDate(new Date(tdCalYear, tdCalMonth + 1, 0));
+    if (dateStr < periodStart || dateStr > periodEnd) return loadTranslatorDetailMonth();
+
+    // Параллельно перечитываем день и смену на этот день
+    const [dayRes, shiftRes] = await Promise.all([
+      sb.from('work_days')
+        .select(`
+          id, work_date, day_type,
+          work_intervals ( id, duration_minutes, language_pair_id ),
+          breaks ( id, duration_minutes )
+        `)
+        .eq('user_id', tdUser.id)
+        .eq('work_date', dateStr)
+        .maybeSingle(),
+      sb.from('shifts')
+        .select('shift_date, planned_minutes')
+        .eq('user_id', tdUser.id)
+        .eq('shift_date', dateStr)
+        .maybeSingle()
+    ]);
+    if (dayRes.error) return loadTranslatorDetailMonth();
+
+    // Откатываем вклад старого дня и его овертайма
+    const old = tdCalState.dayMap[dateStr];
+    if (old) {
+      if (old.type === 'working') {
+        tdCalState.totals.minutes -= old.minutes;
+        tdCalState.totals.amount -= old.amount;
+        tdCalState.totals.workingDays -= 1;
+        const oldPlanned = getPlannedMinutes(dateStr, tdCalState.shiftsByDate, tdCalState.defaultMin);
+        tdCalState.totals.overtime -= (old.minutes - oldPlanned);
+      } else if (old.type === 'absent') {
+        tdCalState.totals.absentDays -= 1;
+      }
+      delete tdCalState.dayMap[dateStr];
+    }
+
+    // Обновляем shiftsByDate (смена могла измениться)
+    if (shiftRes.data) {
+      tdCalState.shiftsByDate[dateStr] = shiftRes.data.planned_minutes;
+    } else {
+      delete tdCalState.shiftsByDate[dateStr];
+    }
+
+    // Применяем новый день
+    const day = dayRes.data;
+    if (day) {
+      if (day.day_type === 'absent') {
+        tdCalState.dayMap[dateStr] = { type: 'absent' };
+        tdCalState.totals.absentDays += 1;
+      } else {
+        const calc = calcDayWithHistory(day, tdHistoryByPair, tdRateByPair);
+        if (calc.netMinutes > 0) {
+          tdCalState.dayMap[dateStr] = { type: 'working', minutes: calc.netMinutes, amount: calc.amount };
+          tdCalState.totals.minutes += calc.netMinutes;
+          tdCalState.totals.amount += calc.amount;
+          tdCalState.totals.workingDays += 1;
+          const planned = getPlannedMinutes(dateStr, tdCalState.shiftsByDate, tdCalState.defaultMin);
+          tdCalState.totals.overtime += (calc.netMinutes - planned);
+        }
+      }
+    }
+
+    // Перерисовываем только эту ячейку
+    const oldCell = document.querySelector(`#td-calendar-grid .cal-day[data-date="${dateStr}"]`);
+    if (oldCell) {
+      const dayNum = Number(dateStr.split('-')[2]);
+      const todayStr = formatDate(new Date());
+      const newCell = buildCalendarCell(dayNum, dateStr, tdCalYear, tdCalMonth, tdCalState.dayMap, todayStr);
+      newCell.addEventListener('click', () => openDayViewModal(dateStr));
+      oldCell.replaceWith(newCell);
+    }
+    updateTdKpis();
   }
 
   function renderTdCalendar(dayMap) {
     const grid = document.getElementById('td-calendar-grid');
-    grid.innerHTML = '';
+    const frag = document.createDocumentFragment();
+
     DAY_NAMES.forEach(n => {
       const el = document.createElement('div');
       el.className = 'cal-day-name';
       el.textContent = n;
-      grid.appendChild(el);
+      frag.appendChild(el);
     });
     const firstDay = new Date(tdCalYear, tdCalMonth, 1);
     let dow = firstDay.getDay() - 1;
@@ -2225,44 +2483,20 @@
     for (let i = 0; i < dow; i++) {
       const empty = document.createElement('div');
       empty.className = 'cal-day empty';
-      grid.appendChild(empty);
+      frag.appendChild(empty);
     }
     const daysInMonth = new Date(tdCalYear, tdCalMonth + 1, 0).getDate();
     const todayStr = formatDate(new Date());
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${tdCalYear}-${String(tdCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const cell = document.createElement('div');
-      cell.className = 'cal-day';
-      const dayOfWeek = new Date(tdCalYear, tdCalMonth, d).getDay();
-      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-      const info = dayMap[dateStr];
-      if (info && info.type === 'working') cell.classList.add('has-hours');
-      else if (info && info.type === 'absent') cell.classList.add('absent');
-      else if (isWeekend) cell.classList.add('weekend');
-      if (dateStr === todayStr) cell.classList.add('today');
-
-      const num = document.createElement('div');
-      num.className = 'cal-day-num';
-      num.textContent = d;
-      cell.appendChild(num);
-
-      if (info && info.type === 'working') {
-        const h = document.createElement('div');
-        h.className = 'cal-day-hours';
-        h.textContent = formatHoursMinutes(info.minutes);
-        cell.appendChild(h);
-      } else if (info && info.type === 'absent') {
-        const t = document.createElement('div');
-        t.className = 'cal-day-tag';
-        t.textContent = 'Отгул';
-        cell.appendChild(t);
-      }
-
+      const cell = buildCalendarCell(d, dateStr, tdCalYear, tdCalMonth, dayMap, todayStr);
       // Клик на день — открыть просмотр (любой день, чтобы можно было назначить смену)
       cell.addEventListener('click', () => openDayViewModal(dateStr));
-      grid.appendChild(cell);
+      frag.appendChild(cell);
     }
+
+    grid.replaceChildren(frag);
   }
 
   function changeTdMonth(delta) {
@@ -2606,9 +2840,11 @@
       }
 
       closeShiftModal();
-      // Перезагружаем модалку дня и календарь
+      // Кеш смен мог содержать этот период — выкидываем, чтобы dashboard/payroll увидели изменение
+      invalidateCache('shifts:');
+      // Перезагружаем модалку дня и обновляем только эту ячейку календаря
       await openDayViewModal(dateStr);
-      await loadTranslatorDetailMonth();
+      await refreshTdCalendarDay(dateStr);
     } catch (e) {
       showError('shift-modal-error', e.message);
     } finally {
@@ -2628,8 +2864,9 @@
         .eq('id', tdViewShift.id);
       if (error) throw new Error(error.message);
 
+      invalidateCache('shifts:');
       if (dateStr) await openDayViewModal(dateStr);
-      await loadTranslatorDetailMonth();
+      if (dateStr) await refreshTdCalendarDay(dateStr);
     } catch (e) {
       alert('Ошибка удаления: ' + e.message);
     }
@@ -2683,19 +2920,22 @@
   // ко всем дням >= effective_from, даже к тем, что попадали под более старые ставки.
   async function loadRateHistoryForUsers(userIds) {
     if (userIds.length === 0) return {};
-    const { data } = await sb
-      .from('rate_history')
-      .select('user_id, language_pair_id, new_rate, changed_at, effective_from')
-      .in('user_id', userIds)
-      .order('changed_at', { ascending: false });
+    const key = 'rateHistory:' + [...userIds].sort().join(',');
+    return cachedCall(key, CACHE_TTL_MS, async () => {
+      const { data } = await sb
+        .from('rate_history')
+        .select('user_id, language_pair_id, new_rate, changed_at, effective_from')
+        .in('user_id', userIds)
+        .order('changed_at', { ascending: false });
 
-    const byUser = {};
-    for (const h of (data || [])) {
-      if (!byUser[h.user_id]) byUser[h.user_id] = {};
-      if (!byUser[h.user_id][h.language_pair_id]) byUser[h.user_id][h.language_pair_id] = [];
-      byUser[h.user_id][h.language_pair_id].push(h);
-    }
-    return byUser;
+      const byUser = {};
+      for (const h of (data || [])) {
+        if (!byUser[h.user_id]) byUser[h.user_id] = {};
+        if (!byUser[h.user_id][h.language_pair_id]) byUser[h.user_id][h.language_pair_id] = [];
+        byUser[h.user_id][h.language_pair_id].push(h);
+      }
+      return byUser;
+    });
   }
 
   // Универсальная функция расчёта дня с учётом исторических ставок.
@@ -2724,18 +2964,21 @@
   // Возвращает { user_id: { date: planned_minutes } }
   async function loadShiftsForUsers(userIds, periodStart, periodEnd) {
     if (userIds.length === 0) return {};
-    const { data } = await sb.from('shifts')
-      .select('user_id, shift_date, planned_minutes')
-      .in('user_id', userIds)
-      .gte('shift_date', periodStart)
-      .lte('shift_date', periodEnd);
+    const key = 'shifts:' + periodStart + ':' + periodEnd + ':' + [...userIds].sort().join(',');
+    return cachedCall(key, CACHE_TTL_MS, async () => {
+      const { data } = await sb.from('shifts')
+        .select('user_id, shift_date, planned_minutes')
+        .in('user_id', userIds)
+        .gte('shift_date', periodStart)
+        .lte('shift_date', periodEnd);
 
-    const byUser = {};
-    for (const s of (data || [])) {
-      if (!byUser[s.user_id]) byUser[s.user_id] = {};
-      byUser[s.user_id][s.shift_date] = s.planned_minutes;
-    }
-    return byUser;
+      const byUser = {};
+      for (const s of (data || [])) {
+        if (!byUser[s.user_id]) byUser[s.user_id] = {};
+        byUser[s.user_id][s.shift_date] = s.planned_minutes;
+      }
+      return byUser;
+    });
   }
 
   // Считает план для конкретной даты переводчика
@@ -2791,6 +3034,10 @@
   ];
   const DAY_NAMES = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
+  // Состояние календаря переводчика — для обновления одной ячейки после сохранения дня
+  // без перерисовки всего месяца. Восстанавливается при каждом loadCalendar().
+  let calState = null;
+
   async function loadCalendar() {
     hideError('cal-error');
 
@@ -2802,32 +3049,34 @@
     const periodStart = formatDate(new Date(calYear, calMonth, 1));
     const periodEnd = formatDate(new Date(calYear, calMonth + 1, 0));
 
-    const { data: days, error } = await sb
-      .from('work_days')
-      .select(`
-        id, work_date, day_type, note,
-        work_intervals ( id, duration_minutes, language_pair_id ),
-        breaks ( id, duration_minutes )
-      `)
-      .eq('user_id', currentUser.id)
-      .gte('work_date', periodStart)
-      .lte('work_date', periodEnd);
+    // Параллелизуем три независимых запроса — раньше шли последовательно
+    const [daysRes, pairsRes, historyByUser] = await Promise.all([
+      sb.from('work_days')
+        .select(`
+          id, work_date, day_type, note,
+          work_intervals ( id, duration_minutes, language_pair_id ),
+          breaks ( id, duration_minutes )
+        `)
+        .eq('user_id', currentUser.id)
+        .gte('work_date', periodStart)
+        .lte('work_date', periodEnd),
+      sb.from('translator_pairs')
+        .select('language_pair_id, rate_per_hour')
+        .eq('user_id', currentUser.id),
+      loadRateHistoryForUsers([currentUser.id]),
+    ]);
 
-    if (error) {
-      showError('cal-error', 'Ошибка загрузки: ' + error.message);
+    if (daysRes.error) {
+      showError('cal-error', 'Ошибка загрузки: ' + daysRes.error.message);
       return;
     }
+    const days = daysRes.data;
+    const myPairs = pairsRes.data;
 
-    // Ставки переводчика (текущие — fallback) + история ставок
-    const { data: myPairs } = await sb
-      .from('translator_pairs')
-      .select('language_pair_id, rate_per_hour')
-      .eq('user_id', currentUser.id);
     const rateByPair = {};
     for (const p of (myPairs || [])) {
       rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
     }
-    const historyByUser = await loadRateHistoryForUsers([currentUser.id]);
     const historyByPair = historyByUser[currentUser.id] || {};
 
     const dayMap = {};
@@ -2851,28 +3100,145 @@
       }
     }
 
-    document.getElementById('kpi-hours').innerHTML =
-      formatHoursMinutes(totalMinutes) + '<span class="kpi-unit"></span>';
-    document.getElementById('kpi-hours-meta').textContent =
-      `${workingDays} ${pluralize(workingDays, 'рабочий день', 'рабочих дня', 'рабочих дней')}`;
-    document.getElementById('kpi-absent').innerHTML =
-      absentDays + '<span class="kpi-unit">' +
-      (absentDays === 0 ? 'дней' : pluralize(absentDays, 'день', 'дня', 'дней')) +
-      '</span>';
-    document.getElementById('kpi-amount').textContent = '$' + totalAmount.toFixed(2);
+    // Сохраняем состояние — пригодится для refreshCalendarDay
+    calState = {
+      year: calYear, month: calMonth,
+      dayMap, rateByPair, historyByPair,
+      totals: { minutes: totalMinutes, amount: totalAmount, workingDays, absentDays },
+    };
 
+    updateCalendarKpis();
     renderCalendar(dayMap);
+  }
+
+  // Обновляет блок KPI календаря из calState — отдельной функцией, чтобы вызывать
+  // и после полной загрузки, и после single-cell обновления.
+  function updateCalendarKpis() {
+    if (!calState) return;
+    const { totals } = calState;
+    document.getElementById('kpi-hours').innerHTML =
+      formatHoursMinutes(totals.minutes) + '<span class="kpi-unit"></span>';
+    document.getElementById('kpi-hours-meta').textContent =
+      `${totals.workingDays} ${pluralize(totals.workingDays, 'рабочий день', 'рабочих дня', 'рабочих дней')}`;
+    document.getElementById('kpi-absent').innerHTML =
+      totals.absentDays + '<span class="kpi-unit">' +
+      (totals.absentDays === 0 ? 'дней' : pluralize(totals.absentDays, 'день', 'дня', 'дней')) +
+      '</span>';
+    document.getElementById('kpi-amount').textContent = '$' + totals.amount.toFixed(2);
+  }
+
+  // Обновление одного дня в календаре без полной перезагрузки месяца.
+  // Вызывается после saveDay/deleteDay — даёт мгновенную обратную связь.
+  async function refreshCalendarDay(dateStr) {
+    // Если состояния нет или мы вне текущего месяца — fallback на полную загрузку
+    if (!calState || calState.year !== calYear || calState.month !== calMonth) {
+      return loadCalendar();
+    }
+    const periodStart = formatDate(new Date(calYear, calMonth, 1));
+    const periodEnd = formatDate(new Date(calYear, calMonth + 1, 0));
+    if (dateStr < periodStart || dateStr > periodEnd) return loadCalendar();
+
+    // Запрашиваем только этот день
+    const { data: day, error } = await sb
+      .from('work_days')
+      .select(`
+        id, work_date, day_type, note,
+        work_intervals ( id, duration_minutes, language_pair_id ),
+        breaks ( id, duration_minutes )
+      `)
+      .eq('user_id', currentUser.id)
+      .eq('work_date', dateStr)
+      .maybeSingle();
+    if (error) return loadCalendar();
+
+    // Откатываем вклад старого состояния
+    const old = calState.dayMap[dateStr];
+    if (old) {
+      if (old.type === 'working') {
+        calState.totals.minutes -= old.minutes;
+        calState.totals.amount -= old.amount;
+        calState.totals.workingDays -= 1;
+      } else if (old.type === 'absent') {
+        calState.totals.absentDays -= 1;
+      }
+      delete calState.dayMap[dateStr];
+    }
+
+    // Применяем новое
+    if (day) {
+      if (day.day_type === 'absent') {
+        calState.dayMap[dateStr] = { type: 'absent' };
+        calState.totals.absentDays += 1;
+      } else {
+        const calc = calcDayWithHistory(day, calState.historyByPair, calState.rateByPair);
+        if (calc.netMinutes > 0) {
+          calState.dayMap[dateStr] = { type: 'working', minutes: calc.netMinutes, amount: calc.amount };
+          calState.totals.minutes += calc.netMinutes;
+          calState.totals.amount += calc.amount;
+          calState.totals.workingDays += 1;
+        }
+      }
+    }
+
+    // Перерисовываем только эту ячейку
+    const oldCell = document.querySelector(`#calendar-grid .cal-day[data-date="${dateStr}"]`);
+    if (oldCell) {
+      const dayNum = Number(dateStr.split('-')[2]);
+      const todayStr = formatDate(new Date());
+      const newCell = buildCalendarCell(dayNum, dateStr, calYear, calMonth, calState.dayMap, todayStr);
+      newCell.addEventListener('click', () => onDayClick(dateStr));
+      oldCell.replaceWith(newCell);
+    }
+    updateCalendarKpis();
+  }
+
+  // Рендер одной ячейки календаря (используется и при полной перерисовке, и при single-cell update)
+  // Возвращает DOM-узел. dayMap — общий словарь, calYear/calMonth — текущие глобальные.
+  function buildCalendarCell(d, dateStr, calYear_, calMonth_, dayMap, todayStr) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day';
+    cell.dataset.date = dateStr;
+
+    const dayOfWeek = new Date(calYear_, calMonth_, d).getDay();
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    const info = dayMap[dateStr];
+
+    if (info && info.type === 'working') cell.classList.add('has-hours');
+    else if (info && info.type === 'absent') cell.classList.add('absent');
+    else if (isWeekend) cell.classList.add('weekend');
+
+    if (dateStr === todayStr) cell.classList.add('today');
+
+    const num = document.createElement('div');
+    num.className = 'cal-day-num';
+    num.textContent = d;
+    cell.appendChild(num);
+
+    if (info && info.type === 'working') {
+      const h = document.createElement('div');
+      h.className = 'cal-day-hours';
+      h.textContent = formatHoursMinutes(info.minutes);
+      cell.appendChild(h);
+    } else if (info && info.type === 'absent') {
+      const t = document.createElement('div');
+      t.className = 'cal-day-tag';
+      t.textContent = 'Отгул';
+      cell.appendChild(t);
+    }
+
+    return cell;
   }
 
   function renderCalendar(dayMap) {
     const grid = document.getElementById('calendar-grid');
-    grid.innerHTML = '';
+    // DocumentFragment — все вставки в один reflow вместо ~37
+    const frag = document.createDocumentFragment();
 
     DAY_NAMES.forEach(n => {
       const el = document.createElement('div');
       el.className = 'cal-day-name';
       el.textContent = n;
-      grid.appendChild(el);
+      frag.appendChild(el);
     });
 
     const firstDay = new Date(calYear, calMonth, 1);
@@ -2883,7 +3249,7 @@
     for (let i = 0; i < dow; i++) {
       const empty = document.createElement('div');
       empty.className = 'cal-day empty';
-      grid.appendChild(empty);
+      frag.appendChild(empty);
     }
 
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -2891,39 +3257,12 @@
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const cell = document.createElement('div');
-      cell.className = 'cal-day';
-
-      const dayOfWeek = new Date(calYear, calMonth, d).getDay();
-      const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-      const info = dayMap[dateStr];
-
-      if (info && info.type === 'working') cell.classList.add('has-hours');
-      else if (info && info.type === 'absent') cell.classList.add('absent');
-      else if (isWeekend) cell.classList.add('weekend');
-
-      if (dateStr === todayStr) cell.classList.add('today');
-
-      const num = document.createElement('div');
-      num.className = 'cal-day-num';
-      num.textContent = d;
-      cell.appendChild(num);
-
-      if (info && info.type === 'working') {
-        const h = document.createElement('div');
-        h.className = 'cal-day-hours';
-        h.textContent = formatHoursMinutes(info.minutes);
-        cell.appendChild(h);
-      } else if (info && info.type === 'absent') {
-        const t = document.createElement('div');
-        t.className = 'cal-day-tag';
-        t.textContent = 'Отгул';
-        cell.appendChild(t);
-      }
-
+      const cell = buildCalendarCell(d, dateStr, calYear, calMonth, dayMap, todayStr);
       cell.addEventListener('click', () => onDayClick(dateStr));
-      grid.appendChild(cell);
+      frag.appendChild(cell);
     }
+
+    grid.replaceChildren(frag);
   }
 
   function onDayClick(dateStr) {
@@ -3307,11 +3646,6 @@
   // ──── Бейдж количества pending в сайдбаре ──────────────────────────
   async function refreshRequestsBadge() {
     if (!currentUser || currentUser.role !== 'manager') return;
-    const { data, error } = await sb
-      .from('shift_change_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'pending');
-    // Альтернативно: count в Supabase JS делается так:
     const { count } = await sb
       .from('shift_change_requests')
       .select('*', { count: 'exact', head: true })
@@ -3534,7 +3868,7 @@
     `;
     document.getElementById('intervals-list').appendChild(div);
     div.querySelectorAll('input, select').forEach(el => {
-      el.addEventListener('input', updateDaySummary);
+      el.addEventListener('input', debouncedUpdateDaySummary);
       el.addEventListener('change', updateDaySummary);
     });
     updateDaySummary();
@@ -3561,7 +3895,7 @@
     `;
     document.getElementById('breaks-list').appendChild(div);
     div.querySelectorAll('input').forEach(el => {
-      el.addEventListener('input', updateDaySummary);
+      el.addEventListener('input', debouncedUpdateDaySummary);
     });
     updateDaySummary();
   }
@@ -3738,6 +4072,9 @@
     const { warnings } = validateDayForm();
     renderWarnings(warnings);
   }
+  // Debounced версия — навешивается на input-события (печать в полях времени),
+  // чтобы не перевалидировать форму на каждое нажатие клавиши.
+  const debouncedUpdateDaySummary = debounce(updateDaySummary, 120);
 
   function minutesBetween(startHM, endHM) {
     if (!startHM || !endHM) return 0;
@@ -3769,11 +4106,12 @@
 
       if (currentDayType === 'absent') {
         await upsertDay({ day_type: 'absent', intervals: [], breaks: [] });
+        const savedDate = currentDayDate;
         closeDayModal();
         if (isManagerEdit) {
-          await loadTranslatorDetailMonth();
+          await refreshTdCalendarDay(savedDate);
         } else {
-          await loadCalendar();
+          await refreshCalendarDay(savedDate);
         }
         return;
       }
@@ -3807,11 +4145,12 @@
         return;
       }
       await upsertDay({ day_type: 'working', intervals, breaks });
+      const savedDate = currentDayDate;
       closeDayModal();
       if (isManagerEdit) {
-        await loadTranslatorDetailMonth();
+        await refreshTdCalendarDay(savedDate);
       } else {
-        await loadCalendar();
+        await refreshCalendarDay(savedDate);
       }
     } catch (e) {
       showError('day-error', 'Ошибка: ' + e.message);
@@ -3873,11 +4212,12 @@
       return;
     }
     const isManagerEdit = targetUser && targetUser.id !== currentUser.id;
+    const deletedDate = currentDayDate;
     closeDayModal();
     if (isManagerEdit) {
-      await loadTranslatorDetailMonth();
+      await refreshTdCalendarDay(deletedDate);
     } else {
-      await loadCalendar();
+      await refreshCalendarDay(deletedDate);
     }
   }
 
@@ -4231,6 +4571,8 @@
         showError('add-error', result.error || 'Ошибка сервера.');
         return;
       }
+      // Создан новый переводчик с парами и стартовой ставкой — чистим кеши
+      invalidateCache('rateHistory:');
       closeAddModal();
       await loadTranslators();
     } catch (e) {
@@ -4298,6 +4640,9 @@
   document.querySelectorAll('.sb-item').forEach(b => {
     b.addEventListener('click', async () => {
       const page = b.dataset.page;
+      // Если уже на этой странице — не перезагружаем (экономит цепочку запросов)
+      if (page === currentPage) return;
+      currentPage = page;
       showPage(page);
       if (page === 'dashboard') await loadDashboard();
       else if (page === 'translators') await loadTranslators();
@@ -4335,6 +4680,9 @@
     if (e.target.id === 'add-manager-modal') closeAddManagerModal();
   });
   document.getElementById('req-filter').addEventListener('change', () => loadRequests());
+
+  // Заполняем select'ы часовых поясов из единого массива TIMEZONES
+  fillTimezoneSelects();
 
   checkSession();
 
