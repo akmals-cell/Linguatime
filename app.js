@@ -4484,22 +4484,19 @@
   // ════════════════════════════════════════════════════════════════════
   // МОДУЛЬ: КЛИЕНТЫ И ПРИБЫЛЬНОСТЬ
   // ════════════════════════════════════════════════════════════════════
-  // Расчёт прибыльности идёт через серверную RPC client_profitability,
-  // построенную по тому же паттерну, что payroll_for_period: один запрос
-  // считает доход (тариф клиента), расход (ставка переводчика на дату),
-  // прибыль, маржу и резерв предоплаты (накопительно за всё время).
+  // Модель: тариф единый на (клиент, языковая пара). К одному клиенту можно
+  // привязать несколько переводчиков (users.client_id). Резерв предоплаты —
+  // индивидуальный на переводчика. RPC client_profitability возвращает массив
+  // клиентов; у каждого агрегаты + вложенный массив translators[] со своей
+  // разбивкой и своим резервом.
   // ════════════════════════════════════════════════════════════════════
 
-  // Текущий выбранный период на странице клиентов (по умолчанию — текущий месяц)
   let clientsYear = new Date().getFullYear();
   let clientsMonth = new Date().getMonth();
 
-  // Кеш последнего ответа RPC — используется и списком, и детальной карточкой,
-  // чтобы не дёргать сервер дважды при переходе «список → карточка».
-  // Ключ кеша: clientProfit:<periodStart>:<periodEnd>
-  let clientDetailUserId = null;   // какой клиент открыт в детальной карточке
-  let clientEditId = null;         // id клиента, редактируемого в edit-client-modal
-  let clientRatesPairs = [];       // пары переводчика для формы тарифов (create)
+  let clientDetailId = null;   // id клиента, открытого в детальной карточке
+  let clientEditId = null;     // id клиента, редактируемого в edit-client-modal
+  let clientRatePairRows = 0;  // счётчик строк тарифов в форме создания
 
   // ── Загрузка данных прибыльности (RPC) с кешем ──────────────────────
   async function fetchClientProfitability(year, month) {
@@ -4512,30 +4509,41 @@
         p_period_end:   periodEnd,
       });
       if (error) throw new Error(error.message);
-      // RPC возвращает jsonb-массив; числа приводим к Number на всякий случай
       return (data || []).map(normalizeClientRow);
     });
   }
 
-  // Приведение числовых полей строки RPC к Number (NUMERIC может прийти строкой)
+  // Приведение числовых полей клиента и его переводчиков к Number
   function normalizeClientRow(row) {
     return {
-      client_id:          row.client_id,
-      client_name:        row.client_name,
-      user_id:            row.user_id,
-      translator_name:    row.translator_name,
-      revenue:            Number(row.revenue) || 0,
-      cost:               Number(row.cost) || 0,
-      profit:             Number(row.profit) || 0,
-      margin_pct:         Number(row.margin_pct) || 0,
-      hours_period:       Number(row.hours_period) || 0,
-      hours_purchased:    Number(row.hours_purchased) || 0,
-      hours_worked_total: Number(row.hours_worked_total) || 0,
-      hours_remaining:    Number(row.hours_remaining) || 0,
-      total_paid:         Number(row.total_paid) || 0,
-      prepay_history:     row.prepay_history || [],
-      rates_by_pair:      row.rates_by_pair || [],
-      breakdown:          row.breakdown || {},
+      client_id:        row.client_id,
+      client_name:      row.client_name,
+      contact_email:    row.contact_email || '',
+      revenue:          Number(row.revenue) || 0,
+      cost:             Number(row.cost) || 0,
+      profit:           Number(row.profit) || 0,
+      margin_pct:       Number(row.margin_pct) || 0,
+      translator_count: Number(row.translator_count) || 0,
+      rates_by_pair:    row.rates_by_pair || [],
+      translators:      (row.translators || []).map(normalizeTranslatorObj),
+    };
+  }
+
+  function normalizeTranslatorObj(t) {
+    return {
+      user_id:            t.user_id,
+      translator_name:    t.translator_name,
+      revenue:            Number(t.revenue) || 0,
+      cost:               Number(t.cost) || 0,
+      profit:             Number(t.profit) || 0,
+      margin_pct:         Number(t.margin_pct) || 0,
+      hours_period:       Number(t.hours_period) || 0,
+      hours_purchased:    Number(t.hours_purchased) || 0,
+      hours_worked_total: Number(t.hours_worked_total) || 0,
+      hours_remaining:    Number(t.hours_remaining) || 0,
+      total_paid:         Number(t.total_paid) || 0,
+      prepay_history:     t.prepay_history || [],
+      breakdown:          t.breakdown || {},
     };
   }
 
@@ -4543,13 +4551,11 @@
     return MONTH_NAMES_RU[m] + ' ' + y;
   }
 
-  // Инициалы клиента для аватара (2 буквы)
   function clientInitials(name) {
     return (name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
   }
 
-  // Определение режима резерва по остатку часов → { label, cls, barColor }
-  // > 20 ч — зелёный (предоплата); 0..20 — жёлтый (мало); <= 0 — красный (постоплата)
+  // Режим резерва по остатку часов → { mode, badgeCls, barColor, textColor }
   function reserveStatus(hoursRemaining) {
     if (hoursRemaining <= 0) {
       return { mode: 'Постоплата', badgeCls: 'badge-warn', barColor: '#DC2626', textColor: '#DC2626' };
@@ -4560,6 +4566,18 @@
     return { mode: 'Предоплата', badgeCls: 'badge-good', barColor: '#16A34A', textColor: '#16A34A' };
   }
 
+  // Сводный режим резерва клиента: худший из его переводчиков
+  function clientReserveStatus(translators) {
+    if (!translators || translators.length === 0) {
+      return { mode: '—', badgeCls: 'badge-neutral', barColor: '#94A3B8', textColor: '#94A3B8' };
+    }
+    const hasPost = translators.some(t => t.hours_remaining <= 0);
+    if (hasPost) return reserveStatus(0);
+    const hasLow = translators.some(t => t.hours_remaining <= 20);
+    if (hasLow) return reserveStatus(10);
+    return reserveStatus(100);
+  }
+
   // ── СТРАНИЦА: СПИСОК КЛИЕНТОВ ───────────────────────────────────────
   async function loadClients() {
     hideError('clients-error');
@@ -4567,7 +4585,6 @@
 
     const content = document.getElementById('clients-content');
     content.innerHTML = '<div class="loading-state">Загрузка…</div>';
-
     document.getElementById('clients-subtitle').textContent =
       clientsMonthLabel(clientsYear, clientsMonth);
 
@@ -4580,13 +4597,19 @@
       return;
     }
 
-    // KPI: агрегируем по всем клиентам
+    // KPI по всем клиентам
     const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
     const totalCost    = rows.reduce((s, r) => s + r.cost, 0);
     const totalProfit  = totalRevenue - totalCost;
     const totalMargin  = totalRevenue > 0 ? (totalProfit / totalRevenue * 100) : 0;
-    const totalReserve = rows.reduce((s, r) => s + Math.max(0, r.hours_remaining), 0);
-    const totalBought  = rows.reduce((s, r) => s + r.hours_purchased, 0);
+    // Резерв суммируем по всем переводчикам всех клиентов
+    let totalReserve = 0, totalBought = 0;
+    for (const r of rows) {
+      for (const t of r.translators) {
+        totalReserve += Math.max(0, t.hours_remaining);
+        totalBought  += t.hours_purchased;
+      }
+    }
 
     document.getElementById('clients-kpi-revenue').textContent = '$' + totalRevenue.toFixed(2);
     document.getElementById('clients-kpi-cost').textContent = '$' + totalCost.toFixed(2);
@@ -4600,56 +4623,44 @@
       content.innerHTML = `
         <div class="empty-state">
           <div class="empty-state-title">Клиентов пока нет</div>
-          <div class="empty-state-text">Нажмите «+ Добавить клиента», чтобы создать первого клиента и привязать переводчика.</div>
+          <div class="empty-state-text">Нажмите «+ Добавить клиента», чтобы создать первого клиента и задать тарифы по парам.</div>
         </div>`;
       return;
     }
 
     let html = `<table><thead><tr>
-      <th>Клиент</th><th>Переводчик</th>
+      <th>Клиент</th>
+      <th class="numeric">Переводчиков</th>
       <th class="numeric">Доход</th>
       <th class="numeric">Расход</th>
       <th class="numeric">Прибыль</th>
       <th class="numeric">Маржа</th>
-      <th class="numeric">Резерв</th>
-      <th>Режим</th>
+      <th>Резерв</th>
       <th></th>
     </tr></thead><tbody>`;
 
-    // Сортировка по прибыли (убыв.)
     rows.sort((a, b) => b.profit - a.profit);
 
     for (const r of rows) {
-      const st = reserveStatus(r.hours_remaining);
+      const st = clientReserveStatus(r.translators);
       const initials = clientInitials(r.client_name);
-      const reservePct = r.hours_purchased > 0
-        ? Math.max(0, Math.min(100, (r.hours_remaining / r.hours_purchased) * 100))
-        : 0;
-
       const profitColor = r.profit >= 0 ? '#16A34A' : '#DC2626';
       const profitSign = r.profit >= 0 ? '+' : '−';
       const marginBadge = r.margin_pct >= 0
         ? `<span class="badge badge-good">${r.margin_pct.toFixed(1)}%</span>`
         : `<span class="badge badge-warn">${r.margin_pct.toFixed(1)}%</span>`;
 
-      html += `<tr style="cursor:pointer;" onclick="openClientDetail('${r.user_id}')">
+      html += `<tr style="cursor:pointer;" onclick="openClientDetail('${r.client_id}')">
         <td><div class="emp-cell">
           <div class="emp-avatar">${initials}</div>
-          <div><div class="emp-name">${escapeHtml(r.client_name)}</div></div>
+          <div><div class="emp-name">${escapeHtml(r.client_name)}</div>
+               ${r.contact_email ? `<div class="emp-email">${escapeHtml(r.contact_email)}</div>` : ''}</div>
         </div></td>
-        <td style="color:#475569; font-size:13px;">${escapeHtml(r.translator_name)}</td>
+        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${r.translator_count}</td>
         <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${r.revenue.toFixed(2)}</td>
         <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${r.cost.toFixed(2)}</td>
         <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:${profitColor};">${profitSign}$${Math.abs(r.profit).toFixed(2)}</td>
         <td style="text-align:right;">${marginBadge}</td>
-        <td style="text-align:right;">
-          <div style="display:flex; align-items:center; justify-content:flex-end; gap:6px;">
-            <div style="width:56px; height:6px; background:#F1F5F9; border:1px solid #E5E7EB; border-radius:100px; overflow:hidden;">
-              <div style="height:100%; width:${reservePct}%; background:${st.barColor}; border-radius:100px;"></div>
-            </div>
-            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:${st.textColor};">${r.hours_remaining.toFixed(0)} ч</span>
-          </div>
-        </td>
         <td><span class="badge ${st.badgeCls}">${st.mode}</span></td>
         <td style="text-align:right;"><span style="color:#94A3B8; font-size:11px;">Открыть →</span></td>
       </tr>`;
@@ -4681,8 +4692,8 @@
   }
 
   // ── СТРАНИЦА: ДЕТАЛЬНАЯ КАРТОЧКА КЛИЕНТА ────────────────────────────
-  async function openClientDetail(userId) {
-    clientDetailUserId = userId;
+  async function openClientDetail(clientId) {
+    clientDetailId = clientId;
     showPage('client-detail');
     fillClientDetailMonthSelector();
     await renderClientDetail();
@@ -4722,7 +4733,7 @@
       return;
     }
 
-    const r = rows.find(x => x.user_id === clientDetailUserId);
+    const r = rows.find(x => x.client_id === clientDetailId);
     if (!r) {
       showError('cd-error', 'Клиент не найден в данных за этот месяц.');
       return;
@@ -4731,135 +4742,119 @@
     // Шапка
     document.getElementById('cd-avatar').textContent = clientInitials(r.client_name);
     document.getElementById('cd-name').textContent = r.client_name;
-    document.getElementById('cd-email').textContent =
-      'Переводчик: ' + r.translator_name;
-    document.getElementById('cd-meta').innerHTML = '';
+    document.getElementById('cd-email').textContent = r.contact_email || '—';
+    document.getElementById('cd-meta').innerHTML =
+      `<span style="font-size:12px; color:#475569;">${r.translator_count} ${pluralize(r.translator_count,'переводчик','переводчика','переводчиков')}</span>`;
 
-    // KPI
+    // KPI клиента (агрегаты)
     document.getElementById('cd-kpi-revenue').textContent = '$' + r.revenue.toFixed(2);
-    document.getElementById('cd-kpi-revenue-meta').textContent =
-      r.hours_period.toFixed(1) + ' ч × тарифы';
+    document.getElementById('cd-kpi-revenue-meta').textContent = 'по всем переводчикам';
     document.getElementById('cd-kpi-cost').textContent = '$' + r.cost.toFixed(2);
-    document.getElementById('cd-kpi-cost-meta').textContent =
-      r.hours_period.toFixed(1) + ' ч × ставки';
+    document.getElementById('cd-kpi-cost-meta').textContent = 'зарплата';
     document.getElementById('cd-kpi-profit').textContent = '$' + r.profit.toFixed(2);
     document.getElementById('cd-kpi-margin').textContent = 'маржа ' + r.margin_pct.toFixed(1) + '%';
-    document.getElementById('cd-kpi-reserve').textContent = r.hours_remaining.toFixed(0) + ' ч';
-    document.getElementById('cd-kpi-reserve-meta').textContent =
-      'из ' + r.hours_purchased.toFixed(0) + ' ч куплено';
 
-    // Алерт о малом резерве
+    // Сводный резерв клиента = сумма остатков переводчиков
+    const totalRemaining = r.translators.reduce((s, t) => s + Math.max(0, t.hours_remaining), 0);
+    const totalBought = r.translators.reduce((s, t) => s + t.hours_purchased, 0);
+    document.getElementById('cd-kpi-reserve').textContent = totalRemaining.toFixed(0) + ' ч';
+    document.getElementById('cd-kpi-reserve-meta').textContent = 'из ' + totalBought.toFixed(0) + ' ч';
+
+    // Алерт: есть ли переводчик с малым/исчерпанным резервом
     const alert = document.getElementById('cd-reserve-alert');
-    if (r.hours_remaining > 0 && r.hours_remaining <= 20) {
+    const lowOnes = r.translators.filter(t => t.hours_remaining > 0 && t.hours_remaining <= 20);
+    const postOnes = r.translators.filter(t => t.hours_remaining <= 0);
+    if (postOnes.length > 0) {
       document.getElementById('cd-reserve-alert-text').textContent =
-        `Остаток резерва ${r.hours_remaining.toFixed(0)} ч — уведомите клиента о пополнении.`;
+        `У ${postOnes.length} ${pluralize(postOnes.length,'переводчика','переводчиков','переводчиков')} резерв исчерпан — постоплатный режим.`;
       alert.classList.remove('hidden');
-    } else if (r.hours_remaining <= 0) {
+    } else if (lowOnes.length > 0) {
       document.getElementById('cd-reserve-alert-text').textContent =
-        `Резерв исчерпан. Клиент в постоплатном режиме: переработка ${Math.abs(r.hours_remaining).toFixed(0)} ч подлежит выставлению счёта.`;
+        `У ${lowOnes.length} ${pluralize(lowOnes.length,'переводчика','переводчиков','переводчиков')} осталось менее 20 ч резерва.`;
       alert.classList.remove('hidden');
     } else {
       alert.classList.add('hidden');
     }
 
-    // Резерв: прогресс-бар и режим
-    const st = reserveStatus(r.hours_remaining);
-    const usedHours = Math.max(0, r.hours_purchased - Math.max(0, r.hours_remaining));
-    const usedPct = r.hours_purchased > 0
-      ? Math.max(0, Math.min(100, (usedHours / r.hours_purchased) * 100))
-      : 0;
-
+    // Блок «резерв клиента» в шапке двухколоночной секции —
+    // используем как сводку и режим
+    const st = clientReserveStatus(r.translators);
     const modeBadge = document.getElementById('cd-reserve-mode-badge');
-    modeBadge.textContent = st.mode === 'Постоплата' ? 'Постоплатный режим' : 'Предоплатный режим';
+    modeBadge.textContent = st.mode === 'Постоплата' ? 'Есть постоплата' :
+                            st.mode === 'Мало резерва' ? 'Мало резерва' : 'Предоплата';
     modeBadge.className = 'badge ' + st.badgeCls;
 
+    const usedTotal = Math.max(0, totalBought - totalRemaining);
+    const usedPct = totalBought > 0 ? Math.max(0, Math.min(100, usedTotal / totalBought * 100)) : 0;
     document.getElementById('cd-reserve-used-label').textContent =
-      `${usedHours.toFixed(0)} ч из ${r.hours_purchased.toFixed(0)} ч`;
+      `${usedTotal.toFixed(0)} ч из ${totalBought.toFixed(0)} ч`;
     const bar = document.getElementById('cd-reserve-bar');
     bar.style.width = usedPct + '%';
     bar.style.background = st.barColor;
-    document.getElementById('cd-reserve-remaining-label').textContent =
-      r.hours_remaining >= 0
-        ? `${r.hours_remaining.toFixed(0)} ч осталось`
-        : `${Math.abs(r.hours_remaining).toFixed(0)} ч переработки`;
+    document.getElementById('cd-reserve-remaining-label').textContent = `${totalRemaining.toFixed(0)} ч осталось`;
     document.getElementById('cd-reserve-remaining-label').style.color = st.textColor;
-    document.getElementById('cd-reserve-total-label').textContent =
-      r.hours_purchased.toFixed(0) + ' ч';
+    document.getElementById('cd-reserve-total-label').textContent = totalBought.toFixed(0) + ' ч';
 
-    // История предоплат
+    // «История предоплат» в этой секции заменяем на список переводчиков клиента
+    // с индивидуальными резервами
     const histEl = document.getElementById('cd-prepay-history');
-    if (!r.prepay_history || r.prepay_history.length === 0) {
-      histEl.innerHTML = '<div style="color:#94A3B8; font-size:13px; padding:8px 0;">Предоплат пока нет.</div>';
-    } else {
-      histEl.innerHTML = r.prepay_history.map(p => {
-        const hours = Number(p.hours) || 0;
-        const amount = Number(p.amount) || 0;
-        const dateStr = formatDateRu(p.paid_at);
-        const noteStr = p.note ? escapeHtml(p.note) : 'Предоплата';
-        return `<div style="display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #F1F5F9;">
-          <div>
-            <div style="font-size:13px; color:#0F1B3D;">${noteStr}</div>
-            <div style="font-size:11px; color:#94A3B8; font-family:'JetBrains Mono',monospace;">${dateStr}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#1E40AF; font-weight:600;">+ ${hours.toFixed(0)} ч</div>
-            <div style="font-size:11px; color:#94A3B8;">$${amount.toFixed(2)}</div>
-          </div>
-        </div>`;
-      }).join('');
-    }
+    histEl.innerHTML = r.translators.map(t => {
+      const tst = reserveStatus(t.hours_remaining);
+      const pct = t.hours_purchased > 0
+        ? Math.max(0, Math.min(100, t.hours_remaining / t.hours_purchased * 100)) : 0;
+      return `<div style="padding:10px 0; border-bottom:1px solid #F1F5F9;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <span style="font-size:13px; color:#0F1B3D; font-weight:500;">${escapeHtml(t.translator_name)}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:${tst.textColor};">${t.hours_remaining.toFixed(0)} ч</span>
+        </div>
+        <div style="width:100%; height:6px; background:#F1F5F9; border:1px solid #E5E7EB; border-radius:100px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:${tst.barColor}; border-radius:100px;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:3px;">
+          <span style="font-size:11px; color:#94A3B8;">куплено ${t.hours_purchased.toFixed(0)} ч</span>
+          <button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:11px;" onclick="openAddPrepaymentModal('${t.user_id}')">+ Предоплата</button>
+        </div>
+      </div>`;
+    }).join('');
 
-    // Тарифы по парам
+    // Тарифы по парам (клиентские)
     const ratesEl = document.getElementById('cd-rates-by-pair');
     if (!r.rates_by_pair || r.rates_by_pair.length === 0) {
       ratesEl.innerHTML = '<div style="color:#94A3B8; font-size:13px; padding:8px 0;">Тарифы клиента не заданы. Задайте их через «Редактировать».</div>';
     } else {
       ratesEl.innerHTML = r.rates_by_pair.map(p => {
         const cRate = Number(p.client_rate) || 0;
-        const tRate = Number(p.translator_rate) || 0;
-        const margin = Number(p.margin_pct) || 0;
         return `<div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #F1F5F9;">
           <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;">${escapeHtml(p.pair_code)}</span>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="color:#94A3B8; font-family:'JetBrains Mono',monospace; font-size:12px;">$${tRate.toFixed(0)}/ч</span>
-            <span style="color:#94A3B8;">→</span>
-            <span style="color:#1E40AF; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;">$${cRate.toFixed(0)}/ч</span>
-            <span style="font-size:11px; color:#3B6D11; background:#EAF3DE; padding:2px 7px; border-radius:100px;">${margin >= 0 ? '+' : ''}${margin.toFixed(0)}%</span>
-          </div>
+          <span style="color:#1E40AF; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600;">$${cRate.toFixed(2)}/ч</span>
         </div>`;
       }).join('');
     }
 
-    // Разбивка по парам за месяц
-    document.getElementById('cd-breakdown-month').textContent =
-      clientsMonthLabel(clientsYear, clientsMonth);
+    // Разбивка по переводчикам за месяц
+    document.getElementById('cd-breakdown-month').textContent = clientsMonthLabel(clientsYear, clientsMonth);
     const bdEl = document.getElementById('cd-breakdown');
-    const bdKeys = Object.keys(r.breakdown || {});
-    if (bdKeys.length === 0) {
-      bdEl.innerHTML = '<div class="empty-state"><div class="empty-state-text">Нет отработанных часов в этом месяце.</div></div>';
+    if (r.translators.length === 0) {
+      bdEl.innerHTML = '<div class="empty-state"><div class="empty-state-text">К клиенту не привязан ни один переводчик.</div></div>';
     } else {
       let bdHtml = `<table><thead><tr>
-        <th>Пара</th>
-        <th class="numeric">Часы</th>
+        <th>Переводчик</th>
+        <th class="numeric">Часы (мес.)</th>
         <th class="numeric">Доход</th>
         <th class="numeric">Расход</th>
         <th class="numeric">Прибыль</th>
+        <th class="numeric">Маржа</th>
       </tr></thead><tbody>`;
-      // Сортируем по доходу убыв.
-      const sorted = bdKeys.map(k => ({ code: k, ...r.breakdown[k] }))
-        .sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0));
-      for (const b of sorted) {
-        const minutes = Number(b.minutes) || 0;
-        const revenue = Number(b.revenue) || 0;
-        const cost = Number(b.cost) || 0;
-        const profit = revenue - cost;
-        const profitColor = profit >= 0 ? '#16A34A' : '#DC2626';
+      const sorted = [...r.translators].sort((a, b) => b.profit - a.profit);
+      for (const t of sorted) {
+        const profitColor = t.profit >= 0 ? '#16A34A' : '#DC2626';
         bdHtml += `<tr>
-          <td><span class="badge badge-neutral">${escapeHtml(b.code)}</span></td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${formatHoursMinutes(Math.round(minutes))}</td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${revenue.toFixed(2)}</td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${cost.toFixed(2)}</td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:${profitColor};">$${profit.toFixed(2)}</td>
+          <td>${escapeHtml(t.translator_name)}</td>
+          <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${t.hours_period.toFixed(1)} ч</td>
+          <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${t.revenue.toFixed(2)}</td>
+          <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${t.cost.toFixed(2)}</td>
+          <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:${profitColor};">$${t.profit.toFixed(2)}</td>
+          <td style="text-align:right;"><span class="badge ${t.margin_pct>=0?'badge-good':'badge-warn'}">${t.margin_pct.toFixed(1)}%</span></td>
         </tr>`;
       }
       bdHtml += '</tbody></table>';
@@ -4867,89 +4862,53 @@
     }
   }
 
-  // ── МОДАЛКА: СОЗДАНИЕ КЛИЕНТА ───────────────────────────────────────
-  async function openAddClientModal() {
+  // ── МОДАЛКА: СОЗДАНИЕ КЛИЕНТА (тарифы на клиента по парам) ───────────
+  function openAddClientModal() {
     hideError('add-client-error');
     document.getElementById('client-name').value = '';
     document.getElementById('client-email').value = '';
     document.getElementById('client-note').value = '';
-    document.getElementById('client-rates-wrap').classList.add('hidden');
+    document.getElementById('client-rates-wrap').classList.remove('hidden');
     document.getElementById('client-rates-list').innerHTML = '';
-    clientRatesPairs = [];
+    clientRatePairRows = 0;
 
-    // Заполняем dropdown переводчиков без клиента
-    const sel = document.getElementById('client-translator');
-    sel.innerHTML = '<option value="">— выберите переводчика —</option>';
-    const { data: freeTranslators, error } = await sb
-      .from('users')
-      .select('id, name, client_id, translator_pairs ( language_pair_id, rate_per_hour, language_pairs (code, display_name) )')
-      .eq('role', 'translator')
-      .eq('is_active', true)
-      .is('client_id', null)
-      .order('name');
-
-    if (error) {
-      showError('add-client-error', 'Ошибка загрузки переводчиков: ' + error.message);
-      return;
-    }
-
-    // Сохраняем пары каждого переводчика, чтобы построить поля тарифов при выборе
-    window._freeTranslatorsCache = {};
-    for (const t of (freeTranslators || [])) {
-      window._freeTranslatorsCache[t.id] = t;
-      const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = t.name;
-      sel.appendChild(opt);
-    }
-
-    if ((freeTranslators || []).length === 0) {
-      sel.innerHTML = '<option value="">— нет свободных переводчиков —</option>';
-    }
-
-    // При выборе переводчика — строим поля тарифов по его парам
-    sel.onchange = () => buildClientRateFields(sel.value);
+    // Одна пустая строка тарифа по умолчанию
+    addClientRateRow();
 
     document.getElementById('add-client-modal').classList.add('open');
   }
 
-  function buildClientRateFields(userId) {
-    const wrap = document.getElementById('client-rates-wrap');
-    const list = document.getElementById('client-rates-list');
-    if (!userId || !window._freeTranslatorsCache || !window._freeTranslatorsCache[userId]) {
-      wrap.classList.add('hidden');
-      list.innerHTML = '';
-      clientRatesPairs = [];
-      return;
-    }
-    const t = window._freeTranslatorsCache[userId];
-    clientRatesPairs = (t.translator_pairs || []).map(p => ({
-      language_pair_id: p.language_pair_id,
-      code: p.language_pairs.code,
-      display_name: p.language_pairs.display_name,
-      translator_rate: Number(p.rate_per_hour),
-    }));
+  // Строка «языковая пара → тариф клиента» в форме создания
+  function addClientRateRow(existing = null) {
+    clientRatePairRows++;
+    const rowId = 'crr-' + clientRatePairRows;
+    const options = languagePairs.map(p => {
+      const sel = existing && existing.language_pair_id === p.id ? 'selected' : '';
+      return `<option value="${p.id}" ${sel}>${p.code} — ${p.display_name}</option>`;
+    }).join('');
 
-    if (clientRatesPairs.length === 0) {
-      wrap.classList.remove('hidden');
-      list.innerHTML = '<div style="color:#94A3B8; font-size:13px;">У переводчика нет языковых пар. Сначала добавьте пары в его профиле.</div>';
-      return;
-    }
+    const div = document.createElement('div');
+    div.className = 'pair-editor';
+    div.id = rowId;
+    div.style.cssText = 'display:flex; align-items:center; gap:10px; margin-bottom:8px;';
+    div.innerHTML = `
+      <select class="select client-rate-pair" style="flex:1;">${options}</select>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <span style="color:#475569;">$</span>
+        <input type="number" class="input client-rate-value" style="width:90px;"
+               step="0.50" min="0.50" max="1000"
+               value="${existing ? Number(existing.rate_per_hour).toFixed(2) : ''}"
+               placeholder="8.00">
+        <span style="color:#475569; font-size:12px;">/ч</span>
+      </div>
+      <button class="pair-remove" onclick="removeClientRateRow('${rowId}')" title="Удалить">×</button>
+    `;
+    document.getElementById('client-rates-list').appendChild(div);
+  }
 
-    wrap.classList.remove('hidden');
-    list.innerHTML = clientRatesPairs.map((p, idx) => `
-      <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #F1F5F9;">
-        <span class="badge badge-neutral" style="min-width:64px;">${p.code}</span>
-        <span style="color:#94A3B8; font-size:12px; font-family:'JetBrains Mono',monospace;">переводчик $${p.translator_rate.toFixed(2)}/ч</span>
-        <span style="color:#94A3B8;">→</span>
-        <div style="display:flex; align-items:center; gap:4px; margin-left:auto;">
-          <span style="color:#475569;">$</span>
-          <input type="number" class="input client-rate-field" data-pair-id="${p.language_pair_id}"
-                 style="width:90px;" step="0.50" min="0.50" max="1000"
-                 placeholder="${(p.translator_rate * 1.5).toFixed(2)}">
-          <span style="color:#475569; font-size:12px;">/ч</span>
-        </div>
-      </div>`).join('');
+  function removeClientRateRow(rowId) {
+    const el = document.getElementById(rowId);
+    if (el) el.remove();
   }
 
   function closeAddClientModal() {
@@ -4963,71 +4922,53 @@
     const name = document.getElementById('client-name').value.trim();
     const email = document.getElementById('client-email').value.trim();
     const note = document.getElementById('client-note').value.trim();
-    const userId = document.getElementById('client-translator').value;
 
     if (!name) {
       showError('add-client-error', 'Укажите название клиента.');
       return;
     }
-    if (!userId) {
-      showError('add-client-error', 'Выберите переводчика.');
-      return;
-    }
 
-    // Собираем тарифы
-    const rateFields = document.querySelectorAll('#client-rates-list .client-rate-field');
+    // Собираем тарифы, проверяем на дубли пар
+    const rowEls = document.querySelectorAll('#client-rates-list .pair-editor');
     const rates = [];
-    for (const f of rateFields) {
-      const val = parseFloat(f.value);
+    const seenPairs = new Set();
+    for (const row of rowEls) {
+      const pairId = row.querySelector('.client-rate-pair').value;
+      const val = parseFloat(row.querySelector('.client-rate-value').value);
       if (!val || val <= 0) {
-        showError('add-client-error', 'Укажите тариф для всех языковых пар.');
+        showError('add-client-error', 'Укажите тариф для всех пар (больше 0).');
         return;
       }
-      rates.push({ language_pair_id: f.dataset.pairId, rate_per_hour: val });
+      if (seenPairs.has(pairId)) {
+        showError('add-client-error', 'Языковая пара указана дважды. Оставьте одну строку на пару.');
+        return;
+      }
+      seenPairs.add(pairId);
+      rates.push({ language_pair_id: pairId, rate_per_hour: val });
     }
     if (rates.length === 0) {
-      showError('add-client-error', 'У переводчика должна быть хотя бы одна пара с тарифом.');
+      showError('add-client-error', 'Добавьте хотя бы одну пару с тарифом.');
       return;
     }
 
     btn.disabled = true; btn.textContent = 'Создаём…';
-
     try {
-      // 1) Создаём клиента
       const { data: client, error: clientErr } = await sb
         .from('clients')
-        .insert({
-          name,
-          contact_email: email || null,
-          note: note || null,
-          created_by: currentUser.id,
-        })
+        .insert({ name, contact_email: email || null, note: note || null, created_by: currentUser.id })
         .select('id')
         .single();
       if (clientErr) throw new Error('Клиент: ' + clientErr.message);
 
-      // 2) Привязываем переводчика к клиенту
-      const { error: linkErr } = await sb
-        .from('users')
-        .update({ client_id: client.id })
-        .eq('id', userId);
-      if (linkErr) throw new Error('Привязка: ' + linkErr.message);
-
-      // 3) Вставляем тарифы клиента по парам
       const rateRows = rates.map(r => ({
         client_id: client.id,
-        user_id: userId,
         language_pair_id: r.language_pair_id,
         rate_per_hour: r.rate_per_hour,
       }));
-      const { error: ratesErr } = await sb
-        .from('client_translator_rates')
-        .insert(rateRows);
+      const { error: ratesErr } = await sb.from('client_rates').insert(rateRows);
       if (ratesErr) throw new Error('Тарифы: ' + ratesErr.message);
 
-      // Чистим кеш прибыльности
       invalidateCache('clientProfit:');
-
       closeAddClientModal();
       await loadClients();
     } catch (e) {
@@ -5039,66 +4980,52 @@
 
   // ── МОДАЛКА: РЕДАКТИРОВАНИЕ КЛИЕНТА ─────────────────────────────────
   async function openEditClientModal() {
-    if (!clientDetailUserId) return;
+    if (!clientDetailId) return;
     hideError('edit-client-error');
 
-    // Загружаем клиента по user_id переводчика
-    const { data: user, error: uErr } = await sb
-      .from('users')
-      .select('client_id, clients ( id, name, contact_email, note )')
-      .eq('id', clientDetailUserId)
+    const { data: client, error } = await sb
+      .from('clients')
+      .select('id, name, contact_email, note')
+      .eq('id', clientDetailId)
       .single();
-
-    if (uErr || !user || !user.clients) {
-      showError('cd-error', 'Не удалось загрузить данные клиента.');
+    if (error || !client) {
+      showError('cd-error', 'Не удалось загрузить клиента.');
       return;
     }
 
-    clientEditId = user.clients.id;
-    document.getElementById('edit-client-name').value = user.clients.name || '';
-    document.getElementById('edit-client-email').value = user.clients.contact_email || '';
-    document.getElementById('edit-client-note').value = user.clients.note || '';
+    clientEditId = client.id;
+    document.getElementById('edit-client-name').value = client.name || '';
+    document.getElementById('edit-client-email').value = client.contact_email || '';
+    document.getElementById('edit-client-note').value = client.note || '';
 
-    // Загружаем текущие тарифы + пары переводчика
-    const { data: translator } = await sb
-      .from('users')
-      .select('translator_pairs ( language_pair_id, rate_per_hour, language_pairs (code, display_name) )')
-      .eq('id', clientDetailUserId)
-      .single();
-
+    // Текущие тарифы клиента
     const { data: currentRates } = await sb
-      .from('client_translator_rates')
+      .from('client_rates')
       .select('language_pair_id, rate_per_hour')
-      .eq('user_id', clientDetailUserId);
+      .eq('client_id', clientEditId);
 
     const rateByPair = {};
-    for (const cr of (currentRates || [])) {
-      rateByPair[cr.language_pair_id] = Number(cr.rate_per_hour);
-    }
+    for (const cr of (currentRates || [])) rateByPair[cr.language_pair_id] = Number(cr.rate_per_hour);
 
-    const pairs = (translator?.translator_pairs || []);
+    // Рисуем строку на каждую активную языковую пару, подставляя существующий тариф
     const list = document.getElementById('edit-client-rates-list');
-    if (pairs.length === 0) {
-      list.innerHTML = '<div style="color:#94A3B8; font-size:13px;">У переводчика нет языковых пар.</div>';
-    } else {
-      list.innerHTML = pairs.map(p => {
-        const existing = rateByPair[p.language_pair_id];
-        const tRate = Number(p.rate_per_hour);
-        return `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #F1F5F9;">
-          <span class="badge badge-neutral" style="min-width:64px;">${p.language_pairs.code}</span>
-          <span style="color:#94A3B8; font-size:12px; font-family:'JetBrains Mono',monospace;">переводчик $${tRate.toFixed(2)}/ч</span>
-          <span style="color:#94A3B8;">→</span>
-          <div style="display:flex; align-items:center; gap:4px; margin-left:auto;">
-            <span style="color:#475569;">$</span>
-            <input type="number" class="input edit-client-rate-field" data-pair-id="${p.language_pair_id}"
-                   style="width:90px;" step="0.50" min="0.50" max="1000"
-                   value="${existing != null ? existing.toFixed(2) : ''}"
-                   placeholder="${(tRate * 1.5).toFixed(2)}">
-            <span style="color:#475569; font-size:12px;">/ч</span>
-          </div>
-        </div>`;
-      }).join('');
-    }
+    list.innerHTML = languagePairs.map(p => {
+      const existing = rateByPair[p.id];
+      return `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #F1F5F9;">
+        <span class="badge badge-neutral" style="min-width:96px;">${p.code}</span>
+        <span style="flex:1; color:#94A3B8; font-size:12px;">${escapeHtml(p.display_name)}</span>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <span style="color:#475569;">$</span>
+          <input type="number" class="input edit-client-rate-field" data-pair-id="${p.id}"
+                 style="width:90px;" step="0.50" min="0" max="1000"
+                 value="${existing != null ? existing.toFixed(2) : ''}"
+                 placeholder="—">
+          <span style="color:#475569; font-size:12px;">/ч</span>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('edit-client-rates-hint').textContent =
+      'Пустое поле = тариф для этой пары не задан. Заполненное — создаётся или обновляется.';
 
     document.getElementById('edit-client-modal').classList.add('open');
   }
@@ -5124,38 +5051,40 @@
       return;
     }
 
-    // Собираем тарифы
-    const rateFields = document.querySelectorAll('#edit-client-rates-list .edit-client-rate-field');
-    const rates = [];
-    for (const f of rateFields) {
+    // Тарифы: заполненные → upsert; пустые → удалить (если были)
+    const fields = document.querySelectorAll('#edit-client-rates-list .edit-client-rate-field');
+    const toUpsert = [];
+    const toDelete = [];
+    for (const f of fields) {
       const val = parseFloat(f.value);
       if (val && val > 0) {
-        rates.push({ language_pair_id: f.dataset.pairId, rate_per_hour: val });
+        toUpsert.push({ client_id: clientEditId, language_pair_id: f.dataset.pairId, rate_per_hour: val });
+      } else {
+        toDelete.push(f.dataset.pairId);
       }
     }
 
     btn.disabled = true; btn.textContent = 'Сохраняем…';
-
     try {
-      // 1) Обновляем данные клиента
       const { error: clientErr } = await sb
         .from('clients')
         .update({ name, contact_email: email || null, note: note || null })
         .eq('id', clientEditId);
       if (clientErr) throw new Error('Клиент: ' + clientErr.message);
 
-      // 2) Upsert тарифов (UNIQUE user_id + language_pair_id)
-      if (rates.length > 0) {
-        const rateRows = rates.map(r => ({
-          client_id: clientEditId,
-          user_id: clientDetailUserId,
-          language_pair_id: r.language_pair_id,
-          rate_per_hour: r.rate_per_hour,
-        }));
-        const { error: ratesErr } = await sb
-          .from('client_translator_rates')
-          .upsert(rateRows, { onConflict: 'user_id,language_pair_id' });
-        if (ratesErr) throw new Error('Тарифы: ' + ratesErr.message);
+      if (toUpsert.length > 0) {
+        const { error: upErr } = await sb
+          .from('client_rates')
+          .upsert(toUpsert, { onConflict: 'client_id,language_pair_id' });
+        if (upErr) throw new Error('Тарифы: ' + upErr.message);
+      }
+      if (toDelete.length > 0) {
+        const { error: delErr } = await sb
+          .from('client_rates')
+          .delete()
+          .eq('client_id', clientEditId)
+          .in('language_pair_id', toDelete);
+        if (delErr) throw new Error('Удаление тарифов: ' + delErr.message);
       }
 
       invalidateCache('clientProfit:');
@@ -5168,12 +5097,13 @@
     }
   }
 
-  // ── МОДАЛКА: ВНЕСЕНИЕ ПРЕДОПЛАТЫ ────────────────────────────────────
-  async function openAddPrepaymentModal() {
-    if (!clientDetailUserId) return;
+  // ── МОДАЛКА: ВНЕСЕНИЕ ПРЕДОПЛАТЫ (под конкретного переводчика) ───────
+  let prepayUserId = null; // переводчик, которому вносим предоплату
+
+  async function openAddPrepaymentModal(userId) {
+    prepayUserId = userId;
     hideError('add-prepayment-error');
 
-    // Текущие данные клиента из последнего RPC-ответа
     let rows;
     try {
       rows = await fetchClientProfitability(clientsYear, clientsMonth);
@@ -5181,18 +5111,18 @@
       showError('cd-error', 'Ошибка: ' + e.message);
       return;
     }
-    const r = rows.find(x => x.user_id === clientDetailUserId);
-    if (!r) {
-      showError('cd-error', 'Клиент не найден.');
+    const client = rows.find(x => x.client_id === clientDetailId);
+    const t = client ? client.translators.find(x => x.user_id === userId) : null;
+    if (!t) {
+      showError('cd-error', 'Переводчик не найден.');
       return;
     }
 
     document.getElementById('prepay-modal-subtitle').textContent =
-      r.client_name + ' · ' + r.translator_name;
-    document.getElementById('prepay-current-reserve').textContent =
-      r.hours_remaining.toFixed(0) + ' ч';
+      client.client_name + ' · ' + t.translator_name;
+    document.getElementById('prepay-current-reserve').textContent = t.hours_remaining.toFixed(0) + ' ч';
     document.getElementById('prepay-reserve-meta').textContent =
-      `Куплено ${r.hours_purchased.toFixed(0)} ч · отработано ${r.hours_worked_total.toFixed(0)} ч`;
+      `Куплено ${t.hours_purchased.toFixed(0)} ч · отработано ${t.hours_worked_total.toFixed(0)} ч`;
 
     document.getElementById('prepay-hours').value = '';
     document.getElementById('prepay-rate').value = '';
@@ -5200,7 +5130,6 @@
     document.getElementById('prepay-paid-at').value = new Date().toISOString().split('T')[0];
     document.getElementById('prepay-total-amount').textContent = '$0.00';
 
-    // Автоподсчёт суммы
     const recalc = () => {
       const h = parseFloat(document.getElementById('prepay-hours').value) || 0;
       const rate = parseFloat(document.getElementById('prepay-rate').value) || 0;
@@ -5225,36 +5154,16 @@
     const paidAt = document.getElementById('prepay-paid-at').value;
     const note = document.getElementById('prepay-note').value.trim();
 
-    if (!hours || hours <= 0) {
-      showError('add-prepayment-error', 'Укажите количество часов.');
-      return;
-    }
-    if (!rate || rate <= 0) {
-      showError('add-prepayment-error', 'Укажите тариф.');
-      return;
-    }
-    if (!paidAt) {
-      showError('add-prepayment-error', 'Укажите дату оплаты.');
-      return;
-    }
-
-    // Нужен client_id
-    const { data: user, error: uErr } = await sb
-      .from('users')
-      .select('client_id')
-      .eq('id', clientDetailUserId)
-      .single();
-    if (uErr || !user || !user.client_id) {
-      showError('add-prepayment-error', 'Клиент не привязан к переводчику.');
-      return;
-    }
+    if (!hours || hours <= 0) { showError('add-prepayment-error', 'Укажите количество часов.'); return; }
+    if (!rate || rate <= 0) { showError('add-prepayment-error', 'Укажите тариф.'); return; }
+    if (!paidAt) { showError('add-prepayment-error', 'Укажите дату оплаты.'); return; }
+    if (!prepayUserId) { showError('add-prepayment-error', 'Переводчик не определён.'); return; }
 
     btn.disabled = true; btn.textContent = 'Вносим…';
-
     try {
       const { error } = await sb.from('client_prepayments').insert({
-        client_id: user.client_id,
-        user_id: clientDetailUserId,
+        client_id: clientDetailId,
+        user_id: prepayUserId,
         hours_purchased: hours,
         rate_per_hour: rate,
         paid_at: paidAt,

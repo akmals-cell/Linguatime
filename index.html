@@ -1066,7 +1066,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="add-client-modal-title">Новый клиент</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Клиент привязывается к одному переводчику</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Тариф задаётся на клиента по языковым парам. Переводчики привязываются в их профиле.</div>
       </div>
       <button class="modal-close" onclick="closeAddClientModal()">×</button>
     </div>
@@ -1084,28 +1084,19 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Переводчик <span style="color: #DC2626;">*</span></label>
-        <select id="client-translator" class="select">
-          <option value="">— выберите переводчика —</option>
-        </select>
-        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
-          Только переводчики без привязанного клиента.
-        </div>
-      </div>
-
-      <div class="field">
         <label class="field-label">Заметка</label>
         <textarea id="client-note" class="input" rows="2" placeholder="Дополнительная информация о клиенте…"></textarea>
       </div>
 
-      <!-- Тарифы клиента по языковым парам переводчика -->
-      <div id="client-rates-wrap" class="hidden">
+      <!-- Тарифы клиента по языковым парам -->
+      <div id="client-rates-wrap">
         <div style="display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px;">
-          <div class="field-label" style="margin: 0;">Тарифы клиента по парам <span style="color: #DC2626;">*</span></div>
+          <div class="field-label" style="margin: 0;">Тарифы по парам <span style="color: #DC2626;">*</span></div>
+          <button class="btn btn-ghost btn-sm" onclick="addClientRateRow()">+ Пара</button>
         </div>
         <div id="client-rates-list"></div>
         <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
-          Тариф клиента — цена за которую агентство продаёт час переводчика клиенту. Должен быть выше ставки переводчика.
+          Тариф клиента за час работы в этой паре — единый для всех переводчиков клиента.
         </div>
       </div>
     </div>
@@ -1147,11 +1138,11 @@
 
       <!-- Тарифы клиента по парам — редактирование -->
       <div style="display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px;">
-        <div class="field-label" style="margin: 0;">Тарифы клиента по парам</div>
+        <div class="field-label" style="margin: 0;">Тарифы по парам</div>
       </div>
       <div id="edit-client-rates-list"></div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
-        Тариф клиента — цена за которую агентство продаёт час переводчика клиенту.
+      <div id="edit-client-rates-hint" style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
+        Тариф клиента за час работы в этой паре — единый для всех переводчиков клиента.
       </div>
     </div>
     <div class="modal-footer">
