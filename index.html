@@ -459,7 +459,7 @@
             <div class="emp-detail-email" id="cd-email">—</div>
             <div style="margin-top: 6px;" id="cd-meta"></div>
             <div class="edit-actions">
-              <button class="btn btn-ghost btn-sm" onclick="openAddPrepaymentModal()">+ Внести предоплату</button>
+              <button class="btn btn-ghost btn-sm" onclick="openAttachTranslatorModal()">+ Переводчик</button>
               <button class="btn btn-ghost btn-sm" onclick="openEditClientModal()">✎ Редактировать</button>
             </div>
           </div>
@@ -1148,6 +1148,43 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeEditClientModal()">Отмена</button>
       <button id="btn-save-edit-client" class="btn" onclick="saveEditClient()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     МОДАЛКА: ПРИВЯЗКА ПЕРЕВОДЧИКА К КЛИЕНТУ
+     ══════════════════════════════════════════════════════════════ -->
+<div id="attach-translator-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 480px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Добавить переводчика</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="attach-translator-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeAttachTranslatorModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="attach-translator-error" class="error hidden"></div>
+
+      <div class="field">
+        <label class="field-label">Свободный переводчик <span style="color: #DC2626;">*</span></label>
+        <select id="attach-translator-select" class="select">
+          <option value="">— выберите переводчика —</option>
+        </select>
+        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+          Показаны только переводчики без привязанного клиента.
+        </div>
+      </div>
+
+      <!-- Предупреждение о недостающих тарифах -->
+      <div id="attach-translator-rates-warn" class="hidden" style="background: #FEF3C7; border-left: 3px solid #B45309; border-radius: 8px; padding: 10px 14px; margin-top: 12px; font-size: 12px; color: #92400E;">
+        <span id="attach-translator-rates-warn-text"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAttachTranslatorModal()">Отмена</button>
+      <button id="btn-attach-translator" class="btn" onclick="attachTranslator()">Привязать</button>
     </div>
   </div>
 </div>

@@ -5097,6 +5097,121 @@
     }
   }
 
+  // ── МОДАЛКА: ПРИВЯЗКА ПЕРЕВОДЧИКА К КЛИЕНТУ ─────────────────────────
+  async function openAttachTranslatorModal() {
+    if (!clientDetailId) return;
+    hideError('attach-translator-error');
+    document.getElementById('attach-translator-rates-warn').classList.add('hidden');
+
+    // Название клиента в подзаголовок
+    const nameEl = document.getElementById('cd-name');
+    document.getElementById('attach-translator-subtitle').textContent =
+      'Клиент: ' + (nameEl ? nameEl.textContent : '');
+
+    // Загружаем свободных переводчиков (client_id IS NULL) + их пары
+    const sel = document.getElementById('attach-translator-select');
+    sel.innerHTML = '<option value="">— выберите переводчика —</option>';
+
+    const { data: free, error } = await sb
+      .from('users')
+      .select('id, name, translator_pairs ( language_pair_id, language_pairs (code) )')
+      .eq('role', 'translator')
+      .eq('is_active', true)
+      .is('client_id', null)
+      .order('name');
+
+    if (error) {
+      showError('attach-translator-error', 'Ошибка загрузки: ' + error.message);
+      return;
+    }
+
+    // Кеш пар переводчика — для проверки недостающих тарифов клиента
+    window._attachFreeCache = {};
+    for (const t of (free || [])) {
+      window._attachFreeCache[t.id] = t;
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    }
+
+    if ((free || []).length === 0) {
+      sel.innerHTML = '<option value="">— нет свободных переводчиков —</option>';
+    }
+
+    // При выборе — проверяем, есть ли у клиента тарифы под пары переводчика
+    sel.onchange = () => checkAttachTranslatorRates(sel.value);
+
+    document.getElementById('attach-translator-modal').classList.add('open');
+  }
+
+  // Проверяет, для всех ли языковых пар переводчика у клиента задан тариф.
+  // Если чего-то не хватает — показывает предупреждение (не блокирует привязку).
+  async function checkAttachTranslatorRates(userId) {
+    const warn = document.getElementById('attach-translator-rates-warn');
+    if (!userId || !window._attachFreeCache || !window._attachFreeCache[userId]) {
+      warn.classList.add('hidden');
+      return;
+    }
+    const t = window._attachFreeCache[userId];
+    const pairs = (t.translator_pairs || []);
+    if (pairs.length === 0) {
+      warn.classList.add('hidden');
+      return;
+    }
+
+    // Тарифы клиента
+    const { data: rates } = await sb
+      .from('client_rates')
+      .select('language_pair_id')
+      .eq('client_id', clientDetailId);
+    const haveRates = new Set((rates || []).map(r => r.language_pair_id));
+
+    const missing = pairs
+      .filter(p => !haveRates.has(p.language_pair_id))
+      .map(p => p.language_pairs.code);
+
+    if (missing.length > 0) {
+      document.getElementById('attach-translator-rates-warn-text').textContent =
+        `У клиента не задан тариф для пар: ${missing.join(', ')}. Доход по этим парам будет $0, пока не зададите тариф через «Редактировать».`;
+      warn.classList.remove('hidden');
+    } else {
+      warn.classList.add('hidden');
+    }
+  }
+
+  function closeAttachTranslatorModal() {
+    document.getElementById('attach-translator-modal').classList.remove('open');
+  }
+
+  async function attachTranslator() {
+    hideError('attach-translator-error');
+    const btn = document.getElementById('btn-attach-translator');
+    const userId = document.getElementById('attach-translator-select').value;
+
+    if (!userId) {
+      showError('attach-translator-error', 'Выберите переводчика.');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Привязываем…';
+    try {
+      const { error } = await sb
+        .from('users')
+        .update({ client_id: clientDetailId })
+        .eq('id', userId);
+      if (error) throw new Error(error.message);
+
+      invalidateCache('clientProfit:');
+      closeAttachTranslatorModal();
+      await renderClientDetail();
+    } catch (e) {
+      showError('attach-translator-error', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Привязать';
+    }
+  }
+
   // ── МОДАЛКА: ВНЕСЕНИЕ ПРЕДОПЛАТЫ (под конкретного переводчика) ───────
   let prepayUserId = null; // переводчик, которому вносим предоплату
 
@@ -5288,6 +5403,9 @@
   });
   document.getElementById('add-prepayment-modal').addEventListener('click', e => {
     if (e.target.id === 'add-prepayment-modal') closeAddPrepaymentModal();
+  });
+  document.getElementById('attach-translator-modal').addEventListener('click', e => {
+    if (e.target.id === 'attach-translator-modal') closeAttachTranslatorModal();
   });
   document.getElementById('req-filter').addEventListener('change', () => loadRequests());
 
