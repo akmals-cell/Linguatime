@@ -139,7 +139,7 @@
 
   async function loadProfile(userId) {
     const { data, error } = await sb.from('users')
-      .select('id, email, name, role, timezone, is_active, is_super_admin')
+      .select('id, email, name, role, timezone, is_active, is_super_admin, can_access_clients')
       .eq('id', userId).single();
 
     if (error || !data) {
@@ -162,6 +162,11 @@
     if (data.role === 'manager') {
       document.getElementById('nav-manager').classList.remove('hidden');
       document.getElementById('nav-translator').classList.add('hidden');
+      // Секция «Клиенты» — только для менеджеров с доступом
+      const clientsNav = document.querySelector('#nav-manager [data-page="clients"]');
+      if (clientsNav) {
+        clientsNav.style.display = data.can_access_clients ? '' : 'none';
+      }
       showScreen('app');
       showPage('dashboard');
       await loadLanguagePairs();
@@ -295,7 +300,7 @@
 
     // Загружаем менеджеров
     const { data: managers, error } = await sb.from('users')
-      .select('id, email, name, is_active, is_super_admin, created_at')
+      .select('id, email, name, is_active, is_super_admin, can_access_clients, created_at')
       .eq('role', 'manager')
       .order('created_at', { ascending: true });
 
@@ -356,13 +361,25 @@
         ? '<span class="badge badge-good">● Активен</span>'
         : '<span class="badge badge-warn">● Неактивен</span>';
 
-      // Кнопка деактивации/активации (только super-admin, не себя, не других super-admin)
+      // Бейдж доступа к клиентам
+      const clientsBadge = m.can_access_clients
+        ? '<span class="badge badge-info" style="margin-left:6px;">Клиенты ✓</span>'
+        : '<span class="badge badge-neutral" style="margin-left:6px;">Клиенты ✕</span>';
+
+      // Кнопки действий (только super-admin, не себя, не других super-admin)
       let actionBtn = '';
       if (currentUser.is_super_admin && !isCurrent && !m.is_super_admin) {
-        if (m.is_active) {
-          actionBtn = `<button class="btn btn-ghost btn-sm" onclick="toggleManagerActive('${m.id}', false, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Деактивировать</button>`;
+        // Тумблер доступа к клиентам
+        if (m.can_access_clients) {
+          actionBtn += `<button class="btn btn-ghost btn-sm" onclick="toggleClientsAccess('${m.id}', false, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Убрать клиентов</button> `;
         } else {
-          actionBtn = `<button class="btn btn-ghost btn-sm" onclick="toggleManagerActive('${m.id}', true, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Активировать</button>`;
+          actionBtn += `<button class="btn btn-ghost btn-sm" onclick="toggleClientsAccess('${m.id}', true, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Дать клиентов</button> `;
+        }
+        // Деактивация/активация
+        if (m.is_active) {
+          actionBtn += `<button class="btn btn-ghost btn-sm" onclick="toggleManagerActive('${m.id}', false, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Деактивировать</button>`;
+        } else {
+          actionBtn += `<button class="btn btn-ghost btn-sm" onclick="toggleManagerActive('${m.id}', true, '${escapeHtml(m.name).replace(/'/g, "\\'")}')">Активировать</button>`;
         }
       }
 
@@ -373,7 +390,7 @@
           <div class="emp-cell">
             <div class="emp-avatar">${initials}</div>
             <div>
-              <div class="emp-name">${escapeHtml(m.name)}${badges}</div>
+              <div class="emp-name">${escapeHtml(m.name)}${badges}${clientsBadge}</div>
             </div>
           </div>
         </td>
@@ -465,6 +482,22 @@
     try {
       const { error } = await sb.from('users')
         .update({ is_active: makeActive })
+        .eq('id', userId);
+      if (error) throw new Error(error.message);
+      await loadManagers();
+    } catch (e) {
+      alert('Ошибка: ' + e.message);
+    }
+  }
+
+  // Выдать/убрать доступ к секции «Клиенты» (только super-admin)
+  async function toggleClientsAccess(userId, grant, managerName) {
+    const action = grant ? 'дать доступ к клиентам' : 'убрать доступ к клиентам';
+    if (!confirm(`Точно ${action} для ${managerName}?`)) return;
+
+    try {
+      const { error } = await sb.from('users')
+        .update({ can_access_clients: grant })
         .eq('id', userId);
       if (error) throw new Error(error.message);
       await loadManagers();
@@ -5598,7 +5631,14 @@
       else if (page === 'my-profile') await loadMyProfile();
       else if (page === 'calendar') await loadCalendar();
       else if (page === 'payroll') await loadPayroll();
-      else if (page === 'clients') await loadClients();
+      else if (page === 'clients') {
+        // Защита: секция клиентов недоступна без флага
+        if (!currentUser || !currentUser.can_access_clients) {
+          showError('clients-error', 'Нет доступа к секции «Клиенты».');
+          return;
+        }
+        await loadClients();
+      }
     });
   });
   document.getElementById('add-modal').addEventListener('click', e => {
