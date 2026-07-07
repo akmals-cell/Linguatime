@@ -1975,6 +1975,10 @@
           .update({ client_id: newClientId })
           .eq('id', tdUser.id);
         if (clientLinkErr) throw new Error('Привязка к клиенту: ' + clientLinkErr.message);
+        // При привязке к клиенту — автозаведение тренинга (если ещё нет)
+        if (newClientId) {
+          await createTrainingForTranslator(tdUser.id, newClientId);
+        }
         // Клиент изменился — чистим кеш прибыльности
         invalidateCache('clientProfit:');
       }
@@ -4525,6 +4529,7 @@
       margin_pct:       Number(row.margin_pct) || 0,
       translator_count: Number(row.translator_count) || 0,
       rates_by_pair:    row.rates_by_pair || [],
+      training_summary: row.training_summary || null,
       translators:      (row.translators || []).map(normalizeTranslatorObj),
     };
   }
@@ -4544,6 +4549,7 @@
       hours_remaining:    Number(t.hours_remaining) || 0,
       total_paid:         Number(t.total_paid) || 0,
       unearned_loss:      Number(t.unearned_loss) || 0,
+      training:           t.training || null,
       prepay_history:     t.prepay_history || [],
       breakdown:          t.breakdown || {},
     };
@@ -4914,6 +4920,130 @@
       bdHtml += '</tbody></table>';
       bdEl.innerHTML = bdHtml;
     }
+
+    // ── Тренинги ────────────────────────────────────────────────────────
+    renderTrainingBlock(r);
+  }
+
+  // Статусы тренинга → человекочитаемо + цвет
+  function trainingStatusMeta(status) {
+    switch (status) {
+      case 'payable': return { label: 'Готов к выплате', cls: 'badge-warn', color: '#B45309' };
+      case 'paid':    return { label: 'Выплачено',       cls: 'badge-good', color: '#16A34A' };
+      case 'waived':  return { label: 'Не выплачивается', cls: 'badge-neutral', color: '#94A3B8' };
+      default:        return { label: 'Ждёт 3 мес',      cls: 'badge-neutral', color: '#475569' };
+    }
+  }
+
+  function renderTrainingBlock(r) {
+    const summaryEl = document.getElementById('cd-training-summary');
+    const bodyEl = document.getElementById('cd-training');
+    const trainAlert = document.getElementById('cd-training-alert');
+
+    // Сводка по клиенту
+    const ts = r.training_summary;
+    if (ts) {
+      const parts = [];
+      parts.push(`доход $${Number(ts.revenue).toFixed(2)}`);
+      if (Number(ts.cost_paid) > 0) parts.push(`выплачено $${Number(ts.cost_paid).toFixed(2)}`);
+      if (Number(ts.payable_count) > 0) parts.push(`<span style="color:#B45309; font-weight:600;">${ts.payable_count} к выплате</span>`);
+      summaryEl.innerHTML = parts.join(' · ');
+
+      // Алерт «пора выплатить» — если есть созревшие тренинги
+      if (Number(ts.payable_count) > 0) {
+        document.getElementById('cd-training-alert-text').textContent =
+          `${ts.payable_count} ${pluralize(ts.payable_count,'переводчик отработал','переводчика отработали','переводчиков отработали')} 3 месяца — пора выплатить тренинг.`;
+        trainAlert.classList.remove('hidden');
+      } else {
+        trainAlert.classList.add('hidden');
+      }
+    } else {
+      summaryEl.textContent = 'нет данных';
+      trainAlert.classList.add('hidden');
+    }
+
+    // Переводчики, у которых есть тренинг
+    const withTraining = r.translators.filter(t => t.training);
+    if (withTraining.length === 0) {
+      bodyEl.innerHTML = '<div class="empty-state"><div class="empty-state-text">Тренинги не заведены. Они создаются автоматически при привязке переводчика к клиенту.</div></div>';
+      return;
+    }
+
+    let html = `<table><thead><tr>
+      <th>Переводчик</th>
+      <th class="numeric">Часы</th>
+      <th class="numeric">Доход</th>
+      <th class="numeric">Расход</th>
+      <th class="numeric">Маржа</th>
+      <th>Статус</th>
+      <th></th>
+    </tr></thead><tbody>`;
+
+    for (const t of withTraining) {
+      const tr = t.training;
+      const meta = trainingStatusMeta(tr.status);
+      const revenue = Number(tr.revenue) || 0;
+      const cost = Number(tr.cost) || 0;
+      const margin = Number(tr.margin) || 0;
+
+      // Кнопки действий по статусу
+      let actions = '';
+      if (tr.status === 'payable') {
+        actions = `<button class="btn btn-sm" style="padding:3px 10px; font-size:12px;" onclick="markTrainingPaid('${t.user_id}')">Выплатить</button>
+                   <button class="btn btn-ghost btn-sm" style="padding:3px 10px; font-size:12px;" onclick="markTrainingWaived('${t.user_id}')">Не выплачивать</button>`;
+      } else if (tr.status === 'paid') {
+        actions = `<span style="font-size:11px; color:#94A3B8;">${tr.paid_at ? formatDateRu(tr.paid_at) : ''}</span>`;
+      } else if (tr.status === 'waived') {
+        actions = `<button class="btn btn-ghost btn-sm" style="padding:3px 10px; font-size:12px;" onclick="markTrainingPaid('${t.user_id}')">Всё же выплатить</button>`;
+      } else {
+        // pending — показываем сколько ждать
+        actions = `<span style="font-size:11px; color:#94A3B8;">${tr.start_date ? 'с ' + formatDateRu(tr.start_date) : 'ждёт первого дня'}</span>`;
+      }
+
+      html += `<tr>
+        <td>${escapeHtml(t.translator_name)}${!t.is_active ? ' <span class="badge badge-warn" style="font-size:10px; padding:1px 6px;">деактивирован</span>' : ''}</td>
+        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${Number(tr.hours).toFixed(0)} ч</td>
+        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${revenue.toFixed(2)}</td>
+        <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${cost.toFixed(2)}</td>
+        <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:#16A34A;">$${margin.toFixed(2)}</td>
+        <td><span class="badge ${meta.cls}">${meta.label}</span></td>
+        <td style="text-align:right; white-space:nowrap;">${actions}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    bodyEl.innerHTML = html;
+  }
+
+  // Отметить тренинг выплаченным (расход фиксируется, дата = сегодня)
+  async function markTrainingPaid(userId) {
+    if (!confirm('Отметить тренинг как выплаченный? Это зафиксирует расход по тренингу.')) return;
+    try {
+      const { error } = await sb
+        .from('client_trainings')
+        .update({ payout_status: 'paid', paid_at: new Date().toISOString().split('T')[0] })
+        .eq('user_id', userId);
+      if (error) throw new Error(error.message);
+      invalidateCache('clientProfit:');
+      await renderClientDetail();
+    } catch (e) {
+      showError('cd-error', 'Не удалось отметить выплату: ' + e.message);
+    }
+  }
+
+  // Отметить тренинг как не подлежащий выплате (ушёл раньше срока и т.п.)
+  async function markTrainingWaived(userId) {
+    if (!confirm('Отметить тренинг как «не выплачивается»? Обычно — если переводчик ушёл раньше 3 месяцев.')) return;
+    try {
+      const { error } = await sb
+        .from('client_trainings')
+        .update({ payout_status: 'waived', paid_at: null })
+        .eq('user_id', userId);
+      if (error) throw new Error(error.message);
+      invalidateCache('clientProfit:');
+      await renderClientDetail();
+    } catch (e) {
+      showError('cd-error', 'Не удалось изменить статус: ' + e.message);
+    }
   }
 
   // ── МОДАЛКА: СОЗДАНИЕ КЛИЕНТА (тарифы на клиента по парам) ───────────
@@ -5256,6 +5386,11 @@
         .eq('id', userId);
       if (error) throw new Error(error.message);
 
+      // Автозаведение тренинга (70 ч) со снимком ставок на момент выхода.
+      // Тариф клиента — по основной паре переводчика; ставка переводчика — оттуда же.
+      // Если записи ещё нет (UNIQUE user_id) — создаём; если есть — не трогаем.
+      await createTrainingForTranslator(userId, clientDetailId);
+
       invalidateCache('clientProfit:');
       closeAttachTranslatorModal();
       await renderClientDetail();
@@ -5264,6 +5399,49 @@
     } finally {
       btn.disabled = false; btn.textContent = 'Привязать';
     }
+  }
+
+  // Создаёт запись тренинга для переводчика при выходе на клиента.
+  // Снимок ставок: тариф клиента и ставка переводчика по основной паре.
+  // start_date не заполняем — RPC вычислит по первому рабочему дню.
+  async function createTrainingForTranslator(userId, clientId) {
+    // Уже есть тренинг? (UNIQUE user_id) — не дублируем
+    const { data: existing } = await sb
+      .from('client_trainings')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (existing) return;
+
+    // Основная пара переводчика + его ставка
+    const { data: pairs } = await sb
+      .from('translator_pairs')
+      .select('language_pair_id, rate_per_hour, is_primary')
+      .eq('user_id', userId);
+
+    let clientRate = 0, translatorRate = 0;
+    if (pairs && pairs.length > 0) {
+      const primary = pairs.find(p => p.is_primary) || pairs[0];
+      translatorRate = Number(primary.rate_per_hour) || 0;
+      // Тариф клиента по этой паре
+      const { data: cr } = await sb
+        .from('client_rates')
+        .select('rate_per_hour')
+        .eq('client_id', clientId)
+        .eq('language_pair_id', primary.language_pair_id)
+        .maybeSingle();
+      if (cr) clientRate = Number(cr.rate_per_hour) || 0;
+    }
+
+    await sb.from('client_trainings').insert({
+      client_id: clientId,
+      user_id: userId,
+      training_hours: 70,
+      client_rate: clientRate,
+      translator_rate: translatorRate,
+      payout_status: 'pending',
+      created_by: currentUser.id,
+    });
   }
 
   // ── МОДАЛКА: ВНЕСЕНИЕ ПРЕДОПЛАТЫ (под конкретного переводчика) ───────
