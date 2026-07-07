@@ -132,6 +132,10 @@
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Зарплата
       </button>
+      <button class="sb-item" data-page="clients">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        Клиенты
+      </button>
     </div>
 
     <div id="nav-translator" class="sb-section hidden">
@@ -389,6 +393,172 @@
 
       <div class="section">
         <div id="payroll-content">
+          <div class="loading-state">Загрузка…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         СТРАНИЦА: КЛИЕНТЫ — список
+         ══════════════════════════════════════════════════════════ -->
+    <div id="page-clients" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Клиенты</div>
+          <div class="page-subtitle" id="clients-subtitle">Загрузка…</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <select class="select" id="clients-month-select" style="width: auto;"></select>
+          <button class="btn" onclick="openAddClientModal()">+ Добавить клиента</button>
+        </div>
+      </div>
+
+      <div id="clients-error" class="error hidden"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi kpi-blue">
+          <div class="kpi-label">Доход (месяц)</div>
+          <div class="kpi-value" id="clients-kpi-revenue">—</div>
+          <div class="kpi-meta">по всем клиентам</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Расход (зарплата)</div>
+          <div class="kpi-value" id="clients-kpi-cost">—</div>
+          <div class="kpi-meta">переводчикам</div>
+        </div>
+        <div class="kpi kpi-green">
+          <div class="kpi-label">Прибыль</div>
+          <div class="kpi-value" id="clients-kpi-profit">—</div>
+          <div class="kpi-meta" id="clients-kpi-margin">маржа —</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Резерв (осталось)</div>
+          <div class="kpi-value" id="clients-kpi-reserve">—</div>
+          <div class="kpi-meta" id="clients-kpi-reserve-meta">из — куплено</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div id="clients-content">
+          <div class="loading-state">Загрузка…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         СТРАНИЦА: КЛИЕНТ — детальная карточка
+         ══════════════════════════════════════════════════════════ -->
+    <div id="page-client-detail" class="page hidden">
+      <button class="back-link" onclick="backToClients()">← Назад к клиентам</button>
+
+      <div class="page-header" style="align-items: flex-start;">
+        <div class="emp-detail-header">
+          <div class="emp-detail-avatar" id="cd-avatar">??</div>
+          <div>
+            <div class="emp-detail-name" id="cd-name">—</div>
+            <div class="emp-detail-email" id="cd-email">—</div>
+            <div style="margin-top: 6px;" id="cd-meta"></div>
+            <div class="edit-actions">
+              <button class="btn btn-ghost btn-sm" onclick="openAddPrepaymentModal()">+ Внести предоплату</button>
+              <button class="btn btn-ghost btn-sm" onclick="openEditClientModal()">✎ Редактировать</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <select class="select" id="cd-month-select" style="width: auto;"></select>
+        </div>
+      </div>
+
+      <div id="cd-error" class="error hidden"></div>
+
+      <!-- Предупреждение о малом резерве -->
+      <div id="cd-reserve-alert" class="hidden" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #FEF3C7; border-left: 3px solid #B45309; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #92400E;">
+        <span>⚠</span>
+        <span id="cd-reserve-alert-text">Остаток резерва менее 20 часов — уведомите клиента о пополнении.</span>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi kpi-blue">
+          <div class="kpi-label">Доход (месяц)</div>
+          <div class="kpi-value" id="cd-kpi-revenue">—</div>
+          <div class="kpi-meta" id="cd-kpi-revenue-meta">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Расход (зарплата)</div>
+          <div class="kpi-value" id="cd-kpi-cost">—</div>
+          <div class="kpi-meta" id="cd-kpi-cost-meta">—</div>
+        </div>
+        <div class="kpi kpi-green">
+          <div class="kpi-label">Прибыль</div>
+          <div class="kpi-value" id="cd-kpi-profit">—</div>
+          <div class="kpi-meta" id="cd-kpi-margin">маржа —</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Резерв (осталось)</div>
+          <div class="kpi-value" id="cd-kpi-reserve">—</div>
+          <div class="kpi-meta" id="cd-kpi-reserve-meta">—</div>
+        </div>
+      </div>
+
+      <!-- Двухколоночный блок: резерв + тарифы -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+
+        <!-- Резерв предоплаты -->
+        <div class="section">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #E5E7EB;">
+            <div style="font-size: 14px; font-weight: 600;">Резерв предоплаты</div>
+            <span id="cd-reserve-mode-badge" class="badge badge-neutral">—</span>
+          </div>
+          <div style="padding: 16px 18px;">
+            <!-- Прогресс-бар резерва -->
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+              <span style="font-size: 12px; color: #475569;">Использовано</span>
+              <span style="font-size: 13px; font-weight: 500;" id="cd-reserve-used-label">— из —</span>
+            </div>
+            <div style="width: 100%; height: 10px; background: #F1F5F9; border-radius: 100px; overflow: hidden; margin: 8px 0; border: 1px solid #E5E7EB;">
+              <div id="cd-reserve-bar" style="height: 100%; border-radius: 100px; background: #16A34A; width: 0%; transition: width 0.3s;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8;">
+              <span>0 ч</span>
+              <span id="cd-reserve-remaining-label" style="font-weight: 500; color: #16A34A;">— ч осталось</span>
+              <span id="cd-reserve-total-label">— ч</span>
+            </div>
+
+            <!-- История предоплат -->
+            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #E5E7EB;">
+              <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 500;">История предоплат</div>
+              <div id="cd-prepay-history">
+                <div class="loading-state" style="padding: 20px 0;">Загрузка…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Тарифы по парам -->
+        <div class="section">
+          <div style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB;">
+            <div style="font-size: 14px; font-weight: 600;">Тарифы по парам</div>
+          </div>
+          <div style="padding: 12px 18px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #E5E7EB; font-family: 'JetBrains Mono', monospace;">
+              <span>Пара</span>
+              <span>Переводчик → Клиент</span>
+            </div>
+            <div id="cd-rates-by-pair">
+              <div class="loading-state" style="padding: 20px 0;">Загрузка…</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Разбивка по парам за месяц -->
+      <div class="section">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #E5E7EB;">
+          <div style="font-size: 14px; font-weight: 600;">Разбивка по парам</div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em;" id="cd-breakdown-month">—</div>
+        </div>
+        <div id="cd-breakdown">
           <div class="loading-state">Загрузка…</div>
         </div>
       </div>
@@ -846,6 +1016,20 @@
         </div>
         <div id="rate-history-list" class="rate-history-list hidden"></div>
       </div>
+
+      <!-- ── Привязка к клиенту ──────────────────────────────────────── -->
+      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #E5E7EB;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <div class="field-label" style="margin: 0;">Клиент</div>
+          <span id="edit-client-current-badge" class="badge badge-neutral hidden"></span>
+        </div>
+        <div style="font-size: 11px; color: #94A3B8; margin-bottom: 10px;">
+          Один переводчик — один клиент. Тарифы клиента по парам задаются отдельно на странице «Клиенты».
+        </div>
+        <select id="edit-translator-client" class="select">
+          <option value="">— без клиента —</option>
+        </select>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeEditModal()">Отмена</button>
@@ -870,6 +1054,167 @@
       <button id="btn-manager-fill-day" class="btn hidden" onclick="openDayModalAsManager()">+ Заполнить за переводчика</button>
       <button id="btn-manager-edit-day" class="btn hidden" onclick="openDayModalAsManager()">✎ Редактировать</button>
       <button class="btn btn-ghost" onclick="closeDayViewModal()" style="margin-left: auto;">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     МОДАЛКА: СОЗДАНИЕ КЛИЕНТА
+     ══════════════════════════════════════════════════════════════ -->
+<div id="add-client-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 520px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="add-client-modal-title">Новый клиент</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Клиент привязывается к одному переводчику</div>
+      </div>
+      <button class="modal-close" onclick="closeAddClientModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="add-client-error" class="error hidden"></div>
+
+      <div class="field">
+        <label class="field-label">Название клиента <span style="color: #DC2626;">*</span></label>
+        <input type="text" id="client-name" class="input" placeholder="Например: Samsung Korea">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Контактный email</label>
+        <input type="email" id="client-email" class="input" placeholder="contact@company.com">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Переводчик <span style="color: #DC2626;">*</span></label>
+        <select id="client-translator" class="select">
+          <option value="">— выберите переводчика —</option>
+        </select>
+        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+          Только переводчики без привязанного клиента.
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Заметка</label>
+        <textarea id="client-note" class="input" rows="2" placeholder="Дополнительная информация о клиенте…"></textarea>
+      </div>
+
+      <!-- Тарифы клиента по языковым парам переводчика -->
+      <div id="client-rates-wrap" class="hidden">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px;">
+          <div class="field-label" style="margin: 0;">Тарифы клиента по парам <span style="color: #DC2626;">*</span></div>
+        </div>
+        <div id="client-rates-list"></div>
+        <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
+          Тариф клиента — цена за которую агентство продаёт час переводчика клиенту. Должен быть выше ставки переводчика.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAddClientModal()">Отмена</button>
+      <button id="btn-save-client" class="btn" onclick="saveClient()">Создать клиента</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     МОДАЛКА: РЕДАКТИРОВАНИЕ КЛИЕНТА
+     ══════════════════════════════════════════════════════════════ -->
+<div id="edit-client-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 520px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Редактирование клиента</div>
+      </div>
+      <button class="modal-close" onclick="closeEditClientModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="edit-client-error" class="error hidden"></div>
+
+      <div class="field">
+        <label class="field-label">Название клиента <span style="color: #DC2626;">*</span></label>
+        <input type="text" id="edit-client-name" class="input">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Контактный email</label>
+        <input type="email" id="edit-client-email" class="input">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Заметка</label>
+        <textarea id="edit-client-note" class="input" rows="2"></textarea>
+      </div>
+
+      <!-- Тарифы клиента по парам — редактирование -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px;">
+        <div class="field-label" style="margin: 0;">Тарифы клиента по парам</div>
+      </div>
+      <div id="edit-client-rates-list"></div>
+      <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
+        Тариф клиента — цена за которую агентство продаёт час переводчика клиенту.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEditClientModal()">Отмена</button>
+      <button id="btn-save-edit-client" class="btn" onclick="saveEditClient()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     МОДАЛКА: ВНЕСЕНИЕ ПРЕДОПЛАТЫ
+     ══════════════════════════════════════════════════════════════ -->
+<div id="add-prepayment-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 480px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Внести предоплату</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="prepay-modal-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeAddPrepaymentModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="add-prepayment-error" class="error hidden"></div>
+
+      <!-- Текущий резерв (readonly) -->
+      <div style="background: #FAFAFA; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; border-left: 3px solid #1E40AF;">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace;">Текущий остаток резерва</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: #1E40AF;" id="prepay-current-reserve">— ч</div>
+        <div style="font-size: 11px; color: #475569; margin-top: 2px;" id="prepay-reserve-meta">—</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Часов куплено <span style="color: #DC2626;">*</span></label>
+          <input type="number" id="prepay-hours" class="input" min="1" step="0.5" placeholder="160">
+          <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Стандартно — 160 ч</div>
+        </div>
+        <div class="field">
+          <label class="field-label">Средний тариф ($/ч) <span style="color: #DC2626;">*</span></label>
+          <input type="number" id="prepay-rate" class="input" min="0.5" step="0.5" placeholder="40.00">
+          <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Для расчёта суммы</div>
+        </div>
+      </div>
+
+      <!-- Автоподсчёт суммы -->
+      <div style="background: #DCFCE7; border-radius: 8px; padding: 12px 14px; margin: 4px 0 14px; display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 13px; color: #475569;">Итого к оплате:</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: #16A34A;" id="prepay-total-amount">$0.00</span>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Дата оплаты <span style="color: #DC2626;">*</span></label>
+        <input type="date" id="prepay-paid-at" class="input">
+      </div>
+
+      <div class="field">
+        <label class="field-label">Заметка</label>
+        <input type="text" id="prepay-note" class="input" placeholder="Например: первая предоплата, январь 2025">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeAddPrepaymentModal()">Отмена</button>
+      <button id="btn-save-prepayment" class="btn" onclick="savePrepayment()">Внести предоплату</button>
     </div>
   </div>
 </div>
