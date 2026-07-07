@@ -4533,6 +4533,7 @@
     return {
       user_id:            t.user_id,
       translator_name:    t.translator_name,
+      is_active:          t.is_active !== false, // по умолчанию активен
       revenue:            Number(t.revenue) || 0,
       cost:               Number(t.cost) || 0,
       profit:             Number(t.profit) || 0,
@@ -4542,6 +4543,7 @@
       hours_worked_total: Number(t.hours_worked_total) || 0,
       hours_remaining:    Number(t.hours_remaining) || 0,
       total_paid:         Number(t.total_paid) || 0,
+      unearned_loss:      Number(t.unearned_loss) || 0,
       prepay_history:     t.prepay_history || [],
       breakdown:          t.breakdown || {},
     };
@@ -4566,16 +4568,23 @@
     return { mode: 'Предоплата', badgeCls: 'badge-good', barColor: '#16A34A', textColor: '#16A34A' };
   }
 
-  // Сводный режим резерва клиента: худший из его переводчиков
+  // Сводный статус клиента для бейджа в списке. Приоритет:
+  //   • убыток (неактивный с положительным остатком) → красный «Убыток»
+  //   • резерв на исходе (активный, 0 < остаток ≤ 20) → жёлтый «Мало резерва»
+  //   • иначе → нейтральный «—» (постоплата/норма ничем не выделяется)
   function clientReserveStatus(translators) {
     if (!translators || translators.length === 0) {
       return { mode: '—', badgeCls: 'badge-neutral', barColor: '#94A3B8', textColor: '#94A3B8' };
     }
-    const hasPost = translators.some(t => t.hours_remaining <= 0);
-    if (hasPost) return reserveStatus(0);
-    const hasLow = translators.some(t => t.hours_remaining <= 20);
-    if (hasLow) return reserveStatus(10);
-    return reserveStatus(100);
+    const hasLoss = translators.some(t => !t.is_active && t.hours_remaining > 0);
+    if (hasLoss) {
+      return { mode: 'Убыток', badgeCls: 'badge-warn', barColor: '#DC2626', textColor: '#DC2626' };
+    }
+    const hasLow = translators.some(t => t.is_active && t.hours_remaining > 0 && t.hours_remaining <= 20);
+    if (hasLow) {
+      return { mode: 'Мало резерва', badgeCls: 'badge-warn', barColor: '#B45309', textColor: '#B45309' };
+    }
+    return { mode: '—', badgeCls: 'badge-neutral', barColor: '#16A34A', textColor: '#16A34A' };
   }
 
   // ── СТРАНИЦА: СПИСОК КЛИЕНТОВ ───────────────────────────────────────
@@ -4760,29 +4769,56 @@
     document.getElementById('cd-kpi-reserve').textContent = totalRemaining.toFixed(0) + ' ч';
     document.getElementById('cd-kpi-reserve-meta').textContent = 'из ' + totalBought.toFixed(0) + ' ч';
 
-    // Алерт: есть ли переводчик с малым/исчерпанным резервом
+    // Алерт — приоритет: убыток (красный) > резерв на исходе (жёлтый) > тишина.
+    //
+    //  • Убыток: неактивный переводчик с положительным остатком. Клиент оплатил
+    //    часы, которые переводчик не отработал (уволился). Резерв вырабатывается
+    //    другими, но для агентства это минус. Показываем сумму.
+    //  • На исходе: активный переводчик, у которого резерв заканчивается
+    //    (0 < остаток ≤ 20). Сигнал «первый месяц кончается, скоро постоплата».
+    //  • Всё остальное (в т.ч. любой минус у активных) — норма, молчим.
     const alert = document.getElementById('cd-reserve-alert');
-    const lowOnes = r.translators.filter(t => t.hours_remaining > 0 && t.hours_remaining <= 20);
-    const postOnes = r.translators.filter(t => t.hours_remaining <= 0);
-    if (postOnes.length > 0) {
-      document.getElementById('cd-reserve-alert-text').textContent =
-        `У ${postOnes.length} ${pluralize(postOnes.length,'переводчика','переводчиков','переводчиков')} резерв исчерпан — постоплатный режим.`;
+    const alertText = document.getElementById('cd-reserve-alert-text');
+
+    const lossOnes = r.translators.filter(t => !t.is_active && t.hours_remaining > 0);
+    const lowOnes  = r.translators.filter(t => t.is_active && t.hours_remaining > 0 && t.hours_remaining <= 20);
+
+    if (lossOnes.length > 0) {
+      const totalLoss = lossOnes.reduce((s, t) => s + t.unearned_loss, 0);
+      const totalUnearnedH = lossOnes.reduce((s, t) => s + t.hours_remaining, 0);
+      const names = lossOnes.map(t => t.translator_name).join(', ');
+      // Красный стиль (убыток)
+      alert.style.background = '#FCEBEB';
+      alert.style.borderLeftColor = '#A32D2D';
+      alert.style.color = '#A32D2D';
+      alertText.textContent =
+        `Убыток по неотработанному резерву: ${names} деактивирован(ы), ` +
+        `осталось ${totalUnearnedH.toFixed(0)} ч оплаченного клиентом времени` +
+        (totalLoss > 0 ? ` (~$${totalLoss.toFixed(2)}).` : '.');
       alert.classList.remove('hidden');
     } else if (lowOnes.length > 0) {
-      document.getElementById('cd-reserve-alert-text').textContent =
-        `У ${lowOnes.length} ${pluralize(lowOnes.length,'переводчика','переводчиков','переводчиков')} осталось менее 20 ч резерва.`;
+      // Жёлтый стиль (резерв на исходе)
+      alert.style.background = '#FEF3C7';
+      alert.style.borderLeftColor = '#B45309';
+      alert.style.color = '#92400E';
+      alertText.textContent =
+        `У ${lowOnes.length} ${pluralize(lowOnes.length,'переводчика','переводчиков','переводчиков')} ` +
+        `резерв заканчивается (≤ 20 ч) — скоро переход на постоплату.`;
       alert.classList.remove('hidden');
     } else {
       alert.classList.add('hidden');
     }
 
-    // Блок «резерв клиента» в шапке двухколоночной секции —
-    // используем как сводку и режим
+    // Сводный бейдж резерва клиента — по новой логике риска
     const st = clientReserveStatus(r.translators);
     const modeBadge = document.getElementById('cd-reserve-mode-badge');
-    modeBadge.textContent = st.mode === 'Постоплата' ? 'Есть постоплата' :
-                            st.mode === 'Мало резерва' ? 'Мало резерва' : 'Предоплата';
-    modeBadge.className = 'badge ' + st.badgeCls;
+    if (st.mode === '—') {
+      modeBadge.classList.add('hidden');
+    } else {
+      modeBadge.classList.remove('hidden');
+      modeBadge.textContent = st.mode;
+      modeBadge.className = 'badge ' + st.badgeCls;
+    }
 
     const usedTotal = Math.max(0, totalBought - totalRemaining);
     const usedPct = totalBought > 0 ? Math.max(0, Math.min(100, usedTotal / totalBought * 100)) : 0;
@@ -4795,23 +4831,41 @@
     document.getElementById('cd-reserve-remaining-label').style.color = st.textColor;
     document.getElementById('cd-reserve-total-label').textContent = totalBought.toFixed(0) + ' ч';
 
-    // «История предоплат» в этой секции заменяем на список переводчиков клиента
-    // с индивидуальными резервами
+    // Список переводчиков клиента с индивидуальными резервами.
+    // Цвет и подпись отражают реальный смысл, а не просто знак остатка:
+    //   • неактивный с остатком > 0 → красный (убыток по неотработанному резерву)
+    //   • активный, 0 < остаток ≤ 20 → жёлтый (скоро постоплата)
+    //   • активный в минусе → норма (постоплата), нейтрально
     const histEl = document.getElementById('cd-prepay-history');
     histEl.innerHTML = r.translators.map(t => {
-      const tst = reserveStatus(t.hours_remaining);
+      let color, note;
+      if (!t.is_active && t.hours_remaining > 0) {
+        color = '#DC2626';
+        note = `убыток ~$${t.unearned_loss.toFixed(2)} · ${t.hours_remaining.toFixed(0)} ч не отработано`;
+      } else if (t.is_active && t.hours_remaining > 0 && t.hours_remaining <= 20) {
+        color = '#B45309';
+        note = `осталось ${t.hours_remaining.toFixed(0)} ч — скоро постоплата`;
+      } else if (t.hours_remaining > 0) {
+        color = '#16A34A';
+        note = `резерв ${t.hours_remaining.toFixed(0)} ч`;
+      } else {
+        color = '#94A3B8';
+        note = 'постоплата';
+      }
       const pct = t.hours_purchased > 0
         ? Math.max(0, Math.min(100, t.hours_remaining / t.hours_purchased * 100)) : 0;
+      const inactiveBadge = !t.is_active
+        ? ' <span class="badge badge-warn" style="font-size:10px; padding:1px 6px;">деактивирован</span>' : '';
       return `<div style="padding:10px 0; border-bottom:1px solid #F1F5F9;">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-          <span style="font-size:13px; color:#0F1B3D; font-weight:500;">${escapeHtml(t.translator_name)}</span>
-          <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:${tst.textColor};">${t.hours_remaining.toFixed(0)} ч</span>
+          <span style="font-size:13px; color:#0F1B3D; font-weight:500;">${escapeHtml(t.translator_name)}${inactiveBadge}</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:${color};">${t.hours_remaining.toFixed(0)} ч</span>
         </div>
         <div style="width:100%; height:6px; background:#F1F5F9; border:1px solid #E5E7EB; border-radius:100px; overflow:hidden;">
-          <div style="height:100%; width:${pct}%; background:${tst.barColor}; border-radius:100px;"></div>
+          <div style="height:100%; width:${pct}%; background:${color}; border-radius:100px;"></div>
         </div>
-        <div style="display:flex; justify-content:space-between; margin-top:3px;">
-          <span style="font-size:11px; color:#94A3B8;">куплено ${t.hours_purchased.toFixed(0)} ч</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:3px;">
+          <span style="font-size:11px; color:${color === '#94A3B8' ? '#94A3B8' : color};">${note}</span>
           <button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:11px;" onclick="openAddPrepaymentModal('${t.user_id}')">+ Предоплата</button>
         </div>
       </div>`;
