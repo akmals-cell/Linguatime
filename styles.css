@@ -1092,3 +1092,12 @@
   .mobile-topbar { display: none; }
   .mobile-bottom-nav { display: none; }
   .mobile-backdrop { display: none; }
+
+  /* ─── Биржа обмена графиками ─────────────────────────────────────── */
+  .swap-subhead { font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 10px; font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+  .swap-freeze-note { background: #F1F5F9; border-left: 3px solid #64748B; padding: 10px 14px; border-radius: 8px; font-size: 13px; color: #475569; }
+  .swap-listed-note { background: #F0FDF4; border-left: 3px solid #16A34A; padding: 10px 14px; border-radius: 8px; font-size: 13px; color: #166534; margin-bottom: 10px; }
+  .swap-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+  .swap-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer; }
+  .swap-check input { width: 16px; height: 16px; accent-color: #1E40AF; }
+  .swap-icall { margin-top: 14px; padding: 12px; background: #FAFAFA; border-radius: 8px; }

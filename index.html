@@ -128,6 +128,11 @@
         Запросы
         <span id="sb-req-badge" class="sb-badge hidden">0</span>
       </button>
+      <button class="sb-item" data-page="swaps">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Обмены графиков
+        <span id="sb-swap-badge" class="sb-badge hidden">0</span>
+      </button>
       <button class="sb-item" data-page="payroll">
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         Зарплата
@@ -147,6 +152,10 @@
       <button class="sb-item" data-page="my-profile">
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Мой профиль
+      </button>
+      <button class="sb-item" data-page="swap-market">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Биржа обменов
       </button>
     </div>
 
@@ -678,6 +687,50 @@
       </div>
     </div>
 
+
+    <div id="page-swaps" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Обмены графиков</div>
+          <div class="page-subtitle" id="swaps-subtitle">Загрузка…</div>
+        </div>
+        <div>
+          <select class="select" id="swaps-filter" style="width: auto;">
+            <option value="active">В работе</option>
+            <option value="all">Все</option>
+            <option value="approved">Выполненные</option>
+            <option value="rejected">Отклонённые / отменённые</option>
+          </select>
+        </div>
+      </div>
+      <div id="swaps-error" class="error hidden"></div>
+      <div id="swaps-list"><div class="loading-state">Загрузка…</div></div>
+    </div>
+
+    <div id="page-swap-market" class="page hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Биржа обменов</div>
+          <div class="page-subtitle">Обмен постоянными графиками с коллегой вашей языковой пары</div>
+        </div>
+      </div>
+      <div id="swap-error" class="error hidden"></div>
+
+      <div class="section">
+        <div style="font-size: 14px; color: #0F1B3D; font-weight: 600; margin-bottom: 12px;">Мой график на бирже</div>
+        <div id="swap-my-listing"><div class="loading-state">Загрузка…</div></div>
+      </div>
+
+      <div id="swap-incoming"></div>
+
+      <div class="section">
+        <div style="font-size: 14px; color: #0F1B3D; font-weight: 600; margin-bottom: 4px;">Доступные графики</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-bottom: 12px;">Выставленные окна коллег вашей пары. Имена скрыты. Предложить обмен можно, если у вас нет активной заявки.</div>
+        <div id="swap-market-list"><div class="loading-state">Загрузка…</div></div>
+        <div id="swap-outgoing"></div>
+      </div>
+    </div>
+
     <nav class="mobile-bottom-nav" id="mobile-bottom-nav-translator" style="display: none;">
       <button class="mobile-bottom-nav-item active" data-page="calendar" data-mobile-nav="calendar">
         <svg viewBox="0 0 24 24">
@@ -694,6 +747,15 @@
           <circle cx="12" cy="7" r="4"/>
         </svg>
         <span>Профиль</span>
+      </button>
+      <button class="mobile-bottom-nav-item" data-page="swap-market" data-mobile-nav="swap-market">
+        <svg viewBox="0 0 24 24">
+          <polyline points="17 1 21 5 17 9"/>
+          <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <polyline points="7 23 3 19 7 15"/>
+          <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+        </svg>
+        <span>Биржа</span>
       </button>
     </nav>
   </main>
@@ -927,6 +989,33 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeShiftRequestModal()">Отмена</button>
       <button id="btn-send-shift-req" class="btn" onclick="sendShiftRequest()">Отправить запрос</button>
+    </div>
+  </div>
+</div>
+
+<div id="apply-modal" class="modal-backdrop">
+  <div class="modal" style="max-width: 460px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Предложить обмен</div>
+        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Вы предлагаете поменяться постоянными графиками. Согласует менеджер, утверждает I-Call.</div>
+      </div>
+      <button class="modal-close" onclick="closeApplyModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="apply-error" class="error hidden"></div>
+      <div style="background: #FAFAFA; padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 4px;">Окно, которое вы получите</div>
+        <div id="apply-target-window">—</div>
+      </div>
+      <div class="field" style="margin-bottom: 0;">
+        <label class="field-label">Комментарий (опционально)</label>
+        <textarea id="apply-reason" class="input" rows="3" maxlength="300" placeholder="Например: удобнее заканчивать раньше"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeApplyModal()">Отмена</button>
+      <button id="btn-confirm-apply" class="btn" onclick="confirmApply()">Отправить заявку</button>
     </div>
   </div>
 </div>

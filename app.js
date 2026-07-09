@@ -172,6 +172,7 @@
       await loadLanguagePairs();
       await loadDashboard();
       refreshRequestsBadge();
+      refreshSwapBadge();
     } else {
       document.getElementById('nav-translator').classList.remove('hidden');
       document.getElementById('nav-manager').classList.add('hidden');
@@ -5562,6 +5563,398 @@
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Биржа обмена постоянными графиками (schedule swap).
+  // Бэкенд: RPC swap_* (миграции schedule_swap_01..04). Постоянный график
+  // живёт в users.default_shift_*; здесь только выставление, заявки и своп.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  const SWAP_STATUS_META = {
+    open:             { label: '● Открыта',             cls: 'pending'  },
+    manager_approved: { label: '● Одобрена менеджером',  cls: 'pending'  },
+    pending_icall:    { label: '● Ждёт I-Call',          cls: 'pending'  },
+    approved:         { label: '● Обмен выполнен',       cls: 'approved' },
+    rejected:         { label: '● Отклонена',            cls: 'rejected' },
+    cancelled:        { label: '● Отменена',             cls: 'rejected' },
+  };
+  const SWAP_ACTIVE = ['open', 'manager_approved', 'pending_icall'];
+
+  function fmtWin(s, e, m) {
+    return `${String(s).substring(0,5)}–${String(e).substring(0,5)} (${formatHoursMinutes(m)})`;
+  }
+
+  // Понятные сообщения для кодов ошибок из RPC
+  function swapErr(error) {
+    const msg = (error && error.message) || '';
+    const map = {
+      pair_mismatch: 'Языковые пары не совпадают — обмен возможен только между одинаковыми парами.',
+      requester_frozen: 'Ваш обмен сейчас заморожен.',
+      target_frozen: 'У этого графика активна заморозка.',
+      target_in_progress: 'По этому графику уже идёт обмен.',
+      requester_has_active: 'У вас уже есть активная заявка на обмен.',
+      listing_not_found: 'Этот график уже недоступен.',
+      cannot_swap_self: 'Нельзя обменяться с самим собой.',
+      schedule_frozen: 'Действие недоступно во время заморозки.',
+      target_not_agreed: 'Сначала зафиксируйте согласие второй стороны.',
+      cannot_cancel: 'Заявку уже нельзя отменить.',
+      manager_only: 'Действие доступно только менеджеру.',
+      not_found_or_not_open: 'Заявку нельзя изменить в текущем статусе.',
+      not_found_or_wrong_state: 'Заявку нельзя изменить в текущем статусе.',
+      wrong_state: 'Неверный статус заявки для этого действия.',
+      effective_from_required: 'Укажите дату вступления в силу.',
+      frozen_use_override: 'Один из участников заморожен — включите «обойти заморозку».',
+      requester_invalid: 'Доступно только для переводчиков.',
+      target_inactive: 'Переводчик неактивен.',
+    };
+    for (const k in map) if (msg.includes(k)) return map[k];
+    return 'Ошибка: ' + msg;
+  }
+
+  // ──── Переводчик: биржа ────────────────────────────────────────────
+  async function loadSwapMarket() {
+    hideError('swap-error');
+    await renderMyListingBlock();
+    await renderIncomingOffers();
+    await renderMarketAndOutgoing();
+  }
+
+  async function renderMyListingBlock() {
+    const box = document.getElementById('swap-my-listing');
+    box.innerHTML = '<div class="loading-state">Загрузка…</div>';
+
+    const [profRes, listRes] = await Promise.all([
+      sb.from('users').select('default_shift_start, default_shift_end, default_shift_minutes')
+        .eq('id', currentUser.id).single(),
+      sb.from('schedule_listings').select('is_listed, swap_frozen_until, note')
+        .eq('user_id', currentUser.id).maybeSingle(),
+    ]);
+    const p = profRes.data || {};
+    const listing = listRes.data || { is_listed: false, swap_frozen_until: null, note: '' };
+    const se = `${(p.default_shift_start || '').substring(0,5)}–${(p.default_shift_end || '').substring(0,5)}`;
+    const mins = p.default_shift_minutes || 0;
+
+    const todayISO = new Date().toISOString().split('T')[0];
+    const frozen = !!listing.swap_frozen_until && listing.swap_frozen_until > todayISO;
+
+    let control;
+    if (frozen) {
+      control = `<div class="swap-freeze-note">🔒 Обмен заморожен до ${formatDateRu(listing.swap_frozen_until)} — после недавнего обмена нужно отработать новый график.</div>`;
+    } else if (listing.is_listed) {
+      control = `
+        <div class="swap-listed-note">✓ Ваш график на бирже — коллеги видят это окно без вашего имени и могут предложить обмен.</div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleMyListing(false)">Снять с биржи</button>`;
+    } else {
+      control = `
+        <div class="field" style="margin-bottom:10px;">
+          <label class="field-label">Комментарий (опционально, показывается без имени)</label>
+          <input type="text" id="swap-note" class="input" maxlength="200" placeholder="Например: хочу более раннее окончание" value="${escapeHtml(listing.note || '')}">
+        </div>
+        <button class="btn btn-sm" onclick="toggleMyListing(true)">Выставить мой график на биржу</button>`;
+    }
+
+    box.innerHTML = `
+      <div class="shift-section ${listing.is_listed && !frozen ? 'assigned' : ''}">
+        <div class="shift-section-header"><span class="shift-section-label">Действует сейчас</span></div>
+        <div class="shift-section-content">
+          <span class="shift-section-time">${se}</span>
+          <span class="shift-section-duration">· ${formatHoursMinutes(mins)} плана</span>
+        </div>
+      </div>
+      <div style="margin-top:12px;">${control}</div>`;
+  }
+
+  async function toggleMyListing(list) {
+    hideError('swap-error');
+    const note = list ? (document.getElementById('swap-note')?.value.trim() || null) : null;
+    const { error } = await sb.rpc('swap_my_listing_set', { p_is_listed: list, p_note: note });
+    if (error) { showError('swap-error', swapErr(error)); return; }
+    await loadSwapMarket();
+  }
+
+  async function renderIncomingOffers() {
+    const box = document.getElementById('swap-incoming');
+    const { data, error } = await sb.rpc('swap_my_incoming');
+    if (error || !data || data.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = `
+      <div class="section">
+        <div style="font-size: 14px; color: #0F1B3D; font-weight: 600; margin-bottom: 4px;">Мне предлагают обмен</div>
+        <div style="font-size:12px;color:#94A3B8;margin-bottom:12px;">Заявки на ваш выставленный график. Решение принимает менеджер — он свяжется с вами. Личность отправителя скрыта.</div>
+        ${data.map(o => {
+          const meta = SWAP_STATUS_META[o.status] || { label:o.status, cls:'' };
+          const mine = fmtWin(o.my_start, o.my_end, o.my_minutes);
+          const prop = fmtWin(o.proposed_start, o.proposed_end, o.proposed_minutes);
+          return `
+            <div class="req-card ${meta.cls}">
+              <div class="req-info" style="grid-column:1 / -1;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <div class="req-change" style="margin:0;">
+                    <span class="req-change-from">Ваше окно: ${mine}</span>
+                    <span class="req-change-arrow">→</span>
+                    <span class="req-change-to">Предлагают: ${prop}</span>
+                  </div>
+                  <span class="req-status-badge ${meta.cls}">${meta.label}</span>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  async function renderMarketAndOutgoing() {
+    const marketBox = document.getElementById('swap-market-list');
+    const outBox = document.getElementById('swap-outgoing');
+
+    const [mktRes, outRes] = await Promise.all([
+      sb.rpc('swap_market_list'),
+      sb.rpc('swap_my_outgoing'),
+    ]);
+    if (mktRes.error) showError('swap-error', swapErr(mktRes.error));
+    const market = mktRes.data || [];
+    const outgoing = outRes.data || [];
+    const activeOut = outgoing.find(o => SWAP_ACTIVE.includes(o.status));
+
+    if (market.length === 0) {
+      marketBox.innerHTML = `<div class="empty-state"><div class="empty-state-text">Сейчас нет выставленных графиков вашей языковой пары.</div></div>`;
+    } else {
+      marketBox.innerHTML = market.map(c => {
+        const se = `${c.window_start.substring(0,5)}–${c.window_end.substring(0,5)}`;
+        const note = c.note ? `<div class="req-reason">${escapeHtml(c.note)}</div>` : '';
+        const btn = activeOut
+          ? `<button class="btn btn-sm" disabled title="У вас уже есть активная заявка">Недоступно</button>`
+          : `<button class="btn btn-sm" onclick="openApplyModal('${c.listing_id}','${se} (${formatHoursMinutes(c.minutes)})')">Предложить обмен</button>`;
+        return `
+          <div class="req-card">
+            <div class="req-info" style="grid-column:1 / -1;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div class="req-translator-name" style="font-family:'JetBrains Mono',monospace;">${se} · ${formatHoursMinutes(c.minutes)}</div>
+                  <div class="req-date">${escapeHtml(c.pair_code || '')}</div>
+                </div>
+                ${btn}
+              </div>
+              ${note}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    if (outgoing.length === 0) { outBox.innerHTML = ''; return; }
+    outBox.innerHTML = `
+      <div class="swap-subhead">Мои заявки на обмен</div>
+      ${outgoing.map(o => {
+        const meta = SWAP_STATUS_META[o.status] || { label:o.status, cls:'' };
+        const give = fmtWin(o.give_start, o.give_end, o.give_minutes);
+        const get = fmtWin(o.get_start, o.get_end, o.get_minutes);
+        const cancel = SWAP_ACTIVE.includes(o.status)
+          ? `<button class="btn btn-ghost btn-sm" onclick="cancelMyOutgoing('${o.request_id}')">Отозвать</button>` : '';
+        const eff = o.effective_from ? `Вступает в силу с ${formatDateRu(o.effective_from)}` : '';
+        return `
+          <div class="req-card ${meta.cls}">
+            <div class="req-info" style="grid-column:1 / -1;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                <div class="req-change" style="margin:0;">
+                  <span class="req-change-from">Отдаю: ${give}</span>
+                  <span class="req-change-arrow">→</span>
+                  <span class="req-change-to">Получаю: ${get}</span>
+                </div>
+                <span class="req-status-badge ${meta.cls}">${meta.label}</span>
+              </div>
+              ${eff ? `<div class="req-date" style="margin-top:6px;">${eff}</div>` : ''}
+              ${cancel ? `<div style="margin-top:8px;text-align:right;">${cancel}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('')}`;
+  }
+
+  let applyListingId = null;
+  function openApplyModal(listingId, label) {
+    applyListingId = listingId;
+    hideError('apply-error');
+    document.getElementById('apply-target-window').textContent = label;
+    document.getElementById('apply-reason').value = '';
+    document.getElementById('apply-modal').classList.add('open');
+  }
+  function closeApplyModal() {
+    document.getElementById('apply-modal').classList.remove('open');
+    applyListingId = null;
+  }
+  async function confirmApply() {
+    if (!applyListingId) return;
+    hideError('apply-error');
+    const btn = document.getElementById('btn-confirm-apply');
+    const reason = document.getElementById('apply-reason').value.trim() || null;
+    btn.disabled = true; btn.textContent = 'Отправка…';
+    const { error } = await sb.rpc('swap_request_create', { p_listing_id: applyListingId, p_reason: reason });
+    btn.disabled = false; btn.textContent = 'Отправить заявку';
+    if (error) { showError('apply-error', swapErr(error)); return; }
+    closeApplyModal();
+    alert('Заявка отправлена. Менеджер согласует обмен с обеими сторонами.');
+    await loadSwapMarket();
+  }
+  async function cancelMyOutgoing(reqId) {
+    if (!confirm('Отозвать заявку на обмен?')) return;
+    const { error } = await sb.rpc('swap_request_cancel', { p_request_id: reqId });
+    if (error) { showError('swap-error', swapErr(error)); return; }
+    await loadSwapMarket();
+  }
+
+  // ──── Менеджер: обмены графиков ────────────────────────────────────
+  async function loadSwaps() {
+    hideError('swaps-error');
+    const list = document.getElementById('swaps-list');
+    list.innerHTML = '<div class="loading-state">Загрузка…</div>';
+    const filter = document.getElementById('swaps-filter').value;
+
+    const { data, error } = await sb.rpc('swap_board');
+    if (error) { showError('swaps-error', swapErr(error)); list.innerHTML = ''; return; }
+    let rows = data || [];
+
+    const counts = { active: 0, approved: 0, rejected: 0 };
+    for (const r of rows) {
+      if (SWAP_ACTIVE.includes(r.status)) counts.active++;
+      else if (r.status === 'approved') counts.approved++;
+      else counts.rejected++;
+    }
+    document.getElementById('swaps-subtitle').textContent =
+      `${counts.active} в работе · ${counts.approved} выполнено · ${counts.rejected} отклонено/отменено`;
+    updateSwapBadge(counts.active);
+
+    if (filter === 'active') rows = rows.filter(r => SWAP_ACTIVE.includes(r.status));
+    else if (filter === 'approved') rows = rows.filter(r => r.status === 'approved');
+    else if (filter === 'rejected') rows = rows.filter(r => r.status === 'rejected' || r.status === 'cancelled');
+
+    if (rows.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="empty-state-text">Нет обменов по выбранному фильтру.</div></div>`;
+      return;
+    }
+    list.innerHTML = rows.map(renderSwapCard).join('');
+  }
+
+  function renderSwapCard(r) {
+    const meta = SWAP_STATUS_META[r.status] || { label: r.status, cls: '' };
+    const give = fmtWin(r.give_start, r.give_end, r.give_minutes);   // окно А → получит Б
+    const get  = fmtWin(r.get_start, r.get_end, r.get_minutes);      // окно Б → получит А
+    const rid = r.request_id;
+    const rn = escapeHtml(r.requester_name), tn = escapeHtml(r.target_name);
+
+    let actions = '';
+    if (r.status === 'open') {
+      actions = `
+        <div class="swap-actions">
+          <label class="swap-check">
+            <input type="checkbox" id="agree-${rid}" ${r.target_agreed ? 'checked' : ''} onchange="swapSetAgreed('${rid}', this.checked)">
+            Согласие ${tn} получено
+          </label>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="swapRejectReq('${rid}')">Отклонить</button>
+            <button class="btn btn-sm" onclick="swapApprove('${rid}')" ${r.target_agreed ? '' : 'disabled'}>Одобрить</button>
+          </div>
+        </div>`;
+    } else if (r.status === 'manager_approved') {
+      actions = `
+        <div class="swap-actions" style="justify-content:flex-end;">
+          <button class="btn btn-ghost btn-sm" onclick="swapRejectReq('${rid}')">Отклонить</button>
+          <button class="btn btn-sm" onclick="swapSendIcall('${rid}')">Отправить в I-Call</button>
+        </div>`;
+    } else if (r.status === 'pending_icall') {
+      const defEff = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      actions = `
+        <div class="swap-icall">
+          <div class="swap-subhead" style="margin-top:0;">Подтверждение I-Call</div>
+          <div class="field-row">
+            <div class="field" style="margin:0;">
+              <label class="field-label">Действует с</label>
+              <input type="date" id="eff-${rid}" class="input" value="${defEff}">
+            </div>
+            <div class="field" style="margin:0;">
+              <label class="field-label">Референс I-Call</label>
+              <input type="text" id="ref-${rid}" class="input" placeholder="№ / дата письма">
+            </div>
+          </div>
+          <label class="swap-check" style="margin-top:10px;">
+            <input type="checkbox" id="ovr-${rid}"> Обойти заморозку (форс-мажор)
+          </label>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+            <button class="btn btn-ghost btn-sm" onclick="swapRejectReq('${rid}')">Отклонить</button>
+            <button class="btn btn-sm" onclick="swapIcallApprove('${rid}')">I-Call одобрил — выполнить обмен</button>
+          </div>
+        </div>`;
+    } else {
+      const extra = [];
+      if (r.effective_from) extra.push(`с ${formatDateRu(r.effective_from)}`);
+      if (r.override_freeze) extra.push('обход заморозки');
+      if (r.decision_note) extra.push(escapeHtml(r.decision_note));
+      actions = extra.length ? `<div class="req-date" style="margin-top:8px;">${extra.join(' · ')}</div>` : '';
+    }
+
+    return `
+      <div class="req-card ${meta.cls}">
+        <div class="req-info" style="grid-column:1 / -1;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
+            <div class="req-translator-name">${rn} ⇄ ${tn}
+              <span style="font-weight:400;color:#94A3B8;font-size:12px;">· ${escapeHtml(r.pair_code || '')}</span></div>
+            <span class="req-status-badge ${meta.cls}">${meta.label}</span>
+          </div>
+          <div class="req-change" style="margin-top:10px;">
+            <span class="req-change-from">${rn}: ${give}</span>
+            <span class="req-change-arrow">⇄</span>
+            <span class="req-change-to">${tn}: ${get}</span>
+          </div>
+          ${r.reason ? `<div class="req-reason">${escapeHtml(r.reason)}</div>` : ''}
+          ${actions}
+        </div>
+      </div>`;
+  }
+
+  async function swapSetAgreed(rid, agreed) {
+    const { error } = await sb.rpc('swap_mark_target_agreed', { p_request_id: rid, p_agreed: agreed, p_note: null });
+    if (error) showError('swaps-error', swapErr(error));
+    await loadSwaps();
+  }
+  async function swapApprove(rid) {
+    const { error } = await sb.rpc('swap_manager_approve', { p_request_id: rid });
+    if (error) { showError('swaps-error', swapErr(error)); return; }
+    await loadSwaps();
+  }
+  async function swapSendIcall(rid) {
+    const { error } = await sb.rpc('swap_send_to_icall', { p_request_id: rid });
+    if (error) { showError('swaps-error', swapErr(error)); return; }
+    await loadSwaps();
+  }
+  async function swapIcallApprove(rid) {
+    hideError('swaps-error');
+    const eff = document.getElementById('eff-' + rid).value;
+    const ref = document.getElementById('ref-' + rid).value.trim() || null;
+    const ovr = document.getElementById('ovr-' + rid).checked;
+    if (!eff) { showError('swaps-error', 'Укажите дату вступления в силу.'); return; }
+    if (!confirm(`Подтвердить обмен? Графики поменяются местами с ${formatDateRu(eff)}. Оба участника получат заморозку на 2 месяца.`)) return;
+    const { error } = await sb.rpc('swap_icall_approve', { p_request_id: rid, p_effective_from: eff, p_icall_ref: ref, p_override: ovr });
+    if (error) { showError('swaps-error', swapErr(error)); return; }
+    alert('Обмен выполнен. Графики обновлены, заморозка установлена на 2 месяца.');
+    await loadSwaps();
+  }
+  async function swapRejectReq(rid) {
+    const note = prompt('Причина отклонения (опционально):');
+    if (note === null) return; // отмена диалога
+    const { error } = await sb.rpc('swap_reject', { p_request_id: rid, p_note: note.trim() || null });
+    if (error) { showError('swaps-error', swapErr(error)); return; }
+    await loadSwaps();
+  }
+
+  async function refreshSwapBadge() {
+    if (!currentUser || currentUser.role !== 'manager') return;
+    const { count } = await sb.from('schedule_swap_requests')
+      .select('*', { count: 'exact', head: true })
+      .in('status', SWAP_ACTIVE);
+    updateSwapBadge(count || 0);
+  }
+  function updateSwapBadge(count) {
+    const badge = document.getElementById('sb-swap-badge');
+    if (!badge) return;
+    if (count > 0) { badge.textContent = String(count); badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  }
+
   function showError(elId, msg) {
     const el = document.getElementById(elId);
     el.textContent = msg;
@@ -5628,7 +6021,9 @@
       else if (page === 'translators') await loadTranslators();
       else if (page === 'managers') await loadManagers();
       else if (page === 'requests') await loadRequests();
+      else if (page === 'swaps') await loadSwaps();
       else if (page === 'my-profile') await loadMyProfile();
+      else if (page === 'swap-market') await loadSwapMarket();
       else if (page === 'calendar') await loadCalendar();
       else if (page === 'payroll') await loadPayroll();
       else if (page === 'clients') {
