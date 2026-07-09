@@ -5646,7 +5646,7 @@
     } else {
       control = `
         <div class="field" style="margin-bottom:10px;">
-          <label class="field-label">Комментарий (опционально, показывается без имени)</label>
+          <label class="field-label">Комментарий для менеджера (не виден другим переводчикам)</label>
           <input type="text" id="swap-note" class="input" maxlength="200" placeholder="Например: хочу более раннее окончание" value="${escapeHtml(listing.note || '')}">
         </div>
         <button class="btn btn-sm" onclick="toggleMyListing(true)">Выставить мой график на биржу</button>`;
@@ -5718,7 +5718,6 @@
     } else {
       marketBox.innerHTML = market.map(c => {
         const se = `${c.window_start.substring(0,5)}–${c.window_end.substring(0,5)}`;
-        const note = c.note ? `<div class="req-reason">${escapeHtml(c.note)}</div>` : '';
         const btn = activeOut
           ? `<button class="btn btn-sm" disabled title="У вас уже есть активная заявка">Недоступно</button>`
           : `<button class="btn btn-sm" onclick="openApplyModal('${c.listing_id}','${se} (${formatHoursMinutes(c.minutes)})')">Предложить обмен</button>`;
@@ -5732,7 +5731,6 @@
                 </div>
                 ${btn}
               </div>
-              ${note}
             </div>
           </div>`;
       }).join('');
