@@ -774,7 +774,8 @@
       const userShifts = allShiftsByUser[d.user_id] || {};
       const defaultMin = user.default_shift_minutes || 480;
       const planned = getPlannedMinutes(d.work_date, userShifts, defaultMin);
-      const ot = netMin - planned;
+      // Овертайм = присутствие (gross) − план. Брейк нейтрален (он и так не оплачивается).
+      const ot = intervalsSum - planned;
       totalOvertime += ot;
       overtimeByUser[d.user_id] += ot;
     }
