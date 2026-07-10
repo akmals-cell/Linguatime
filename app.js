@@ -1989,18 +1989,27 @@
     btn.disabled = true; btn.textContent = 'Сохранение…';
 
     try {
-      // 1) Обновляем имя, часовой пояс и дефолтную смену
+      // 1) Обновляем имя и часовой пояс
       const { error: profileErr } = await sb
         .from('users')
-        .update({
-          name,
-          timezone,
-          default_shift_start: shiftStart + ':00',
-          default_shift_end: shiftEnd + ':00',
-          default_shift_minutes: shiftMinutes,
-        })
+        .update({ name, timezone })
         .eq('id', tdUser.id);
       if (profileErr) throw new Error('Профиль: ' + profileErr.message);
+
+      // 1a) График — через set_schedule (атомарно пишет shift_history), только если изменился
+      const curStart = (tdUser.default_shift_start || '').substring(0, 5);
+      const curEnd = (tdUser.default_shift_end || '').substring(0, 5);
+      const curMin = tdUser.default_shift_minutes || 0;
+      if (curStart !== shiftStart || curEnd !== shiftEnd || curMin !== shiftMinutes) {
+        const { error: schedErr } = await sb.rpc('set_schedule', {
+          p_user: tdUser.id,
+          p_start: shiftStart + ':00',
+          p_end: shiftEnd + ':00',
+          p_minutes: shiftMinutes,
+          p_reason: 'Ручная правка графика в карточке',
+        });
+        if (schedErr) throw new Error('График: ' + schedErr.message);
+      }
 
       // 1b) Привязка к клиенту (если изменилась)
       const newClientId = document.getElementById('edit-translator-client').value || null;
@@ -5856,7 +5865,8 @@
           <button class="btn btn-sm" onclick="swapSendIcall('${rid}')">Отправить в I-Call</button>
         </div>`;
     } else if (r.status === 'pending_icall') {
-      const defEff = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      const _nm = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+      const defEff = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, '0')}-01`;
       actions = `
         <div class="swap-icall">
           <div class="swap-subhead" style="margin-top:0;">Подтверждение I-Call</div>
@@ -5870,6 +5880,7 @@
               <input type="text" id="ref-${rid}" class="input" placeholder="№ / дата письма">
             </div>
           </div>
+          <div style="font-size:12px;color:#94A3B8;margin-top:8px;">💡 Рекомендуется 1-е число месяца — тогда овертайм за месяц обмена будет точным.</div>
           <label class="swap-check" style="margin-top:10px;">
             <input type="checkbox" id="ovr-${rid}"> Обойти заморозку (форс-мажор)
           </label>
