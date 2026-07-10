@@ -169,8 +169,9 @@
       }
       showScreen('app');
       showPage('dashboard');
-      await loadLanguagePairs();
-      await loadDashboard();
+      console.time('LinguaTime: загрузка дашборда');
+      await Promise.all([loadLanguagePairs(), loadDashboard()]);
+      console.timeEnd('LinguaTime: загрузка дашборда');
       refreshRequestsBadge();
       refreshSwapBadge();
     } else {
@@ -178,8 +179,9 @@
       document.getElementById('nav-manager').classList.add('hidden');
       showScreen('app');
       showPage('calendar');
-      await loadLanguagePairs();
-      await loadCalendar();
+      console.time('LinguaTime: загрузка календаря');
+      await Promise.all([loadLanguagePairs(), loadCalendar()]);
+      console.timeEnd('LinguaTime: загрузка календаря');
     }
   }
 
@@ -682,25 +684,31 @@
     const activeUsers = (users || []).filter(u => u.is_active);
     const inactiveCount = (users || []).length - activeUsers.length;
 
-    // ─── Загружаем все дни месяца по всем переводчикам ─────────────────────
+    // ─── Параллельно: дни месяца + история ставок + плановые смены ──────────
+    // Все три зависят только от списка id и независимы друг от друга — грузим
+    // одним Promise.all вместо трёх последовательных round-trip'ов.
     const userIds = activeUsers.map(u => u.id);
     let allDays = [];
+    let allHistoryByUser = {};
+    let allShiftsByUser = {};
     if (userIds.length > 0) {
-      const { data: days } = await sb
-        .from('work_days')
-        .select(`
-          user_id, work_date, day_type,
-          work_intervals ( duration_minutes, language_pair_id ),
-          breaks ( duration_minutes )
-        `)
-        .in('user_id', userIds)
-        .gte('work_date', periodStart)
-        .lte('work_date', periodEnd);
-      allDays = days || [];
+      const [daysRes, historyByUser, shiftsByUser] = await Promise.all([
+        sb.from('work_days')
+          .select(`
+            user_id, work_date, day_type,
+            work_intervals ( duration_minutes, language_pair_id ),
+            breaks ( duration_minutes )
+          `)
+          .in('user_id', userIds)
+          .gte('work_date', periodStart)
+          .lte('work_date', periodEnd),
+        loadRateHistoryForUsers(userIds),
+        loadShiftsForUsers(userIds, periodStart, periodEnd),
+      ]);
+      allDays = daysRes.data || [];
+      allHistoryByUser = historyByUser;
+      allShiftsByUser = shiftsByUser;
     }
-
-    // ─── История ставок ────────────────────────────────────────────────────
-    const allHistoryByUser = await loadRateHistoryForUsers(userIds);
 
     // ─── Считаем глобальные KPI и распределение ────────────────────────────
     let totalMinutes = 0;
@@ -753,10 +761,7 @@
       minutesByDay[d.work_date] = (minutesByDay[d.work_date] || 0) + netMin;
     }
 
-    // ─── Считаем овертайм команды ────────────────────────────────────────
-    const allShiftsByUser = await loadShiftsForUsers(
-      activeUsers.map(u => u.id), periodStart, periodEnd
-    );
+    // ─── Считаем овертайм команды (allShiftsByUser уже загружен выше) ──────
     let totalOvertime = 0;
     const overtimeByUser = {};
     for (const u of activeUsers) overtimeByUser[u.id] = 0;
