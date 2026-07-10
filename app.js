@@ -553,26 +553,30 @@
     const monthEnd = formatDate(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0));
     const userIds = data.map(u => u.id);
     let daysData = [];
+    let allHistoryByUser = {};
     if (userIds.length > 0) {
-      const { data: monthDays } = await sb
-        .from('work_days')
-        .select(`
-          user_id, work_date, day_type,
-          work_intervals ( language_pair_id, duration_minutes ),
-          breaks ( duration_minutes )
-        `)
-        .in('user_id', userIds)
-        .gte('work_date', monthStart)
-        .lte('work_date', monthEnd);
-      daysData = monthDays || [];
+      // work_days и история ставок независимы — грузим параллельно
+      const [daysRes, historyByUser] = await Promise.all([
+        sb.from('work_days')
+          .select(`
+            user_id, work_date, day_type,
+            work_intervals ( language_pair_id, duration_minutes ),
+            breaks ( duration_minutes )
+          `)
+          .in('user_id', userIds)
+          .gte('work_date', monthStart)
+          .lte('work_date', monthEnd),
+        loadRateHistoryForUsers(userIds),
+      ]);
+      daysData = daysRes.data || [];
+      allHistoryByUser = historyByUser;
     }
 
     // Считаем для каждого переводчика
     const statsByUser = {}; // user_id -> { minutes, amount }
     for (const u of data) statsByUser[u.id] = { minutes: 0, amount: 0 };
 
-    // Подгружаем историю ставок для всех переводчиков
-    const allHistoryByUser = await loadRateHistoryForUsers(userIds);
+    // История ставок уже загружена выше (параллельно с work_days)
 
     // O(1) поиск пользователя по id вместо .find() — ускоряет dashboard при многих переводчиках
     const usersById = new Map(data.map(u => [u.id, u]));
@@ -666,126 +670,25 @@
     const periodStart = formatDate(new Date(year, month, 1));
     const periodEnd = formatDate(new Date(year, month + 1, 0));
 
-    // ─── Загружаем активных переводчиков и их пары ─────────────────────────
-    const { data: users, error: usersError } = await sb
-      .from('users')
-      .select(`
-        id, name, is_active, default_shift_minutes,
-        translator_pairs ( language_pair_id, rate_per_hour,
-                            language_pairs (code) )
-      `)
-      .eq('role', 'translator');
-
-    if (usersError) {
-      showError('dash-error', 'Ошибка загрузки: ' + usersError.message);
+    // ─── Одним запросом: сервер считает все KPI (RPC dashboard_summary) ─────
+    const { data: summary, error: sumErr } = await sb.rpc('dashboard_summary', {
+      p_period_start: periodStart,
+      p_period_end: periodEnd,
+    });
+    if (sumErr) {
+      showError('dash-error', 'Ошибка загрузки: ' + sumErr.message);
       return;
     }
 
-    const activeUsers = (users || []).filter(u => u.is_active);
-    const inactiveCount = (users || []).length - activeUsers.length;
+    const totalMinutes = summary.totalMinutes || 0;
+    const totalAmount = Number(summary.totalAmount || 0);
+    const totalOvertime = summary.totalOvertimeMinutes || 0;
+    const workingTranslators = summary.workingTranslators || 0;
+    const byUser = summary.byUser || [];
+    const minutesByUser = {};
+    for (const u of byUser) minutesByUser[u.id] = u.minutes || 0;
 
-    // ─── Параллельно: дни месяца + история ставок + плановые смены ──────────
-    // Все три зависят только от списка id и независимы друг от друга — грузим
-    // одним Promise.all вместо трёх последовательных round-trip'ов.
-    const userIds = activeUsers.map(u => u.id);
-    let allDays = [];
-    let allHistoryByUser = {};
-    let allShiftsByUser = {};
-    if (userIds.length > 0) {
-      const [daysRes, historyByUser, shiftsByUser] = await Promise.all([
-        sb.from('work_days')
-          .select(`
-            user_id, work_date, day_type,
-            work_intervals ( duration_minutes, language_pair_id ),
-            breaks ( duration_minutes )
-          `)
-          .in('user_id', userIds)
-          .gte('work_date', periodStart)
-          .lte('work_date', periodEnd),
-        loadRateHistoryForUsers(userIds),
-        loadShiftsForUsers(userIds, periodStart, periodEnd),
-      ]);
-      allDays = daysRes.data || [];
-      allHistoryByUser = historyByUser;
-      allShiftsByUser = shiftsByUser;
-    }
-
-    // ─── Считаем глобальные KPI и распределение ────────────────────────────
-    let totalMinutes = 0;
-    let totalAmount = 0;
-    const minutesByUser = {}; // user_id -> minutes
-    const minutesByPair = {}; // code -> minutes
-    const minutesByDay = {};  // date -> minutes
-    const codeByPair = {};
-
-    // O(1) поиск пользователя и преcчитанные rateByPair — на dashboard с 30+ переводчиками
-    // экономия времени измеряется секундами.
-    const usersById = new Map(activeUsers.map(u => [u.id, u]));
-    const rateByPairByUser = new Map();
-    for (const u of activeUsers) {
-      minutesByUser[u.id] = 0;
-      const rateByPair = {};
-      for (const p of (u.translator_pairs || [])) {
-        rateByPair[p.language_pair_id] = Number(p.rate_per_hour);
-        codeByPair[p.language_pair_id] = p.language_pairs.code;
-      }
-      rateByPairByUser.set(u.id, rateByPair);
-    }
-
-    for (const d of allDays) {
-      if (d.day_type !== 'working') continue;
-      const user = usersById.get(d.user_id);
-      if (!user) continue;
-
-      const rateByPair = rateByPairByUser.get(d.user_id);
-      const userHistory = allHistoryByUser[d.user_id] || {};
-
-      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
-      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
-      const netMin = Math.max(0, intervalsSum - breaksSum);
-      if (netMin <= 0) continue;
-
-      const breakRatio = intervalsSum > 0 ? (netMin / intervalsSum) : 0;
-      let dayAmount = 0;
-      for (const interv of (d.work_intervals || [])) {
-        const rate = getRateForDate(d.work_date, interv.language_pair_id, userHistory, rateByPair);
-        const intervalNetMin = (interv.duration_minutes || 0) * breakRatio;
-        dayAmount += (intervalNetMin / 60) * rate;
-        const code = codeByPair[interv.language_pair_id] || '—';
-        minutesByPair[code] = (minutesByPair[code] || 0) + intervalNetMin;
-      }
-
-      totalMinutes += netMin;
-      totalAmount += dayAmount;
-      minutesByUser[d.user_id] += netMin;
-      minutesByDay[d.work_date] = (minutesByDay[d.work_date] || 0) + netMin;
-    }
-
-    // ─── Считаем овертайм команды (allShiftsByUser уже загружен выше) ──────
-    let totalOvertime = 0;
-    const overtimeByUser = {};
-    for (const u of activeUsers) overtimeByUser[u.id] = 0;
-
-    for (const d of allDays) {
-      if (d.day_type !== 'working') continue;
-      const user = usersById.get(d.user_id);
-      if (!user) continue;
-
-      const intervalsSum = (d.work_intervals || []).reduce((s, i) => s + (i.duration_minutes || 0), 0);
-      const breaksSum = (d.breaks || []).reduce((s, b) => s + (b.duration_minutes || 0), 0);
-      const netMin = Math.max(0, intervalsSum - breaksSum);
-      if (netMin <= 0) continue;
-
-      const userShifts = allShiftsByUser[d.user_id] || {};
-      const defaultMin = user.default_shift_minutes || 480;
-      const planned = getPlannedMinutes(d.work_date, userShifts, defaultMin);
-      // Овертайм = присутствие (gross) − план. Брейк нейтрален (он и так не оплачивается).
-      const ot = intervalsSum - planned;
-      totalOvertime += ot;
-      overtimeByUser[d.user_id] += ot;
-    }
-
-    // ─── Заполняем KPI ─────────────────────────────────────────────────────
+    // ─── Овертайм KPI ──────────────────────────────────────────────────────
     const overtimeEl = document.getElementById('dash-kpi-overtime');
     const overtimeMetaEl = document.getElementById('dash-kpi-overtime-meta');
     if (Math.abs(totalOvertime) < 1) {
@@ -795,28 +698,22 @@
     } else if (totalOvertime > 0) {
       overtimeEl.textContent = '+' + formatHoursMinutes(totalOvertime);
       overtimeEl.style.color = '#B45309';
-      // Топ овертаймщик
-      const topUserId = Object.keys(overtimeByUser).sort((a, b) => overtimeByUser[b] - overtimeByUser[a])[0];
-      const topUser = usersById.get(topUserId);
-      if (topUser && overtimeByUser[topUserId] > 0) {
-        overtimeMetaEl.textContent = `больше всех: ${topUser.name}`;
-      } else {
-        overtimeMetaEl.textContent = 'переработано командой';
-      }
+      const top = byUser.filter(u => (u.overtime || 0) > 0).sort((a, b) => b.overtime - a.overtime)[0];
+      overtimeMetaEl.textContent = top ? `больше всех: ${top.name}` : 'переработано командой';
     } else {
       overtimeEl.textContent = '−' + formatHoursMinutes(Math.abs(totalOvertime));
       overtimeEl.style.color = '#1E40AF';
       overtimeMetaEl.textContent = 'недоработано командой';
     }
 
+    // ─── Часы + кто работал ────────────────────────────────────────────────
     document.getElementById('dash-kpi-hours').textContent = formatHoursMinutes(totalMinutes);
-    const workingTranslators = activeUsers.filter(u => minutesByUser[u.id] > 0).length;
     document.getElementById('dash-kpi-hours-meta').textContent =
       workingTranslators > 0
         ? `${workingTranslators} ${pluralize(workingTranslators, 'работал', 'работали', 'работали')} в мес.`
         : 'никто не работал';
 
-    // Дней до закрытия периода
+    // ─── Дней до закрытия периода ──────────────────────────────────────────
     const lastDay = new Date(year, month + 1, 0);
     const daysLeft = Math.max(0, Math.ceil((lastDay - today) / (1000 * 60 * 60 * 24)));
     document.getElementById('dash-kpi-days').textContent = daysLeft;
@@ -834,7 +731,7 @@
 
     document.getElementById('dash-kpi-amount').textContent = '$' + totalAmount.toFixed(2);
 
-    // ─── Сводка-предложение в заголовке ────────────────────────────────────
+    // ─── Сводка в заголовке ────────────────────────────────────────────────
     const summaryParts = [];
     if (workingTranslators > 0) {
       summaryParts.push(`<strong>$${totalAmount.toFixed(2)}</strong> заработано командой`);
@@ -849,14 +746,10 @@
     }
     document.getElementById('dash-summary').innerHTML = summaryParts.join(' · ');
 
-    // ─── График по дням ────────────────────────────────────────────────────
-    renderDashChart(year, month, minutesByDay);
-
-    // ─── Топ переводчиков ──────────────────────────────────────────────────
-    renderDashLeaderboard(activeUsers, minutesByUser);
-
-    // ─── Распределение по парам ────────────────────────────────────────────
-    renderDashPairs(minutesByPair);
+    // ─── Графики и списки ──────────────────────────────────────────────────
+    renderDashChart(year, month, summary.byDay || {});
+    renderDashLeaderboard(byUser, minutesByUser);
+    renderDashPairs(summary.byPair || {});
   }
 
   function renderDashChart(year, month, minutesByDay) {
