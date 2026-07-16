@@ -528,8 +528,11 @@
       return;
     }
 
+    const activeCount = data.filter(u => u.is_active).length;
+    const inactiveCount = data.length - activeCount;
     document.getElementById('translators-count').textContent =
-      `${data.length} ${pluralize(data.length, 'переводчик', 'переводчика', 'переводчиков')} в системе`;
+      `${activeCount} ${pluralize(activeCount, 'активный', 'активных', 'активных')}` +
+      (inactiveCount > 0 ? ` · ${inactiveCount} неактивных` : '');
 
     if (data.length === 0) {
       content.innerHTML = `
@@ -601,6 +604,8 @@
       statsByUser[d.user_id].amount += calc.amount;
     }
 
+    let activeRowsHtml = '';
+    let inactiveRowsHtml = '';
     for (const u of data) {
       const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
       const pairs = (u.translator_pairs || []).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
@@ -624,7 +629,7 @@
         ? '$' + stats.amount.toFixed(2)
         : '<span style="color:#94A3B8;">—</span>';
 
-      html += `<tr style="cursor:pointer;" data-user-id="${u.id}" onclick="openTranslatorDetail('${u.id}')">
+      const rowHtml = `<tr style="cursor:pointer;${u.is_active ? '' : ' opacity:0.5;'}" data-user-id="${u.id}" onclick="openTranslatorDetail('${u.id}')">
         <td><div class="emp-cell">
           <div class="emp-avatar">${initials}</div>
           <div><div class="emp-name">${escapeHtml(u.name)}</div>
@@ -636,9 +641,44 @@
         <td>${statusBadge}</td>
         <td style="text-align: right;"><span style="color:#94A3B8; font-size: 11px;">Открыть →</span></td>
       </tr>`;
+      if (u.is_active) activeRowsHtml += rowHtml; else inactiveRowsHtml += rowHtml;
     }
-    html += '</tbody></table>';
+    html += activeRowsHtml;
+    if (inactiveCount > 0) {
+      html += `<tr class="row-toggle-inactive" onclick="toggleInactiveTranslators(this)" style="cursor:pointer;">
+        <td colspan="6" style="padding:10px 12px; color:#64748B; font-size:12px; background:#F8FAFC;">
+          <span class="caret">▸</span> Показать неактивных (${inactiveCount})
+        </td></tr>`;
+    }
+    html += '</tbody>';
+    if (inactiveCount > 0) {
+      html += `<tbody id="inactive-translators-body" style="display:none;">${inactiveRowsHtml}</tbody>`;
+    }
+    html += '</table>';
     content.innerHTML = html;
+  }
+
+  // Тумблер «показать/скрыть неактивных» в общем списке переводчиков
+  function toggleInactiveTranslators(rowEl) {
+    const body = document.getElementById('inactive-translators-body');
+    if (!body) return;
+    const willShow = body.style.display === 'none';
+    body.style.display = willShow ? '' : 'none';
+    const count = body.querySelectorAll('tr').length;
+    const cell = rowEl.querySelector('td');
+    if (cell) cell.innerHTML =
+      `<span class="caret">${willShow ? '▾' : '▸'}</span> ` +
+      `${willShow ? 'Скрыть' : 'Показать'} неактивных (${count})`;
+  }
+
+  // Свернуть/развернуть секцию ушедших (погашенных) переводчиков в карточке клиента
+  function toggleSettledInactive(headerEl) {
+    const box = document.getElementById('cd-settled-inactive');
+    if (!box) return;
+    const willShow = box.style.display === 'none';
+    box.style.display = willShow ? '' : 'none';
+    const caret = headerEl.querySelector('.caret');
+    if (caret) caret.textContent = willShow ? '▾' : '▸';
   }
 
   // ====================================================================
@@ -4613,7 +4653,7 @@
           <div><div class="emp-name">${escapeHtml(r.client_name)}</div>
                ${r.contact_email ? `<div class="emp-email">${escapeHtml(r.contact_email)}</div>` : ''}</div>
         </div></td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${r.translator_count}</td>
+        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${r.translators.filter(t => t.is_active).length}</td>
         <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${r.revenue.toFixed(2)}</td>
         <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${r.cost.toFixed(2)}</td>
         <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:${profitColor};">${profitSign}$${Math.abs(r.profit).toFixed(2)}</td>
@@ -4700,8 +4740,15 @@
     document.getElementById('cd-avatar').textContent = clientInitials(r.client_name);
     document.getElementById('cd-name').textContent = r.client_name;
     document.getElementById('cd-email').textContent = r.contact_email || '—';
+    const cdActiveCount = r.translators.filter(t => t.is_active).length;
+    const cdInactiveCount = r.translators.length - cdActiveCount;
     document.getElementById('cd-meta').innerHTML =
-      `<span style="font-size:12px; color:#475569;">${r.translator_count} ${pluralize(r.translator_count,'переводчик','переводчика','переводчиков')}</span>`;
+      `<span style="font-size:12px; color:#475569;">` +
+      `${cdActiveCount} ${pluralize(cdActiveCount,'переводчик','переводчика','переводчиков')}` +
+      (cdInactiveCount > 0
+        ? ` · ${cdInactiveCount} ${pluralize(cdInactiveCount,'ушедший','ушедших','ушедших')}`
+        : '') +
+      `</span>`;
 
     // KPI клиента (агрегаты)
     document.getElementById('cd-kpi-revenue').textContent = '$' + r.revenue.toFixed(2);
@@ -4785,7 +4832,7 @@
     //   • активный, 0 < остаток ≤ 20 → жёлтый (скоро постоплата)
     //   • активный в минусе → норма (постоплата), нейтрально
     const histEl = document.getElementById('cd-prepay-history');
-    histEl.innerHTML = r.translators.map(t => {
+    const renderTrReserveRow = (t) => {
       let color, note;
       if (!t.is_active && t.hours_remaining > 0) {
         color = '#DC2626';
@@ -4817,7 +4864,25 @@
           <button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:11px;" onclick="openAddPrepaymentModal('${t.user_id}')">+ Предоплата</button>
         </div>
       </div>`;
-    }).join('');
+    };
+    // Основной список: активные + деактивированные с непогашенным резервом (= убыток).
+    // Ушедшие и полностью погашенные — в отдельной свёрнутой секции, чтобы не шуметь.
+    const cdMainTr    = r.translators.filter(t => t.is_active || t.hours_remaining > 0);
+    const cdSettledTr = r.translators.filter(t => !t.is_active && t.hours_remaining <= 0);
+    histEl.innerHTML =
+      (cdMainTr.length > 0
+        ? cdMainTr.map(renderTrReserveRow).join('')
+        : '<div style="padding:10px 0; color:#94A3B8; font-size:13px;">Нет активных переводчиков с резервом.</div>') +
+      (cdSettledTr.length > 0
+        ? `<div style="margin-top:6px; border-top:1px solid #F1F5F9; padding-top:4px;">
+             <div onclick="toggleSettledInactive(this)" style="cursor:pointer; font-size:12px; color:#64748B; padding:6px 0;">
+               <span class="caret">▸</span> Ушедшие переводчики (${cdSettledTr.length})
+             </div>
+             <div id="cd-settled-inactive" style="display:none;">
+               ${cdSettledTr.map(renderTrReserveRow).join('')}
+             </div>
+           </div>`
+        : '');
 
     // Тарифы по парам (клиентские)
     const ratesEl = document.getElementById('cd-rates-by-pair');
