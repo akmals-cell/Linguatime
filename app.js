@@ -722,6 +722,8 @@
 
     const totalMinutes = summary.totalMinutes || 0;
     const totalAmount = Number(summary.totalAmount || 0);
+    const inactiveAmount = Number(summary.inactiveAmount || 0);
+    const inactiveCount = summary.inactiveCount || 0;
     const totalOvertime = summary.totalOvertimeMinutes || 0;
     const workingTranslators = summary.workingTranslators || 0;
     const byUser = summary.byUser || [];
@@ -770,6 +772,19 @@
     }
 
     document.getElementById('dash-kpi-amount').textContent = '$' + totalAmount.toFixed(2);
+
+    // Сумма теперь по всей команде (совпадает со страницей «Зарплата»).
+    // Если часть причитается уволенным — выносим отдельной пометкой.
+    const amtMeta = document.getElementById('dash-kpi-amount-meta');
+    if (inactiveAmount > 0) {
+      amtMeta.textContent =
+        `предварительно · вкл. $${inactiveAmount.toFixed(2)} ${pluralize(inactiveCount, 'уволенному', 'уволенным', 'уволенным')}` +
+        (inactiveCount > 0 ? ` (${inactiveCount})` : '');
+      amtMeta.style.color = '#B45309';
+    } else {
+      amtMeta.textContent = 'предварительно';
+      amtMeta.style.color = '';
+    }
 
     // ─── Сводка в заголовке ────────────────────────────────────────────────
     const summaryParts = [];
