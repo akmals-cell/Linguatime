@@ -113,6 +113,16 @@
     if (btn) btn.classList.add('active');
   }
 
+  // Переход в раздел так же, как по клику в навигации (с загрузкой данных)
+  function goToPage(page) {
+    const btn = document.querySelector(`.sb-item[data-page="${page}"]`);
+    if (btn) btn.click();
+  }
+
+  function initialsOf(name) {
+    return (name || '?').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  }
+
   async function checkSession() {
     // Сначала проверяем, не вернулся ли пользователь по ссылке recovery
     // Supabase кладёт хеш-параметры вида #access_token=...&type=recovery
@@ -158,6 +168,7 @@
     currentUser = data;
     document.getElementById('sb-user-name').textContent = data.name;
     document.getElementById('sb-user-email').textContent = data.email;
+    document.getElementById('sb-avatar').textContent = initialsOf(data.name);
 
     if (data.role === 'manager') {
       document.getElementById('nav-manager').classList.remove('hidden');
@@ -191,9 +202,9 @@
     const password = document.getElementById('password').value;
     if (!email || !password) { showError('login-error', 'Введите email и пароль.'); return; }
     const btn = document.getElementById('btn-login');
-    btn.disabled = true; btn.textContent = 'Входим…';
+    btn.disabled = true; btn.setAttribute('aria-busy', 'true');
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    btn.disabled = false; btn.textContent = 'Войти';
+    btn.disabled = false; btn.removeAttribute('aria-busy');
     if (error) {
       showError('login-error', error.message.includes('Invalid login credentials') ? 'Неверный email или пароль.' : ('Ошибка: ' + error.message));
       return;
@@ -361,8 +372,8 @@
 
       // Статус
       const statusBadge = m.is_active
-        ? '<span class="badge badge-good">● Активен</span>'
-        : '<span class="badge badge-warn">● Неактивен</span>';
+        ? '<span class="status-dot">Активен</span>'
+        : '<span class="status-dot off">Неактивен</span>';
 
       // Бейдж доступа к клиентам
       const clientsBadge = m.can_access_clients
@@ -397,9 +408,9 @@
             </div>
           </div>
         </td>
-        <td style="color: #475569;">${escapeHtml(m.email)}</td>
+        <td style="color: var(--t2);">${escapeHtml(m.email)}</td>
         <td>${statusBadge}</td>
-        <td style="font-family: 'JetBrains Mono', monospace; color: #475569; font-size: 12px;">${created}</td>
+        <td style="font-variant-numeric: tabular-nums; color: var(--t2); font-size: 14px;">${created}</td>
         <td style="text-align: right;">${actionBtn}</td>
       </tr>`;
     }
@@ -610,24 +621,24 @@
       const initials = (u.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
       const pairs = (u.translator_pairs || []).sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
       const pairsHtml = pairs.length === 0
-        ? '<span style="color:#94A3B8;font-size:12px;">нет пар</span>'
+        ? '<span style="color:var(--t3);font-size: 14px;">нет пар</span>'
         : pairs.map(p => `
             <div class="pair-row">
               <span class="badge badge-neutral">${p.language_pairs.code}</span>
               <span class="pair-rate">$${Number(p.rate_per_hour).toFixed(2)}/ч</span>
-              ${p.is_primary ? '<span style="color:#94A3B8;font-size:11px;">основная</span>' : ''}
+              ${p.is_primary ? '<span style="color:var(--t3);font-size: 13px;">основная</span>' : ''}
             </div>`).join('');
       const statusBadge = u.is_active
-        ? '<span class="badge badge-good">● Активен</span>'
-        : '<span class="badge badge-warn">● Неактивен</span>';
+        ? '<span class="status-dot">Активен</span>'
+        : '<span class="status-dot off">Неактивен</span>';
 
       const stats = statsByUser[u.id];
       const hoursDisplay = stats.minutes > 0
         ? formatHoursMinutes(stats.minutes)
-        : '<span style="color:#94A3B8;">—</span>';
+        : '<span style="color:var(--t3);">—</span>';
       const amountDisplay = stats.amount > 0
         ? '$' + stats.amount.toFixed(2)
-        : '<span style="color:#94A3B8;">—</span>';
+        : '<span style="color:var(--t3);">—</span>';
 
       const rowHtml = `<tr style="cursor:pointer;${u.is_active ? '' : ' opacity:0.5;'}" data-user-id="${u.id}" onclick="openTranslatorDetail('${u.id}')">
         <td><div class="emp-cell">
@@ -636,17 +647,17 @@
                <div class="emp-email">${escapeHtml(u.email)}</div></div>
         </div></td>
         <td><div class="pair-list">${pairsHtml}</div></td>
-        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${hoursDisplay}</td>
-        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #16A34A;">${amountDisplay}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight: 500;">${hoursDisplay}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight: 600;">${amountDisplay}</td>
         <td>${statusBadge}</td>
-        <td style="text-align: right;"><span style="color:#94A3B8; font-size: 11px;">Открыть →</span></td>
+        <td style="text-align: right;"><span class="row-chev"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></span></td>
       </tr>`;
       if (u.is_active) activeRowsHtml += rowHtml; else inactiveRowsHtml += rowHtml;
     }
     html += activeRowsHtml;
     if (inactiveCount > 0) {
       html += `<tr class="row-toggle-inactive" onclick="toggleInactiveTranslators(this)" style="cursor:pointer;">
-        <td colspan="6" style="padding:10px 12px; color:#64748B; font-size:12px; background:#F8FAFC;">
+        <td colspan="6" style="padding-top:18px; padding-bottom:18px; color:var(--ac-t); font-size:17px;">
           <span class="caret">▸</span> Показать неактивных (${inactiveCount})
         </td></tr>`;
     }
@@ -656,6 +667,16 @@
     }
     html += '</table>';
     content.innerHTML = html;
+    applyTranslatorsSearch();
+  }
+
+  // Поиск по имени и email в списке переводчиков (без запросов к базе)
+  function applyTranslatorsSearch() {
+    const input = document.getElementById('translators-search');
+    const q = input ? input.value.trim().toLowerCase() : '';
+    document.querySelectorAll('#translators-content tr[data-user-id]').forEach(tr => {
+      tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
   }
 
   // Тумблер «показать/скрыть неактивных» в общем списке переводчиков
@@ -697,10 +718,10 @@
     const dateStr = today.toLocaleDateString('ru-RU', {
       weekday: 'long', day: 'numeric', month: 'long'
     });
-    document.getElementById('dash-date').textContent = dateStr;
+    document.getElementById('dash-date').textContent = 'Дашборд · ' + dateStr;
 
     // Заголовок — месяц
-    document.getElementById('dash-title').textContent = monthLabel;
+    document.getElementById('dash-title').textContent = monthLabel + '.';
 
     // Сводку наполним позже, после загрузки данных
     document.getElementById('dash-summary').innerHTML = 'Загрузка данных…';
@@ -739,12 +760,12 @@
       overtimeMetaEl.textContent = 'команда точно по плану';
     } else if (totalOvertime > 0) {
       overtimeEl.textContent = '+' + formatHoursMinutes(totalOvertime);
-      overtimeEl.style.color = '#B45309';
+      overtimeEl.style.color = 'var(--am)';
       const top = byUser.filter(u => (u.overtime || 0) > 0).sort((a, b) => b.overtime - a.overtime)[0];
       overtimeMetaEl.textContent = top ? `больше всех: ${top.name}` : 'переработано командой';
     } else {
       overtimeEl.textContent = '−' + formatHoursMinutes(Math.abs(totalOvertime));
-      overtimeEl.style.color = '#1E40AF';
+      overtimeEl.style.color = 'var(--ac)';
       overtimeMetaEl.textContent = 'недоработано командой';
     }
 
@@ -780,7 +801,7 @@
       amtMeta.textContent =
         `предварительно · вкл. $${inactiveAmount.toFixed(2)} ${pluralize(inactiveCount, 'уволенному', 'уволенным', 'уволенным')}` +
         (inactiveCount > 0 ? ` (${inactiveCount})` : '');
-      amtMeta.style.color = '#B45309';
+      amtMeta.style.color = 'var(--am)';
     } else {
       amtMeta.textContent = 'предварительно';
       amtMeta.style.color = '';
@@ -805,6 +826,9 @@
     renderDashChart(year, month, summary.byDay || {});
     renderDashLeaderboard(byUser, minutesByUser);
     renderDashPairs(summary.byPair || {});
+    dashDaysLeft = daysLeft;
+    renderDashAttention();
+    loadDashRiskClients();
   }
 
   function renderDashChart(year, month, minutesByDay) {
@@ -840,17 +864,16 @@
     }
     grid.replaceChildren(gridFrag);
 
-    // Ось снизу — каждые 5 дней
+    // Ось снизу — по ячейке на день (как столбики), подписи 1, 5, 10… и сегодня
     const axisFrag = document.createDocumentFragment();
-    for (let d = 1; d <= daysInMonth; d += 5) {
+    for (let d = 1; d <= daysInMonth; d++) {
       const lbl = document.createElement('span');
-      lbl.textContent = d;
-      lbl.style.flex = d === 1 ? '0 0 auto' : '1 1 auto';
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const todayDay = todayStr.startsWith(`${year}-${String(month + 1).padStart(2, '0')}-`) ? Number(todayStr.slice(8)) : 0;
+      if (dateStr === todayStr) { lbl.textContent = d; lbl.className = 'today'; }
+      else if ((d === 1 || d % 5 === 0 || d === daysInMonth) && Math.abs(d - todayDay) !== 1) lbl.textContent = d;
       axisFrag.appendChild(lbl);
     }
-    const lastLbl = document.createElement('span');
-    lastLbl.textContent = daysInMonth;
-    axisFrag.appendChild(lastLbl);
     axis.replaceChildren(axisFrag);
   }
 
@@ -895,7 +918,6 @@
 
   function renderDashPairs(minutesByPair) {
     const block = document.getElementById('dash-pairs');
-    block.innerHTML = '';
     const sorted = Object.entries(minutesByPair)
       .filter(([_, m]) => m > 0)
       .sort((a, b) => b[1] - a[1]);
@@ -905,20 +927,89 @@
       return;
     }
 
-    const maxMin = sorted[0][1];
-    sorted.forEach(([code, min]) => {
-      const widthPct = (min / maxMin) * 100;
-      const row = document.createElement('div');
-      row.className = 'dash-pair-row';
-      row.innerHTML = `
-        <div class="dash-pair-code">${escapeHtml(code)}</div>
-        <div class="dash-pair-bar-track">
-          <div class="dash-pair-bar-fill" style="width: ${widthPct}%;"></div>
-        </div>
-        <div class="dash-pair-value">${formatHoursMinutes(Math.round(min))}</div>
-      `;
-      block.appendChild(row);
-    });
+    // Одна полоса с долями пар (как шкала хранилища в iOS) + легенда с часами и процентом
+    const total = sorted.reduce((s, [, m]) => s + m, 0);
+    const color = i => `var(--p${(i % 8) + 1})`;
+    const segs = sorted.map(([code, min], i) =>
+      `<div class="dash-pairs-seg" style="flex-grow:${min}; flex-basis:0; background:${color(i)};" title="${escapeHtml(code)}: ${formatHoursMinutes(Math.round(min))}"></div>`
+    ).join('');
+    const legend = sorted.map(([code, min], i) => `
+      <div class="dash-pairs-item"><i style="background:${color(i)};"></i><b>${escapeHtml(code)}</b>
+        <span>${formatHoursMinutes(Math.round(min))} · ${Math.round(min / total * 100)}%</span></div>`
+    ).join('');
+    block.innerHTML = `
+      <div class="dash-pairs-total">${formatHoursMinutes(Math.round(total))}
+        <small>в ${sorted.length} ${pluralize(sorted.length, 'паре', 'парах', 'парах')}</small></div>
+      <div class="dash-pairs-bar">${segs}</div>
+      <div class="dash-pairs-legend">${legend}</div>`;
+  }
+
+  // ── Дашборд: «Требует внимания» ─────────────────────────────────────
+  // Собирает то, что уже считается в других местах: счётчики запросов и обменов
+  // (бейджи в навигации), клиентов с малым резервом и дни до закрытия периода.
+  const ICO_ATT = {
+    bubble: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z"/></svg>',
+    swap: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 3.5 7.5 7 11"/><path d="M3.5 7.5H17"/><path d="M17 13l3.5 3.5L17 20"/><path d="M20.5 16.5H7"/></svg>',
+    warn: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.6a2 2 0 0 1 3.4 0l7.4 12.8a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3z"/><path d="M12 9.5v4.5"/><path d="M12 17.3v.2"/></svg>',
+    lock: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>',
+    check: '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    chev: '<span class="row-chev"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></span>',
+  };
+  let dashDaysLeft = null;
+  const dashCounts = { req: 0, swap: 0 };
+  let dashRiskClients = [];   // [{ id, name, loss }]
+
+  function renderDashAttention() {
+    const box = document.getElementById('dash-attention');
+    if (!box) return;
+    const rows = [];
+    const row = (icon, tone, title, sub, attrs) =>
+      `<button type="button" class="dash-att-row" ${attrs}>
+        <span class="dash-att-icon ${tone}">${ICO_ATT[icon]}</span>
+        <span class="dash-att-text"><span class="dash-att-title">${title}</span><span class="dash-att-sub">${sub}</span></span>
+        ${ICO_ATT.chev}</button>`;
+    if (dashCounts.req > 0) {
+      rows.push(row('bubble', 'am',
+        `${dashCounts.req} ${pluralize(dashCounts.req, 'запрос', 'запроса', 'запросов')} на смену`,
+        'ожидают вашего решения', 'data-go="requests"'));
+    }
+    if (dashCounts.swap > 0) {
+      rows.push(row('swap', 'ac',
+        `${dashCounts.swap} ${pluralize(dashCounts.swap, 'обмен', 'обмена', 'обменов')} графиками`,
+        'в работе — нужно ваше решение', 'data-go="swaps"'));
+    }
+    for (const c of dashRiskClients.slice(0, 3)) {
+      rows.push(row('warn', 'am', escapeHtml(c.name),
+        c.loss ? 'убыток по неотработанному резерву' : 'резерв заканчивается — меньше 20 ч',
+        `data-client="${escapeAttr(c.id)}"`));
+    }
+    if (dashDaysLeft !== null) {
+      rows.push(row('lock', '', 'Закрытие периода',
+        dashDaysLeft === 0
+          ? 'месяц завершён — можно закрывать'
+          : `через ${dashDaysLeft} ${pluralize(dashDaysLeft, 'день', 'дня', 'дней')} — проверьте часы`,
+        'data-go="payroll"'));
+    }
+    if (rows.length === 0) {
+      rows.push(row('check', '', 'Всё в порядке', 'новых запросов и рисков нет', 'data-go="requests"'));
+    }
+    box.innerHTML = rows.join('');
+  }
+
+  // Клиенты с малым резервом или убытком — только для менеджеров с доступом к «Клиентам»
+  async function loadDashRiskClients() {
+    if (!currentUser || !currentUser.can_access_clients) return;
+    try {
+      const now = new Date();
+      const rows = await fetchClientProfitability(now.getFullYear(), now.getMonth());
+      dashRiskClients = rows
+        .map(r => ({ r, st: clientReserveStatus(r.translators) }))
+        .filter(x => x.st.mode === 'Убыток' || x.st.mode === 'Мало резерва')
+        .map(x => ({ id: x.r.client_id, name: x.r.client_name, loss: x.st.mode === 'Убыток' }));
+    } catch (e) {
+      dashRiskClients = [];   // нет доступа или ошибка — просто не показываем клиентов
+    }
+    renderDashAttention();
   }
 
   // ====================================================================
@@ -945,8 +1036,8 @@
     // Заполнить селектор (один раз достаточно, но безопасно)
     fillPayrollMonthSelector();
 
-    document.getElementById('payroll-subtitle').textContent =
-      'Ведомость за ' + payrollMonthLabel(payrollYear, payrollMonth);
+    document.getElementById('payroll-title').textContent = payrollMonthLabel(payrollYear, payrollMonth) + '.';
+    document.getElementById('payroll-subtitle').textContent = 'Ведомость за ' + payrollMonthLabel(payrollYear, payrollMonth).toLowerCase() + '.';
 
     // Загружаем период (если существует) и его статус
     const label = payrollLabel(payrollYear, payrollMonth);
@@ -1000,10 +1091,9 @@
     const block = document.getElementById('payroll-status-block');
     block.className = 'payroll-status status-open';
     block.classList.remove('hidden');
-    block.innerHTML = `
-      <span class="payroll-status-icon"></span>
-      Период <strong>открыт</strong>. Данные рассчитываются на лету по текущим часам и ставкам.
-    `;
+    block.innerHTML = '<span class="payroll-status-icon"></span>Период открыт';
+    document.getElementById('payroll-subtitle').textContent =
+      'Часы и ставки пересчитываются, пока период открыт. После закрытия ведомость фиксируется и больше не меняется.';
     document.getElementById('payroll-snapshot-note').classList.add('hidden');
 
     // По умолчанию скрываем кнопку — покажем после расчёта, если есть данные
@@ -1031,10 +1121,9 @@
     const closedAt = period.closed_at
       ? new Date(period.closed_at).toLocaleDateString('ru-RU')
       : '—';
-    block.innerHTML = `
-      <span class="payroll-status-icon"></span>
-      Период <strong>закрыт</strong> ${closedAt}. Данные ниже — зафиксированный снимок.
-    `;
+    block.innerHTML = `<span class="payroll-status-icon"></span>Закрыт ${closedAt}`;
+    document.getElementById('payroll-subtitle').textContent =
+      'Период закрыт — ниже зафиксированный снимок ведомости.';
     document.getElementById('payroll-snapshot-note').classList.remove('hidden');
 
     // Кнопки
@@ -1199,7 +1288,7 @@
       const ot = r.totalOvertimeMinutes || 0;
       let otHtml;
       if (Math.abs(ot) < 1) {
-        otHtml = `<span style="color: #94A3B8; font-family: 'JetBrains Mono', monospace; font-size: 12px;">точно</span>`;
+        otHtml = `<span style="color: var(--t3); font-variant-numeric: tabular-nums; font-size: 14px;">точно</span>`;
       } else if (ot > 0) {
         otHtml = `<span class="overtime-widget over">+${formatHoursMinutes(ot)}</span>`;
       } else {
@@ -1213,25 +1302,26 @@
                <div class="emp-email">${escapeHtml(r.user.email)}</div></div>
         </div></td>
         <td>${breakdownHtml}</td>
-        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 500;">${formatHoursMinutes(r.totalMinutes)}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight: 500;">${formatHoursMinutes(r.totalMinutes)}</td>
         <td style="text-align:right;">${otHtml}</td>
-        <td style="text-align:right; font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #16A34A;">$${r.totalAmount.toFixed(2)}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight: 600;">$${r.totalAmount.toFixed(2)}</td>
       </tr>`;
     }
 
     // Итог
     let totalOtHtml;
     if (Math.abs(totalOvertimeMinutes) < 1) {
-      totalOtHtml = `<span style="color: rgba(255,255,255,0.5); font-family: 'JetBrains Mono', monospace; font-size: 12px;">точно</span>`;
+      totalOtHtml = `<span style="color: var(--t2); font-size: 15px; font-weight: 400;">точно</span>`;
     } else if (totalOvertimeMinutes > 0) {
-      totalOtHtml = `<span style="color: #FBBF24; font-family: 'JetBrains Mono', monospace; font-weight: 600;">+${formatHoursMinutes(totalOvertimeMinutes)}</span>`;
+      totalOtHtml = `<span class="overtime-widget over">+${formatHoursMinutes(totalOvertimeMinutes)}</span>`;
     } else {
-      totalOtHtml = `<span style="color: #93C5FD; font-family: 'JetBrains Mono', monospace; font-weight: 600;">−${formatHoursMinutes(Math.abs(totalOvertimeMinutes))}</span>`;
+      totalOtHtml = `<span class="overtime-widget under">−${formatHoursMinutes(Math.abs(totalOvertimeMinutes))}</span>`;
     }
 
     html += `<tr class="payroll-total-row">
-      <td colspan="2" style="text-align: right; color: #94A3B8; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;">Итого по команде</td>
-      <td style="text-align:right; font-family: 'JetBrains Mono', monospace;">${formatHoursMinutes(totalMinutes)}</td>
+      <td>Итого по команде</td>
+      <td style="font-size: 15px; font-weight: 400; color: var(--t2);">${rows.length} ${pluralize(rows.length, 'переводчик', 'переводчика', 'переводчиков')}</td>
+      <td style="text-align:right; font-variant-numeric: tabular-nums;">${formatHoursMinutes(totalMinutes)}</td>
       <td style="text-align:right;">${totalOtHtml}</td>
       <td style="text-align:right;" class="payroll-grand-total">$${totalAmount.toFixed(2)}</td>
     </tr>`;
@@ -1650,10 +1740,10 @@
     const display = document.getElementById('edit-shift-duration');
     if (minutes > 0) {
       display.textContent = formatHoursMinutes(minutes);
-      display.style.color = '#16A34A';
+      display.style.color = 'var(--gn)';
     } else {
       display.textContent = '—';
-      display.style.color = '#94A3B8';
+      display.style.color = 'var(--t3)';
     }
   }
 
@@ -1765,9 +1855,9 @@
       div.innerHTML = `
         <select class="pair-lang" disabled>${options}</select>
         <div class="pair-rate-input">
-          <span style="color:#475569;">$</span>
+          <span style="color:var(--t2);">$</span>
           <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" value="${existing.rate_per_hour.toFixed(2)}">
-          <span style="color:#475569;font-size:12px;">/ч</span>
+          <span style="color:var(--t2);font-size: 14px;">/ч</span>
         </div>
         <input type="date" class="pair-effective-date" value="${today}" title="Действует с (для новой ставки)">
         <label class="primary-check">
@@ -1781,9 +1871,9 @@
       div.innerHTML = `
         <select class="pair-lang">${options}</select>
         <div class="pair-rate-input">
-          <span style="color:#475569;">$</span>
+          <span style="color:var(--t2);">$</span>
           <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" placeholder="25.00">
-          <span style="color:#475569;font-size:12px;">/ч</span>
+          <span style="color:var(--t2);font-size: 14px;">/ч</span>
         </div>
         <input type="date" class="pair-effective-date" value="${today}" title="Действует с">
         <label class="primary-check">
@@ -1828,7 +1918,7 @@
     count.textContent = (data && data.length) || 0;
 
     if (!data || data.length === 0) {
-      block.innerHTML = '<div style="color:#94A3B8; font-size: 12px; padding: 6px 0;">История пуста.</div>';
+      block.innerHTML = '<div style="color:var(--t3); font-size: 14px; padding: 6px 0;">История пуста.</div>';
       return;
     }
 
@@ -1842,7 +1932,7 @@
             : ''}
           <span class="rate-history-new">$${Number(h.new_rate).toFixed(2)}</span>
         </span>
-        <span style="font-size: 11px; color: #94A3B8;">${escapeHtml(h.reason || '')}</span>
+        <span style="font-size: 13px; color: var(--t3);">${escapeHtml(h.reason || '')}</span>
       </div>
     `).join('');
   }
@@ -2132,13 +2222,14 @@
     const initials = (user.name || '?').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
     document.getElementById('td-avatar').textContent = initials;
     document.getElementById('td-name').textContent = user.name;
+    document.getElementById('td-crumb').textContent = user.name;
     document.getElementById('td-email').textContent = user.email;
 
     // Бейджи: смена + языковые пары
     const shiftStart = (user.default_shift_start || '09:00:00').substring(0, 5);
     const shiftEnd = (user.default_shift_end || '18:00:00').substring(0, 5);
     const shiftMin = user.default_shift_minutes || 480;
-    const shiftBadge = `<span class="badge badge-info" title="Стандартная смена">⏱ ${shiftStart}–${shiftEnd} · ${formatHoursMinutes(shiftMin)}</span>`;
+    const shiftBadge = `<span class="badge badge-info" title="Стандартная смена">${shiftStart}–${shiftEnd} · ${formatHoursMinutes(shiftMin)}</span>`;
     const pairsBadges = tdMyPairs.map(p =>
       `<span class="badge badge-neutral">${p.language_pairs.code} · $${Number(p.rate_per_hour).toFixed(2)}/ч</span>`
     ).join('');
@@ -2148,10 +2239,10 @@
     const btnToggle = document.getElementById('btn-toggle-active');
     if (user.is_active) {
       btnToggle.textContent = 'Деактивировать';
-      btnToggle.style.color = '#DC2626';
+      btnToggle.style.color = 'var(--rd)';
     } else {
       btnToggle.textContent = 'Активировать';
-      btnToggle.style.color = '#16A34A';
+      btnToggle.style.color = 'var(--gn)';
     }
 
     // Заполняем селектор месяцев (последние 12 месяцев + текущий)
@@ -2300,11 +2391,11 @@
         otMetaEl.textContent = 'точно по плану';
       } else if (totals.overtime > 0) {
         otEl.innerHTML = '+' + formatHoursMinutes(totals.overtime);
-        otEl.style.color = '#B45309';
+        otEl.style.color = 'var(--am)';
         otMetaEl.textContent = 'переработано';
       } else {
         otEl.innerHTML = '−' + formatHoursMinutes(Math.abs(totals.overtime));
-        otEl.style.color = '#1E40AF';
+        otEl.style.color = 'var(--ac)';
         otMetaEl.textContent = 'недоработано';
       }
     }
@@ -2517,9 +2608,9 @@
 
     if (day.day_type === 'absent') {
       body.innerHTML = shiftHtml + `
-        <div style="padding: 18px; text-align: center; color: #1E40AF; background: #DBEAFE; border-radius: 8px; margin-top: 12px;">
+        <div style="padding: 18px; text-align: center; color: var(--ac); background: var(--acb); border-radius: 8px; margin-top: 12px;">
           <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px;">Отгул</div>
-          <div style="font-size: 12px;">Этот день отмечен как отгул. Оплата не начисляется.</div>
+          <div style="font-size: 14px;">Этот день отмечен как отгул. Оплата не начисляется.</div>
         </div>
       `;
       return;
@@ -2580,7 +2671,7 @@
     if (breaks.length > 0) {
       html += `
         <div class="day-readonly-section">
-          <div class="day-readonly-title">Брейки</div>
+          <div class="day-readonly-title">Перерывы</div>
           ${breaks.map(b => `
             <div class="day-readonly-item break-item">
               <span class="day-readonly-time">${formatTimeHM(b.start_at)} → ${formatTimeHM(b.end_at)}</span>
@@ -2600,7 +2691,7 @@
           <div style="margin-top: 4px;">${overtimeHtml}</div>
         </div>
         <div class="day-summary-cell">
-          <div class="day-summary-label">Брейки</div>
+          <div class="day-summary-label">Перерывы</div>
           <div class="day-summary-value">${formatHoursMinutes(breaksMin)}</div>
         </div>
         <div class="day-summary-cell">
@@ -2624,7 +2715,7 @@
           <div class="shift-section-header">
             <span class="shift-section-label">Особая смена назначена</span>
             <div class="shift-section-actions">
-              <button class="shift-section-btn" onclick="openShiftModal()">✎ Изменить</button>
+              <button class="shift-section-btn" onclick="openShiftModal()">Изменить</button>
               <button class="shift-section-btn danger" onclick="deleteShift()">× Удалить</button>
             </div>
           </div>
@@ -2706,10 +2797,10 @@
     const display = document.getElementById('shift-duration');
     if (minutes > 0) {
       display.textContent = formatHoursMinutes(minutes);
-      display.style.color = '#16A34A';
+      display.style.color = 'var(--gn)';
     } else {
       display.textContent = '—';
-      display.style.color = '#94A3B8';
+      display.style.color = 'var(--t3)';
     }
   }
 
@@ -2942,7 +3033,9 @@
     hideError('cal-error');
 
     document.getElementById('cal-page-title').textContent =
-      MONTH_NAMES_RU[calMonth] + ' ' + calYear;
+      MONTH_NAMES_RU[calMonth] + ' ' + calYear + '.';
+    document.getElementById('cal-eyebrow').textContent = 'Моё время · ' +
+      new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
     document.getElementById('cal-month-label').textContent =
       MONTH_NAMES_RU[calMonth] + ' ' + calYear;
 
@@ -3085,7 +3178,7 @@
     if (oldCell) {
       const dayNum = Number(dateStr.split('-')[2]);
       const todayStr = formatDate(new Date());
-      const newCell = buildCalendarCell(dayNum, dateStr, calYear, calMonth, calState.dayMap, todayStr);
+      const newCell = buildCalendarCell(dayNum, dateStr, calYear, calMonth, calState.dayMap, todayStr, { cta: true });
       newCell.addEventListener('click', () => onDayClick(dateStr));
       oldCell.replaceWith(newCell);
     }
@@ -3094,7 +3187,7 @@
 
   // Рендер одной ячейки календаря (используется и при полной перерисовке, и при single-cell update)
   // Возвращает DOM-узел. dayMap — общий словарь, calYear/calMonth — текущие глобальные.
-  function buildCalendarCell(d, dateStr, calYear_, calMonth_, dayMap, todayStr) {
+  function buildCalendarCell(d, dateStr, calYear_, calMonth_, dayMap, todayStr, opts = {}) {
     const cell = document.createElement('div');
     cell.className = 'cal-day';
     cell.dataset.date = dateStr;
@@ -3119,11 +3212,26 @@
       h.className = 'cal-day-hours';
       h.textContent = formatHoursMinutes(info.minutes);
       cell.appendChild(h);
+      // Короткая запись для сетки на телефоне: 8:15
+      const hs = document.createElement('div');
+      hs.className = 'cal-day-hours-short';
+      hs.textContent = Math.floor(info.minutes / 60) + ':' + String(info.minutes % 60).padStart(2, '0');
+      cell.appendChild(hs);
     } else if (info && info.type === 'absent') {
       const t = document.createElement('div');
       t.className = 'cal-day-tag';
       t.textContent = 'Отгул';
       cell.appendChild(t);
+    } else if (opts.cta && dateStr === todayStr) {
+      const c = document.createElement('div');
+      c.className = 'cal-day-cta';
+      c.innerHTML = '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Внести часы';
+      cell.appendChild(c);
+    } else if (isWeekend) {
+      const w = document.createElement('div');
+      w.className = 'cal-day-sub';
+      w.textContent = 'выходной';
+      cell.appendChild(w);
     }
 
     return cell;
@@ -3157,7 +3265,7 @@
 
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const cell = buildCalendarCell(d, dateStr, calYear, calMonth, dayMap, todayStr);
+      const cell = buildCalendarCell(d, dateStr, calYear, calMonth, dayMap, todayStr, { cta: true });
       cell.addEventListener('click', () => onDayClick(dateStr));
       frag.appendChild(cell);
     }
@@ -3219,10 +3327,10 @@
     const display = document.getElementById('shift-req-duration');
     if (minutes > 0) {
       display.textContent = formatHoursMinutes(minutes);
-      display.style.color = '#16A34A';
+      display.style.color = 'var(--gn)';
     } else {
       display.textContent = '—';
-      display.style.color = '#94A3B8';
+      display.style.color = 'var(--t3)';
     }
   }
 
@@ -3378,8 +3486,8 @@
 
             <div class="req-reason">${escapeHtml(r.reason)}</div>
 
-            <div style="margin-top: 14px; padding: 12px; background: #FAFAFA; border-radius: 8px;">
-              <div style="font-size: 11px; font-weight: 600; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+            <div style="margin-top: 14px; padding: 12px; background: var(--s2); border-radius: 8px;">
+              <div style="font-size: 13px; font-weight: 600; color: var(--t2); margin-bottom: 8px;">
                 Решение менеджера · можете скорректировать перед одобрением
               </div>
               <div class="field-row">
@@ -3416,8 +3524,8 @@
       const fs = r.final_start.substring(0,5);
       const fe = r.final_end.substring(0,5);
       const fd = r.final_effective_from ? formatDateRu(r.final_effective_from) : effDate;
-      finalLabel = `<div class="req-change" style="margin-top: 8px; background: #DCFCE7;">
-        <span class="req-change-from" style="color: #475569;">Утверждено:</span>
+      finalLabel = `<div class="req-change" style="margin-top: 8px; background: var(--gnb);">
+        <span class="req-change-from" style="color: var(--t2);">Утверждено:</span>
         <span class="req-change-to">${fs}–${fe} (${formatHoursMinutes(r.final_minutes)}) с ${fd}</span>
       </div>`;
     }
@@ -3554,6 +3662,8 @@
   }
 
   function updateRequestsBadge(count) {
+    dashCounts.req = count;
+    renderDashAttention();
     const badge = document.getElementById('sb-req-badge');
     if (!badge) return;
     if (count > 0) {
@@ -3761,10 +3871,10 @@
     div.id = id;
     div.innerHTML = `
       <input type="time" class="iv-start" value="${prefill ? prefill.startTime : '09:00'}">
-      <span class="arrow">→</span>
+      <span class="arrow">–</span>
       <input type="time" class="iv-end" value="${prefill ? prefill.endTime : '18:00'}">
       <select class="iv-pair">${options}</select>
-      <button class="remove-btn" onclick="removeIntervalRow('${id}')">×</button>
+      <button class="remove-btn" onclick="removeIntervalRow('${id}')" aria-label="Удалить строку">−</button>
     `;
     document.getElementById('intervals-list').appendChild(div);
     div.querySelectorAll('input, select').forEach(el => {
@@ -3788,10 +3898,10 @@
     div.id = id;
     div.innerHTML = `
       <input type="time" class="br-start" value="${prefill ? prefill.startTime : '13:00'}">
-      <span class="arrow">→</span>
+      <span class="arrow">–</span>
       <input type="time" class="br-end" value="${prefill ? prefill.endTime : '13:30'}">
       <input type="text" class="break-note" maxlength="200" placeholder="Заметка (необязательно)" value="${prefill ? escapeAttr(prefill.note) : ''}">
-      <button class="remove-btn" onclick="removeBreakRow('${id}')">×</button>
+      <button class="remove-btn" onclick="removeBreakRow('${id}')" aria-label="Удалить строку">−</button>
     `;
     document.getElementById('breaks-list').appendChild(div);
     div.querySelectorAll('input').forEach(el => {
@@ -3855,7 +3965,7 @@
       const s = row.querySelector('.br-start').value;
       const e = row.querySelector('.br-end').value;
       if (!s || !e) {
-        warnings.push(`Брейк #${idx + 1}: укажите время начала и окончания.`);
+        warnings.push(`Перерыв #${idx + 1}: укажите время начала и окончания.`);
         invalidRows.add(row.id);
         return;
       }
@@ -3863,7 +3973,7 @@
       let endMin = hmToMinutes(e);
       if (endMin <= startMin) endMin += 24 * 60;
       if (endMin - startMin <= 0) {
-        warnings.push(`Брейк #${idx + 1}: время окончания должно быть позже начала.`);
+        warnings.push(`Перерыв #${idx + 1}: время окончания должно быть позже начала.`);
         invalidRows.add(row.id);
         return;
       }
@@ -3887,7 +3997,7 @@
       for (let j = i + 1; j < breaks.length; j++) {
         const a = breaks[i], b = breaks[j];
         if (overlaps(a.start, a.end, b.start, b.end)) {
-          warnings.push(`Брейки #${a.idx} и #${b.idx} пересекаются по времени.`);
+          warnings.push(`Перерывы #${a.idx} и #${b.idx} пересекаются по времени.`);
           invalidRows.add(a.rowId);
           invalidRows.add(b.rowId);
         }
@@ -3913,7 +4023,7 @@
         return false;
       });
       if (!isInside && intervals.length > 0) {
-        warnings.push(`Брейк #${br.idx} находится вне рабочих интервалов.`);
+        warnings.push(`Перерыв #${br.idx} находится вне рабочих интервалов.`);
         invalidRows.add(br.rowId);
       }
     }
@@ -4105,7 +4215,7 @@
 
   async function deleteDay() {
     if (!currentDayId) return;
-    if (!confirm('Удалить запись за этот день? Все интервалы и брейки будут стёрты.')) return;
+    if (!confirm('Удалить запись за этот день? Все интервалы и перерывы будут стёрты.')) return;
     const { error } = await sb.from('work_days').delete().eq('id', currentDayId);
     if (error) {
       showError('day-error', 'Ошибка удаления: ' + error.message);
@@ -4144,6 +4254,13 @@
 
   function escapeAttr(s) {
     return String(s || '').replace(/"/g, '&quot;');
+  }
+
+  function calGoToday() {
+    const now = new Date();
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+    loadCalendar();
   }
 
   function changeMonth(delta) {
@@ -4218,21 +4335,21 @@
       const rs = r.requested_start.substring(0,5);
       const re = r.requested_end.substring(0,5);
       html += `
-        <div style="background: #FEF3C7; border-left: 3px solid #B45309; padding: 10px 14px; border-radius: 8px; margin-top: 12px;">
-          <div style="font-size: 11px; font-weight: 600; color: #B45309; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
-            ⏱ Запрос на рассмотрении у менеджера
+        <div style="background: var(--amb); padding: 10px 14px; border-radius: 8px; margin-top: 12px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--am); margin-bottom: 4px;">
+            Запрос на рассмотрении у менеджера
           </div>
-          <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #0F1B3D;">
+          <div style="font-variant-numeric: tabular-nums; font-size: 15px; color: var(--t1);">
             ${rs}–${re} (${formatHoursMinutes(r.requested_minutes)}) с ${formatDateRu(r.shift_date)}
           </div>
-          <div style="font-style: italic; color: #475569; font-size: 12px; margin-top: 4px;">«${escapeHtml(r.reason)}»</div>
+          <div style="font-style: italic; color: var(--t2); font-size: 14px; margin-top: 4px;">«${escapeHtml(r.reason)}»</div>
         </div>
       `;
-      btn.textContent = '⏱ Запрос в ожидании';
+      btn.textContent = 'Запрос в ожидании';
       btn.disabled = true;
       btn.style.opacity = '0.5';
     } else {
-      btn.textContent = '✎ Запросить изменение';
+      btn.textContent = 'Запросить изменение';
       btn.disabled = false;
       btn.style.opacity = '';
     }
@@ -4241,8 +4358,8 @@
     const allReqs = allRequestsRes.data || [];
     if (allReqs.length > 0) {
       html += `
-        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #E5E7EB;">
-          <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 500;">
+        <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--b1);">
+          <div style="font-size: 13px; color: var(--t3); margin-bottom: 12px; font-variant-numeric: tabular-nums; font-weight: 500;">
             История запросов
           </div>
           <div class="shift-history-list">
@@ -4270,15 +4387,15 @@
     if (r.status === 'pending') {
       statusLabel = '● Ожидает';
       statusClass = 'pending';
-      leftBorder = '#B45309';
+      leftBorder = 'var(--am)';
     } else if (r.status === 'approved') {
       statusLabel = '● Одобрен';
       statusClass = 'approved';
-      leftBorder = '#16A34A';
+      leftBorder = 'var(--gn)';
     } else {
       statusLabel = '● Отклонён';
       statusClass = 'rejected';
-      leftBorder = '#DC2626';
+      leftBorder = 'var(--rd)';
     }
 
     let finalBlock = '';
@@ -4290,19 +4407,19 @@
       const sameAsRequested = (fs === rs && fe === re && r.final_minutes === r.requested_minutes
                                && r.final_effective_from === r.shift_date);
       if (sameAsRequested) {
-        finalBlock = `<div style="font-size: 12px; color: #16A34A; margin-top: 4px;">✓ Одобрено как запрошено</div>`;
+        finalBlock = `<div style="font-size: 14px; color: var(--gn); margin-top: 4px;">✓ Одобрено как запрошено</div>`;
       } else {
-        finalBlock = `<div style="font-size: 12px; color: #16A34A; margin-top: 4px; font-family: 'JetBrains Mono', monospace;">
+        finalBlock = `<div style="font-size: 14px; color: var(--gn); margin-top: 4px; font-variant-numeric: tabular-nums;">
           ✓ Утверждено: <strong>${fs}–${fe} (${fDur}) с ${fDate}</strong>
         </div>`;
       }
     } else if (r.status === 'rejected') {
-      finalBlock = `<div style="font-size: 12px; color: #DC2626; margin-top: 4px;">✕ Отклонено</div>`;
+      finalBlock = `<div style="font-size: 14px; color: var(--rd); margin-top: 4px;">✕ Отклонено</div>`;
     }
 
     let noteBlock = '';
     if (r.review_note) {
-      noteBlock = `<div style="font-size: 12px; color: #475569; margin-top: 6px; font-style: italic;">
+      noteBlock = `<div style="font-size: 14px; color: var(--t2); margin-top: 6px; font-style: italic;">
         Менеджер: «${escapeHtml(r.review_note)}»
       </div>`;
     }
@@ -4312,18 +4429,18 @@
       : '';
 
     return `
-      <div style="padding: 10px 12px; border-left: 3px solid ${leftBorder}; background: #FAFAFA; border-radius: 6px; margin-bottom: 8px;">
+      <div style="padding: 10px 12px; background: var(--s2); border-radius: 6px; margin-bottom: 8px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <div style="font-size: 12px; color: #94A3B8; font-family: 'JetBrains Mono', monospace;">
-            ${isManagerView && translatorName ? `<strong style="color: #0F1B3D;">${escapeHtml(translatorName)}</strong> · ` : ''}
+          <div style="font-size: 14px; color: var(--t3); font-variant-numeric: tabular-nums;">
+            ${isManagerView && translatorName ? `<strong style="color: var(--t1);">${escapeHtml(translatorName)}</strong> · ` : ''}
             подан ${submitDate}${decisionDate}
           </div>
           <span class="req-status-badge ${statusClass}">${statusLabel}</span>
         </div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #0F1B3D;">
+        <div style="font-variant-numeric: tabular-nums; font-size: 15px; color: var(--t1);">
           Запросил: ${rs}–${re} (${reqDur}) с ${formatDateRu(r.shift_date)}
         </div>
-        <div style="font-style: italic; color: #475569; font-size: 12px; margin-top: 4px;">«${escapeHtml(r.reason)}»</div>
+        <div style="font-style: italic; color: var(--t2); font-size: 14px; margin-top: 4px;">«${escapeHtml(r.reason)}»</div>
         ${finalBlock}
         ${noteBlock}
       </div>
@@ -4359,8 +4476,8 @@
         <td><strong>${p.language_pairs.code}</strong>
             ${p.is_primary ? '<span class="badge badge-neutral" style="margin-left: 6px;">основная</span>' : ''}</td>
         <td>${p.proficiency || '—'}</td>
-        <td style="font-family: 'JetBrains Mono', monospace; font-weight: 500;">$${Number(p.rate_per_hour).toFixed(2)}</td>
-        <td style="font-family: 'JetBrains Mono', monospace; color: #475569;">${new Date(p.effective_from).toLocaleDateString('ru-RU')}</td>
+        <td style="font-variant-numeric: tabular-nums; font-weight: 500;">$${Number(p.rate_per_hour).toFixed(2)}</td>
+        <td style="font-variant-numeric: tabular-nums; color: var(--t2);">${new Date(p.effective_from).toLocaleDateString('ru-RU')}</td>
       </tr>`;
     }
     html += '</tbody></table>';
@@ -4402,9 +4519,9 @@
     div.innerHTML = `
       <select class="pair-lang">${options}</select>
       <div class="pair-rate-input">
-        <span style="color:#475569;">$</span>
+        <span style="color:var(--t2);">$</span>
         <input type="number" class="pair-rate-input-field" step="0.50" min="0.50" max="500" placeholder="25.00">
-        <span style="color:#475569;font-size:12px;">/ч</span>
+        <span style="color:var(--t2);font-size: 14px;">/ч</span>
       </div>
       <label class="primary-check">
         <input type="radio" name="primary-pair" value="${id}" ${isPrimary ? 'checked' : ''}>
@@ -4563,12 +4680,12 @@
   // Режим резерва по остатку часов → { mode, badgeCls, barColor, textColor }
   function reserveStatus(hoursRemaining) {
     if (hoursRemaining <= 0) {
-      return { mode: 'Постоплата', badgeCls: 'badge-warn', barColor: '#DC2626', textColor: '#DC2626' };
+      return { mode: 'Постоплата', badgeCls: 'badge-warn', barColor: 'var(--rd)', textColor: 'var(--rd)' };
     }
     if (hoursRemaining <= 20) {
-      return { mode: 'Мало резерва', badgeCls: 'badge-warn', barColor: '#B45309', textColor: '#B45309' };
+      return { mode: 'Мало резерва', badgeCls: 'badge-warn', barColor: 'var(--am)', textColor: 'var(--am)' };
     }
-    return { mode: 'Предоплата', badgeCls: 'badge-good', barColor: '#16A34A', textColor: '#16A34A' };
+    return { mode: 'Предоплата', badgeCls: 'badge-good', barColor: 'var(--gn)', textColor: 'var(--gn)' };
   }
 
   // Сводный статус клиента для бейджа в списке. Приоритет:
@@ -4577,17 +4694,17 @@
   //   • иначе → нейтральный «—» (постоплата/норма ничем не выделяется)
   function clientReserveStatus(translators) {
     if (!translators || translators.length === 0) {
-      return { mode: '—', badgeCls: 'badge-neutral', barColor: '#94A3B8', textColor: '#94A3B8' };
+      return { mode: '—', badgeCls: 'badge-neutral', barColor: 'var(--t3)', textColor: 'var(--t3)' };
     }
     const hasLoss = translators.some(t => !t.is_active && t.hours_remaining > 0);
     if (hasLoss) {
-      return { mode: 'Убыток', badgeCls: 'badge-warn', barColor: '#DC2626', textColor: '#DC2626' };
+      return { mode: 'Убыток', badgeCls: 'badge-warn', barColor: 'var(--rd)', textColor: 'var(--rd)' };
     }
     const hasLow = translators.some(t => t.is_active && t.hours_remaining > 0 && t.hours_remaining <= 20);
     if (hasLow) {
-      return { mode: 'Мало резерва', badgeCls: 'badge-warn', barColor: '#B45309', textColor: '#B45309' };
+      return { mode: 'Мало резерва', badgeCls: 'badge-warn', barColor: 'var(--am)', textColor: 'var(--am)' };
     }
-    return { mode: '—', badgeCls: 'badge-neutral', barColor: '#16A34A', textColor: '#16A34A' };
+    return { mode: '—', badgeCls: 'badge-neutral', barColor: 'var(--gn)', textColor: 'var(--gn)' };
   }
 
   // ── СТРАНИЦА: СПИСОК КЛИЕНТОВ ───────────────────────────────────────
@@ -4656,7 +4773,7 @@
     for (const r of rows) {
       const st = clientReserveStatus(r.translators);
       const initials = clientInitials(r.client_name);
-      const profitColor = r.profit >= 0 ? '#16A34A' : '#DC2626';
+      const profitColor = r.profit >= 0 ? 'var(--gn)' : 'var(--rd)';
       const profitSign = r.profit >= 0 ? '+' : '−';
       const marginBadge = r.margin_pct >= 0
         ? `<span class="badge badge-good">${r.margin_pct.toFixed(1)}%</span>`
@@ -4668,13 +4785,13 @@
           <div><div class="emp-name">${escapeHtml(r.client_name)}</div>
                ${r.contact_email ? `<div class="emp-email">${escapeHtml(r.contact_email)}</div>` : ''}</div>
         </div></td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${r.translators.filter(t => t.is_active).length}</td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${r.revenue.toFixed(2)}</td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${r.cost.toFixed(2)}</td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:${profitColor};">${profitSign}$${Math.abs(r.profit).toFixed(2)}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums;">${r.translators.filter(t => t.is_active).length}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums;">$${r.revenue.toFixed(2)}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; color:var(--t3);">$${r.cost.toFixed(2)}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight:600; color:${profitColor};">${profitSign}$${Math.abs(r.profit).toFixed(2)}</td>
         <td style="text-align:right;">${marginBadge}</td>
         <td><span class="badge ${st.badgeCls}">${st.mode}</span></td>
-        <td style="text-align:right;"><span style="color:#94A3B8; font-size:11px;">Открыть →</span></td>
+        <td style="text-align:right;"><span class="row-chev"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></span></td>
       </tr>`;
     }
     html += '</tbody></table>';
@@ -4754,11 +4871,12 @@
     // Шапка
     document.getElementById('cd-avatar').textContent = clientInitials(r.client_name);
     document.getElementById('cd-name').textContent = r.client_name;
+    document.getElementById('cd-crumb').textContent = r.client_name;
     document.getElementById('cd-email').textContent = r.contact_email || '—';
     const cdActiveCount = r.translators.filter(t => t.is_active).length;
     const cdInactiveCount = r.translators.length - cdActiveCount;
     document.getElementById('cd-meta').innerHTML =
-      `<span style="font-size:12px; color:#475569;">` +
+      `<span style="font-size:17px; color:var(--t2);">` +
       `${cdActiveCount} ${pluralize(cdActiveCount,'переводчик','переводчика','переводчиков')}` +
       (cdInactiveCount > 0
         ? ` · ${cdInactiveCount} ${pluralize(cdInactiveCount,'ушедший','ушедших','ушедших')}`
@@ -4798,9 +4916,7 @@
       const totalUnearnedH = lossOnes.reduce((s, t) => s + t.hours_remaining, 0);
       const names = lossOnes.map(t => t.translator_name).join(', ');
       // Красный стиль (убыток)
-      alert.style.background = '#FCEBEB';
-      alert.style.borderLeftColor = '#A32D2D';
-      alert.style.color = '#A32D2D';
+      alert.classList.add('alert-danger');
       alertText.textContent =
         `Убыток по неотработанному резерву: ${names} деактивирован(ы), ` +
         `осталось ${totalUnearnedH.toFixed(0)} ч оплаченного клиентом времени` +
@@ -4808,9 +4924,7 @@
       alert.classList.remove('hidden');
     } else if (lowOnes.length > 0) {
       // Жёлтый стиль (резерв на исходе)
-      alert.style.background = '#FEF3C7';
-      alert.style.borderLeftColor = '#B45309';
-      alert.style.color = '#92400E';
+      alert.classList.remove('alert-danger');
       alertText.textContent =
         `У ${lowOnes.length} ${pluralize(lowOnes.length,'переводчика','переводчиков','переводчиков')} ` +
         `резерв заканчивается (≤ 20 ч) — скоро переход на постоплату.`;
@@ -4834,10 +4948,11 @@
     const usedPct = totalBought > 0 ? Math.max(0, Math.min(100, usedTotal / totalBought * 100)) : 0;
     document.getElementById('cd-reserve-used-label').textContent =
       `${usedTotal.toFixed(0)} ч из ${totalBought.toFixed(0)} ч`;
-    const bar = document.getElementById('cd-reserve-bar');
-    bar.style.width = usedPct + '%';
-    bar.style.background = st.barColor;
-    document.getElementById('cd-reserve-remaining-label').textContent = `${totalRemaining.toFixed(0)} ч осталось`;
+    const ring = document.getElementById('cd-reserve-ring');
+    ring.style.setProperty('--p', usedPct.toFixed(1));
+    ring.style.setProperty('--ring-c', st.barColor === 'var(--am)' ? 'var(--am-bar)' : st.barColor === 'var(--gn)' ? 'var(--gn-dot)' : st.barColor);
+    document.getElementById('cd-reserve-ring-value').textContent = totalRemaining.toFixed(0) + ' ч';
+    document.getElementById('cd-reserve-remaining-label').textContent = `${totalRemaining.toFixed(0)} ч`;
     document.getElementById('cd-reserve-remaining-label').style.color = st.textColor;
     document.getElementById('cd-reserve-total-label').textContent = totalBought.toFixed(0) + ' ч';
 
@@ -4850,33 +4965,35 @@
     const renderTrReserveRow = (t) => {
       let color, note;
       if (!t.is_active && t.hours_remaining > 0) {
-        color = '#DC2626';
+        color = 'var(--rd)';
         note = `убыток ~$${t.unearned_loss.toFixed(2)} · ${t.hours_remaining.toFixed(0)} ч не отработано`;
       } else if (t.is_active && t.hours_remaining > 0 && t.hours_remaining <= 20) {
-        color = '#B45309';
+        color = 'var(--am)';
         note = `осталось ${t.hours_remaining.toFixed(0)} ч — скоро постоплата`;
       } else if (t.hours_remaining > 0) {
-        color = '#16A34A';
+        color = 'var(--gn)';
         note = `резерв ${t.hours_remaining.toFixed(0)} ч`;
       } else {
-        color = '#94A3B8';
+        color = 'var(--t3)';
         note = 'постоплата';
       }
       const pct = t.hours_purchased > 0
         ? Math.max(0, Math.min(100, t.hours_remaining / t.hours_purchased * 100)) : 0;
       const inactiveBadge = !t.is_active
-        ? ' <span class="badge badge-warn" style="font-size:10px; padding:1px 6px;">деактивирован</span>' : '';
-      return `<div style="padding:10px 0; border-bottom:1px solid #F1F5F9;">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-          <span style="font-size:13px; color:#0F1B3D; font-weight:500;">${escapeHtml(t.translator_name)}${inactiveBadge}</span>
-          <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:${color};">${t.hours_remaining.toFixed(0)} ч</span>
+        ? ' <span class="badge badge-warn" style="height:22px; font-size: 14px; margin-left:6px;">деактивирован</span>' : '';
+      // Полоса — яркий системный цвет, подпись — тёмный вариант того же цвета (контраст текста)
+      const barColor = color === 'var(--am)' ? 'var(--am-bar)' : color === 'var(--gn)' ? 'var(--gn-dot)' : color;
+      return `<div style="padding:14px 0; border-top:1px solid var(--b1);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px;">
+          <span style="font-size:17px; color:var(--t1); font-weight:600;">${escapeHtml(t.translator_name)}${inactiveBadge}</span>
+          <span style="font-variant-numeric: tabular-nums; font-size:17px; color:${color};">${t.hours_remaining.toFixed(0)} ч</span>
         </div>
-        <div style="width:100%; height:6px; background:#F1F5F9; border:1px solid #E5E7EB; border-radius:100px; overflow:hidden;">
-          <div style="height:100%; width:${pct}%; background:${color}; border-radius:100px;"></div>
+        <div style="width:100%; height:8px; background:var(--s2); border-radius:4px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:${barColor}; border-radius:4px;"></div>
         </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:3px;">
-          <span style="font-size:11px; color:${color === '#94A3B8' ? '#94A3B8' : color};">${note}</span>
-          <button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:11px;" onclick="openAddPrepaymentModal('${t.user_id}')">+ Предоплата</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px;">
+          <span style="font-size:14px; color:${color === 'var(--t3)' ? 'var(--t2)' : color};">${note}</span>
+          <button class="btn btn-ghost btn-sm" onclick="openAddPrepaymentModal('${t.user_id}')">+ Предоплата</button>
         </div>
       </div>`;
     };
@@ -4887,10 +5004,10 @@
     histEl.innerHTML =
       (cdMainTr.length > 0
         ? cdMainTr.map(renderTrReserveRow).join('')
-        : '<div style="padding:10px 0; color:#94A3B8; font-size:13px;">Нет активных переводчиков с резервом.</div>') +
+        : '<div style="padding:10px 0; color:var(--t3); font-size: 15px;">Нет активных переводчиков с резервом.</div>') +
       (cdSettledTr.length > 0
-        ? `<div style="margin-top:6px; border-top:1px solid #F1F5F9; padding-top:4px;">
-             <div onclick="toggleSettledInactive(this)" style="cursor:pointer; font-size:12px; color:#64748B; padding:6px 0;">
+        ? `<div style="margin-top:6px; border-top:1px solid var(--s2); padding-top:4px;">
+             <div onclick="toggleSettledInactive(this)" style="cursor:pointer; font-size: 14px; color:var(--t2); padding:6px 0;">
                <span class="caret">▸</span> Ушедшие переводчики (${cdSettledTr.length})
              </div>
              <div id="cd-settled-inactive" style="display:none;">
@@ -4902,13 +5019,13 @@
     // Тарифы по парам (клиентские)
     const ratesEl = document.getElementById('cd-rates-by-pair');
     if (!r.rates_by_pair || r.rates_by_pair.length === 0) {
-      ratesEl.innerHTML = '<div style="color:#94A3B8; font-size:13px; padding:8px 0;">Тарифы клиента не заданы. Задайте их через «Редактировать».</div>';
+      ratesEl.innerHTML = '<div style="color:var(--t3); font-size: 15px; padding:8px 0;">Тарифы клиента не заданы. Задайте их через «Редактировать».</div>';
     } else {
       ratesEl.innerHTML = r.rates_by_pair.map(p => {
         const cRate = Number(p.client_rate) || 0;
-        return `<div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #F1F5F9;">
-          <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600;">${escapeHtml(p.pair_code)}</span>
-          <span style="color:#1E40AF; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600;">$${cRate.toFixed(2)}/ч</span>
+        return `<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 0; border-top:1px solid var(--b1);">
+          <span class="badge badge-neutral">${escapeHtml(p.pair_code)}</span>
+          <span style="font-variant-numeric: tabular-nums; font-size:19px; font-weight:600;">$${cRate.toFixed(2)}<span style="font-size:15px; font-weight:400; color:var(--t2);"> /ч</span></span>
         </div>`;
       }).join('');
     }
@@ -4929,13 +5046,13 @@
       </tr></thead><tbody>`;
       const sorted = [...r.translators].sort((a, b) => b.profit - a.profit);
       for (const t of sorted) {
-        const profitColor = t.profit >= 0 ? '#16A34A' : '#DC2626';
+        const profitColor = t.profit >= 0 ? 'var(--gn)' : 'var(--rd)';
         bdHtml += `<tr>
           <td>${escapeHtml(t.translator_name)}</td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${t.hours_period.toFixed(1)} ч</td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${t.revenue.toFixed(2)}</td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${t.cost.toFixed(2)}</td>
-          <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:${profitColor};">$${t.profit.toFixed(2)}</td>
+          <td style="text-align:right; font-variant-numeric: tabular-nums;">${t.hours_period.toFixed(1)} ч</td>
+          <td style="text-align:right; font-variant-numeric: tabular-nums;">$${t.revenue.toFixed(2)}</td>
+          <td style="text-align:right; font-variant-numeric: tabular-nums; color:var(--t3);">$${t.cost.toFixed(2)}</td>
+          <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight:600; color:${profitColor};">$${t.profit.toFixed(2)}</td>
           <td style="text-align:right;"><span class="badge ${t.margin_pct>=0?'badge-good':'badge-warn'}">${t.margin_pct.toFixed(1)}%</span></td>
         </tr>`;
       }
@@ -4950,10 +5067,10 @@
   // Статусы тренинга → человекочитаемо + цвет
   function trainingStatusMeta(status) {
     switch (status) {
-      case 'payable': return { label: 'Готов к выплате', cls: 'badge-warn', color: '#B45309' };
-      case 'paid':    return { label: 'Выплачено',       cls: 'badge-good', color: '#16A34A' };
-      case 'waived':  return { label: 'Не выплачивается', cls: 'badge-neutral', color: '#94A3B8' };
-      default:        return { label: 'Ждёт 3 мес',      cls: 'badge-neutral', color: '#475569' };
+      case 'payable': return { label: 'Готов к выплате', cls: 'badge-warn', color: 'var(--am)' };
+      case 'paid':    return { label: 'Выплачено',       cls: 'badge-good', color: 'var(--gn)' };
+      case 'waived':  return { label: 'Не выплачивается', cls: 'badge-neutral', color: 'var(--t3)' };
+      default:        return { label: 'Ждёт 3 мес',      cls: 'badge-neutral', color: 'var(--t2)' };
     }
   }
 
@@ -4968,7 +5085,7 @@
       const parts = [];
       parts.push(`доход $${Number(ts.revenue).toFixed(2)}`);
       if (Number(ts.cost_paid) > 0) parts.push(`выплачено $${Number(ts.cost_paid).toFixed(2)}`);
-      if (Number(ts.payable_count) > 0) parts.push(`<span style="color:#B45309; font-weight:600;">${ts.payable_count} к выплате</span>`);
+      if (Number(ts.payable_count) > 0) parts.push(`<span style="color:var(--am); font-weight:600;">${ts.payable_count} к выплате</span>`);
       summaryEl.innerHTML = parts.join(' · ');
 
       // Алерт «пора выплатить» — если есть созревшие тренинги
@@ -5011,23 +5128,23 @@
       // Кнопки действий по статусу
       let actions = '';
       if (tr.status === 'payable') {
-        actions = `<button class="btn btn-sm" style="padding:3px 10px; font-size:12px;" onclick="markTrainingPaid('${t.user_id}')">Выплатить</button>
-                   <button class="btn btn-ghost btn-sm" style="padding:3px 10px; font-size:12px;" onclick="markTrainingWaived('${t.user_id}')">Не выплачивать</button>`;
+        actions = `<button class="btn btn-sm" style="padding:3px 10px; font-size: 14px;" onclick="markTrainingPaid('${t.user_id}')">Выплатить</button>
+                   <button class="btn btn-ghost btn-sm" style="padding:3px 10px; font-size: 14px;" onclick="markTrainingWaived('${t.user_id}')">Не выплачивать</button>`;
       } else if (tr.status === 'paid') {
-        actions = `<span style="font-size:11px; color:#94A3B8;">${tr.paid_at ? formatDateRu(tr.paid_at) : ''}</span>`;
+        actions = `<span style="font-size: 13px; color:var(--t3);">${tr.paid_at ? formatDateRu(tr.paid_at) : ''}</span>`;
       } else if (tr.status === 'waived') {
-        actions = `<button class="btn btn-ghost btn-sm" style="padding:3px 10px; font-size:12px;" onclick="markTrainingPaid('${t.user_id}')">Всё же выплатить</button>`;
+        actions = `<button class="btn btn-ghost btn-sm" style="padding:3px 10px; font-size: 14px;" onclick="markTrainingPaid('${t.user_id}')">Всё же выплатить</button>`;
       } else {
         // pending — показываем сколько ждать
-        actions = `<span style="font-size:11px; color:#94A3B8;">${tr.start_date ? 'с ' + formatDateRu(tr.start_date) : 'ждёт первого дня'}</span>`;
+        actions = `<span style="font-size: 13px; color:var(--t3);">${tr.start_date ? 'с ' + formatDateRu(tr.start_date) : 'ждёт первого дня'}</span>`;
       }
 
       html += `<tr>
-        <td>${escapeHtml(t.translator_name)}${!t.is_active ? ' <span class="badge badge-warn" style="font-size:10px; padding:1px 6px;">деактивирован</span>' : ''}</td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">${Number(tr.hours).toFixed(0)} ч</td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace;">$${revenue.toFixed(2)}</td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#94A3B8;">$${cost.toFixed(2)}</td>
-        <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:600; color:#16A34A;">$${margin.toFixed(2)}</td>
+        <td>${escapeHtml(t.translator_name)}${!t.is_active ? ' <span class="badge badge-warn" style="font-size: 13px; padding:1px 6px;">деактивирован</span>' : ''}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums;">${Number(tr.hours).toFixed(0)} ч</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums;">$${revenue.toFixed(2)}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; color:var(--t3);">$${cost.toFixed(2)}</td>
+        <td style="text-align:right; font-variant-numeric: tabular-nums; font-weight:600; color:var(--gn);">$${margin.toFixed(2)}</td>
         <td><span class="badge ${meta.cls}">${meta.label}</span></td>
         <td style="text-align:right; white-space:nowrap;">${actions}</td>
       </tr>`;
@@ -5100,12 +5217,12 @@
     div.innerHTML = `
       <select class="select client-rate-pair" style="flex:1;">${options}</select>
       <div style="display:flex; align-items:center; gap:4px;">
-        <span style="color:#475569;">$</span>
+        <span style="color:var(--t2);">$</span>
         <input type="number" class="input client-rate-value" style="width:90px;"
                step="0.50" min="0.50" max="1000"
                value="${existing ? Number(existing.rate_per_hour).toFixed(2) : ''}"
                placeholder="8.00">
-        <span style="color:#475569; font-size:12px;">/ч</span>
+        <span style="color:var(--t2); font-size: 14px;">/ч</span>
       </div>
       <button class="pair-remove" onclick="removeClientRateRow('${rowId}')" title="Удалить">×</button>
     `;
@@ -5217,16 +5334,16 @@
     const list = document.getElementById('edit-client-rates-list');
     list.innerHTML = languagePairs.map(p => {
       const existing = rateByPair[p.id];
-      return `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #F1F5F9;">
+      return `<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--s2);">
         <span class="badge badge-neutral" style="min-width:96px;">${p.code}</span>
-        <span style="flex:1; color:#94A3B8; font-size:12px;">${escapeHtml(p.display_name)}</span>
+        <span style="flex:1; color:var(--t3); font-size: 14px;">${escapeHtml(p.display_name)}</span>
         <div style="display:flex; align-items:center; gap:4px;">
-          <span style="color:#475569;">$</span>
+          <span style="color:var(--t2);">$</span>
           <input type="number" class="input edit-client-rate-field" data-pair-id="${p.id}"
                  style="width:90px;" step="0.50" min="0" max="1000"
                  value="${existing != null ? existing.toFixed(2) : ''}"
                  placeholder="—">
-          <span style="color:#475569; font-size:12px;">/ч</span>
+          <span style="color:var(--t2); font-size: 14px;">/ч</span>
         </div>
       </div>`;
     }).join('');
@@ -5626,7 +5743,7 @@
 
     let control;
     if (frozen) {
-      control = `<div class="swap-freeze-note">🔒 Обмен заморожен до ${formatDateRu(listing.swap_frozen_until)} — после недавнего обмена нужно отработать новый график.</div>`;
+      control = `<div class="swap-freeze-note">Обмен заморожен до ${formatDateRu(listing.swap_frozen_until)} — после недавнего обмена нужно отработать новый график.</div>`;
     } else if (listing.is_listed) {
       control = `
         <div class="swap-listed-note">✓ Ваш график на бирже — коллеги видят это окно без вашего имени и могут предложить обмен.</div>
@@ -5665,8 +5782,8 @@
     if (error || !data || data.length === 0) { box.innerHTML = ''; return; }
     box.innerHTML = `
       <div class="section">
-        <div style="font-size: 14px; color: #0F1B3D; font-weight: 600; margin-bottom: 4px;">Мне предлагают обмен</div>
-        <div style="font-size:12px;color:#94A3B8;margin-bottom:12px;">Заявки на ваш выставленный график. Решение принимает менеджер — он свяжется с вами. Личность отправителя скрыта.</div>
+        <div style="font-size: 14px; color: var(--t1); font-weight: 600; margin-bottom: 4px;">Мне предлагают обмен</div>
+        <div style="font-size: 14px;color:var(--t3);margin-bottom:12px;">Заявки на ваш выставленный график. Решение принимает менеджер — он свяжется с вами. Личность отправителя скрыта.</div>
         ${data.map(o => {
           const meta = SWAP_STATUS_META[o.status] || { label:o.status, cls:'' };
           const mine = fmtWin(o.my_start, o.my_end, o.my_minutes);
@@ -5714,7 +5831,7 @@
             <div class="req-info" style="grid-column:1 / -1;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                 <div>
-                  <div class="req-translator-name" style="font-family:'JetBrains Mono',monospace;">${se} · ${formatHoursMinutes(c.minutes)}</div>
+                  <div class="req-translator-name" style="font-variant-numeric: tabular-nums;">${se} · ${formatHoursMinutes(c.minutes)}</div>
                   <div class="req-date">${escapeHtml(c.pair_code || '')}</div>
                 </div>
                 ${btn}
@@ -5858,7 +5975,7 @@
               <input type="text" id="ref-${rid}" class="input" placeholder="№ / дата письма">
             </div>
           </div>
-          <div style="font-size:12px;color:#94A3B8;margin-top:8px;">💡 Рекомендуется 1-е число месяца — тогда овертайм за месяц обмена будет точным.</div>
+          <div style="font-size: 14px;color:var(--t3);margin-top:8px;">Рекомендуется 1-е число месяца — тогда овертайм за месяц обмена будет точным.</div>
           <label class="swap-check" style="margin-top:10px;">
             <input type="checkbox" id="ovr-${rid}"> Обойти заморозку (форс-мажор)
           </label>
@@ -5880,7 +5997,7 @@
         <div class="req-info" style="grid-column:1 / -1;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;">
             <div class="req-translator-name">${rn} ⇄ ${tn}
-              <span style="font-weight:400;color:#94A3B8;font-size:12px;">· ${escapeHtml(r.pair_code || '')}</span></div>
+              <span style="font-weight:400;color:var(--t3);font-size: 14px;">· ${escapeHtml(r.pair_code || '')}</span></div>
             <span class="req-status-badge ${meta.cls}">${meta.label}</span>
           </div>
           <div class="req-change" style="margin-top:10px;">
@@ -5937,6 +6054,8 @@
     updateSwapBadge(count || 0);
   }
   function updateSwapBadge(count) {
+    dashCounts.swap = count;
+    renderDashAttention();
     const badge = document.getElementById('sb-swap-badge');
     if (!badge) return;
     if (count > 0) { badge.textContent = String(count); badge.classList.remove('hidden'); }
@@ -6063,6 +6182,30 @@
     if (e.target.id === 'attach-translator-modal') closeAttachTranslatorModal();
   });
   document.getElementById('req-filter').addEventListener('change', () => loadRequests());
+
+  // Меню пользователя: аватар → имя, email, «Выйти»
+  (function setupUserMenu() {
+    const wrap = document.getElementById('sb-user');
+    const btn = document.getElementById('sb-avatar');
+    if (!wrap || !btn) return;
+    const close = () => { wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = wrap.classList.toggle('open');
+      btn.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', e => { if (!wrap.contains(e.target)) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  })();
+
+  document.getElementById('translators-search').addEventListener('input', applyTranslatorsSearch);
+
+  document.getElementById('dash-attention').addEventListener('click', e => {
+    const rowEl = e.target.closest('.dash-att-row');
+    if (!rowEl) return;
+    if (rowEl.dataset.client) openClientDetail(rowEl.dataset.client);
+    else if (rowEl.dataset.go) goToPage(rowEl.dataset.go);
+  });
 
   // Заполняем select'ы часовых поясов из единого массива TIMEZONES
   fillTimezoneSelects();

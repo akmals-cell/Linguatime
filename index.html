@@ -2,20 +2,23 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LinguaTime — CRM учёта часов переводчиков</title>
-<meta name="theme-color" content="#1E40AF">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>LinguaTime — учёт часов переводчиков</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 
-<!-- Favicon: синий квадрат с белой L + зелёная точка (брендовые цвета) -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231E40AF'/%3E%3Cpath d='M 20 16 L 20 44 L 40 44' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='48' cy='44' r='6' fill='%2316A34A'/%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231E40AF'/%3E%3Cpath d='M 20 16 L 20 44 L 40 44' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='48' cy='44' r='6' fill='%2316A34A'/%3E%3C/svg%3E">
+<!-- Favicon: графитовый квадрат с белой L и зелёной точкой -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d1d1f'/%3E%3Cpath d='M22 17v27h17' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='47' cy='44' r='5.5' fill='%2334c759'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231d1d1f'/%3E%3Cpath d='M22 17v27h17' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='47' cy='44' r='5.5' fill='%2334c759'/%3E%3C/svg%3E">
 
 <!-- Preconnect: ранний TCP/TLS-handshake к шрифтам и Supabase, сокращает первый запрос -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://srpiqxfeosusayqqfvrq.supabase.co" crossorigin>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<!-- SF Pro — системный на Mac и iPhone; Inter — запасной для Windows и Android -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -23,28 +26,35 @@
 
 <div id="screen-loading" class="auth-wrap">
   <div class="auth-card">
+    <span class="brand-mark"><svg class="brand-mark-svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--t1)"/><path d="M22 17v27h17" style="stroke:var(--bg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="47" cy="44" r="5.5" style="fill:var(--gn-dot)"/></svg></span>
     <div class="brand">LinguaTime</div>
-    <div class="brand-tag">CRM</div>
     <div class="loading-state">Загрузка…</div>
   </div>
 </div>
 
 <div id="screen-login" class="auth-wrap hidden">
   <div class="auth-card">
-    <div class="brand">LinguaTime</div>
-    <div class="brand-tag">Вход в систему</div>
+    <span class="brand-mark"><svg class="brand-mark-svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--t1)"/><path d="M22 17v27h17" style="stroke:var(--bg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="47" cy="44" r="5.5" style="fill:var(--gn-dot)"/></svg></span>
+    <h1 class="brand">Вход в LinguaTime</h1>
+    <div class="brand-tag">Учёт часов и выплат переводчиков</div>
     <div id="login-error" class="error hidden"></div>
-    <div class="field">
-      <label class="field-label" for="email">Email</label>
-      <input type="email" id="email" class="input" placeholder="you@example.com" autocomplete="email">
+    <div class="field-group">
+      <div class="fg-row">
+        <div class="fg-main">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="fg-row">
+        <div class="fg-main">
+          <label for="password">Пароль</label>
+          <input type="password" id="password" placeholder="Пароль" autocomplete="current-password">
+        </div>
+        <button id="btn-login" class="fg-go" type="button" aria-label="Войти"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12h7M12.5 8.8 15.7 12l-3.2 3.2"/></svg></button>
+      </div>
     </div>
-    <div class="field">
-      <label class="field-label" for="password">Пароль</label>
-      <input type="password" id="password" class="input" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button id="btn-login" class="btn btn-block">Войти</button>
-    <div style="text-align: center; margin-top: 16px;">
-      <a href="#" id="btn-forgot-link" style="font-size: 13px; color: #1E40AF; text-decoration: none;">Забыли пароль?</a>
+    <div style="margin-top: 22px;">
+      <a href="#" id="btn-forgot-link" class="auth-link">Забыли пароль?</a>
     </div>
   </div>
 </div>
@@ -52,27 +62,23 @@
 <!-- Экран «Забыли пароль» — отправка email со ссылкой -->
 <div id="screen-forgot" class="auth-wrap hidden">
   <div class="auth-card">
-    <div class="brand">LinguaTime</div>
-    <div class="brand-tag">Восстановление пароля</div>
+    <span class="brand-mark"><svg class="brand-mark-svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--t1)"/><path d="M22 17v27h17" style="stroke:var(--bg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="47" cy="44" r="5.5" style="fill:var(--gn-dot)"/></svg></span>
+    <h1 class="brand">Сброс пароля</h1>
+    <div class="brand-tag">Отправим ссылку для нового пароля на вашу почту</div>
     <div id="forgot-error" class="error hidden"></div>
-    <div id="forgot-success" class="hidden" style="background: #DCFCE7; border-left: 3px solid #16A34A; padding: 14px; border-radius: 8px; margin-bottom: 16px;">
-      <div style="font-size: 13px; font-weight: 600; color: #16A34A; margin-bottom: 4px;">✓ Ссылка отправлена</div>
-      <div style="font-size: 13px; color: #475569;">
-        Проверьте почту. Если письма нет — посмотрите в папке «Спам».
-      </div>
+    <div id="forgot-success" class="success hidden" style="text-align: left;">
+      <div style="font-weight: 600; margin-bottom: 2px;">Ссылка отправлена</div>
+      <div style="color: var(--t1);">Проверьте почту. Если письма нет — посмотрите в папке «Спам».</div>
     </div>
     <div id="forgot-form-wrap">
-      <div style="font-size: 13px; color: #475569; margin-bottom: 16px;">
-        Введите ваш email и мы отправим ссылку для сброса пароля.
-      </div>
       <div class="field">
         <label class="field-label" for="forgot-email">Email</label>
         <input type="email" id="forgot-email" class="input" placeholder="you@example.com" autocomplete="email">
       </div>
       <button id="btn-forgot-send" class="btn btn-block">Отправить ссылку</button>
     </div>
-    <div style="text-align: center; margin-top: 16px;">
-      <a href="#" id="btn-back-to-login" style="font-size: 13px; color: #1E40AF; text-decoration: none;">← Вернуться ко входу</a>
+    <div style="margin-top: 22px;">
+      <a href="#" id="btn-back-to-login" class="auth-link">Вернуться ко входу</a>
     </div>
   </div>
 </div>
@@ -80,24 +86,22 @@
 <!-- Экран установки нового пароля (пользователь приходит сюда по ссылке из email) -->
 <div id="screen-reset" class="auth-wrap hidden">
   <div class="auth-card">
-    <div class="brand">LinguaTime</div>
-    <div class="brand-tag">Новый пароль</div>
+    <span class="brand-mark"><svg class="brand-mark-svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--t1)"/><path d="M22 17v27h17" style="stroke:var(--bg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="47" cy="44" r="5.5" style="fill:var(--gn-dot)"/></svg></span>
+    <h1 class="brand">Новый пароль</h1>
+    <div class="brand-tag">Придумайте новый пароль для вашей учётной записи</div>
     <div id="reset-error" class="error hidden"></div>
-    <div id="reset-success" class="hidden" style="background: #DCFCE7; border-left: 3px solid #16A34A; padding: 14px; border-radius: 8px; margin-bottom: 16px;">
-      <div style="font-size: 13px; font-weight: 600; color: #16A34A; margin-bottom: 4px;">✓ Пароль изменён</div>
-      <div style="font-size: 13px; color: #475569;">Сейчас войдём в систему…</div>
+    <div id="reset-success" class="success hidden" style="text-align: left;">
+      <div style="font-weight: 600; margin-bottom: 2px;">Пароль изменён</div>
+      <div style="color: var(--t1);">Сейчас войдём в систему…</div>
     </div>
     <div id="reset-form-wrap">
-      <div style="font-size: 13px; color: #475569; margin-bottom: 16px;">
-        Придумайте новый пароль для вашей учётной записи.
-      </div>
       <div class="field">
         <label class="field-label" for="reset-password">Новый пароль</label>
         <input type="password" id="reset-password" class="input" placeholder="Минимум 6 символов" autocomplete="new-password">
       </div>
       <div class="field">
         <label class="field-label" for="reset-password2">Повторите пароль</label>
-        <input type="password" id="reset-password2" class="input" placeholder="••••••••" autocomplete="new-password">
+        <input type="password" id="reset-password2" class="input" placeholder="Ещё раз" autocomplete="new-password">
       </div>
       <button id="btn-reset-save" class="btn btn-block">Сохранить пароль</button>
     </div>
@@ -106,8 +110,7 @@
 
 <div id="screen-app" class="app-wrap hidden">
   <aside class="sidebar">
-    <div class="sb-brand">LinguaTime</div>
-    <div class="sb-brand-tag">CRM</div>
+    <div class="sb-brand"><svg class="brand-mark-svg" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" style="fill:var(--t1)"/><path d="M22 17v27h17" style="stroke:var(--bg)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="47" cy="44" r="5.5" style="fill:var(--gn-dot)"/></svg><span>LinguaTime</span></div>
 
     <div id="nav-manager" class="sb-section hidden">
       <div class="sb-label">Управление</div>
@@ -159,10 +162,13 @@
       </button>
     </div>
 
-    <div class="sb-user">
-      <div class="sb-user-name" id="sb-user-name">—</div>
-      <div class="sb-user-email" id="sb-user-email">—</div>
-      <button id="btn-logout" class="btn-logout">Выйти</button>
+    <div class="sb-user" id="sb-user">
+      <button class="sb-avatar" id="sb-avatar" type="button" aria-label="Профиль и выход" aria-haspopup="true" aria-expanded="false">—</button>
+      <div class="sb-user-menu" id="sb-user-menu">
+        <div class="sb-user-name" id="sb-user-name">—</div>
+        <div class="sb-user-email" id="sb-user-email">—</div>
+        <button id="btn-logout" class="btn-logout" type="button">Выйти</button>
+      </div>
     </div>
   </aside>
 
@@ -177,27 +183,48 @@
       </button>
       <div class="mobile-topbar-title" id="mobile-topbar-title">LinguaTime</div>
     </div>
+    <!-- ══════════════════════════════════════════════════════════
+         ПЕРЕВОДЧИКИ — список
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-translators" class="page hidden">
+      <div class="lnav">
+        <div class="lnav-title">Переводчики</div>
+        <div class="lnav-actions">
+          <label class="lnav-search">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+            <input type="search" id="translators-search" placeholder="Поиск по имени или email" aria-label="Поиск переводчика" autocomplete="off">
+          </label>
+          <button class="btn" onclick="openAddModal()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Добавить переводчика</button>
+        </div>
+      </div>
       <div class="page-header">
         <div>
-          <div class="page-title">Переводчики</div>
+          <h1 class="page-title">Команда.</h1>
           <div class="page-subtitle" id="translators-count">Загрузка…</div>
         </div>
-        <button class="btn" onclick="openAddModal()">+ Добавить переводчика</button>
       </div>
       <div id="translators-error" class="error hidden"></div>
-      <div class="section">
+      <div class="section flush">
         <div id="translators-content">
           <div class="loading-state">Загрузка…</div>
         </div>
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         КАЛЕНДАРЬ ПЕРЕВОДЧИКА
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-calendar" class="page hidden">
       <div class="page-header">
         <div>
-          <div class="page-title" id="cal-page-title">Календарь</div>
-          <div class="page-subtitle">Кликните на день, чтобы внести часы или отметить отгул</div>
+          <div class="page-eyebrow" id="cal-eyebrow">Моё время</div>
+          <h1 class="page-title" id="cal-page-title">Календарь</h1>
+          <div class="page-subtitle">Нажмите на день, чтобы внести часы или отметить отгул.</div>
+        </div>
+        <div class="page-actions">
+          <button class="icon-btn" id="cal-prev" type="button" aria-label="Предыдущий месяц"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+          <button class="btn btn-ghost" type="button" onclick="calGoToday()">Сегодня</button>
+          <button class="icon-btn" id="cal-next" type="button" aria-label="Следующий месяц"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
         </div>
       </div>
 
@@ -209,74 +236,64 @@
           <div class="kpi-value" id="kpi-hours">—<span class="kpi-unit"></span></div>
           <div class="kpi-meta" id="kpi-hours-meta">—</div>
         </div>
-        <div class="kpi kpi-blue">
+        <div class="kpi">
           <div class="kpi-label">Отгулов</div>
           <div class="kpi-value" id="kpi-absent">—<span class="kpi-unit">дней</span></div>
           <div class="kpi-meta">не оплачивается</div>
         </div>
-        <div class="kpi kpi-green">
+        <div class="kpi kpi-featured">
           <div class="kpi-label">К выплате</div>
           <div class="kpi-value" id="kpi-amount">—</div>
-          <div class="kpi-meta">предварительно</div>
+          <div class="kpi-meta">предварительно, до закрытия периода</div>
         </div>
       </div>
 
       <div class="section">
-        <div class="cal-toolbar">
-          <button class="cal-nav-btn" id="cal-prev">← Назад</button>
-          <div class="cal-toolbar-title" id="cal-month-label">—</div>
-          <button class="cal-nav-btn" id="cal-next">Вперёд →</button>
-        </div>
+        <span id="cal-month-label" class="hidden"></span>
         <div class="calendar" id="calendar-grid"></div>
         <div class="cal-legend">
-          <span><span class="legend-dot" style="background: #DCFCE7; border: 1px solid #16A34A;"></span>Отработано</span>
-          <span><span class="legend-dot" style="background: #DBEAFE; border: 1px solid #1E40AF;"></span>Отгул</span>
-          <span><span class="legend-dot" style="background: #FAFAFA; border: 1px solid #E5E7EB;"></span>Выходной</span>
-          <span><span class="legend-dot" style="background: white; border: 2px solid #1E40AF;"></span>Сегодня</span>
+          <span><span class="legend-dot" style="background: var(--gnb);"></span>Отработано</span>
+          <span><span class="legend-dot" style="background: var(--acb);"></span>Отгул</span>
+          <span><span class="legend-dot" style="background: var(--s2); box-shadow: inset 0 0 0 1px var(--b2);"></span>Выходной</span>
+          <span><span class="legend-dot" style="background: var(--s1); box-shadow: inset 0 0 0 2px var(--ac);"></span>Сегодня</span>
         </div>
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         ДАШБОРД МЕНЕДЖЕРА
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-dashboard" class="page hidden">
       <div class="dash-hero">
         <div class="dash-hero-left">
-          <div class="dash-hero-title" id="dash-title">—</div>
+          <h1 class="dash-hero-title" id="dash-title">—</h1>
           <div class="dash-hero-summary" id="dash-summary">—</div>
         </div>
         <div class="dash-hero-meta" id="dash-date">—</div>
+        <div class="dash-hero-actions">
+          <button class="btn btn-lg" type="button" onclick="goToPage('payroll')">Открыть зарплату</button>
+        </div>
       </div>
 
       <div id="dash-error" class="error hidden"></div>
 
       <div class="dash-kpi-grid">
         <div class="dash-kpi featured">
-          <div class="dash-kpi-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <div class="dash-kpi-label">К выплате (мес.)</div>
+          <div class="dash-kpi-label">К выплате за месяц</div>
           <div class="dash-kpi-value" id="dash-kpi-amount">—</div>
           <div class="dash-kpi-meta" id="dash-kpi-amount-meta">предварительно</div>
         </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon amber">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
           <div class="dash-kpi-label">Овертайм команды</div>
           <div class="dash-kpi-value" id="dash-kpi-overtime">—</div>
           <div class="dash-kpi-meta" id="dash-kpi-overtime-meta">за этот месяц</div>
         </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="dash-kpi-label">Часов в этом мес.</div>
+          <div class="dash-kpi-label">Часов в этом месяце</div>
           <div class="dash-kpi-value" id="dash-kpi-hours">—</div>
           <div class="dash-kpi-meta" id="dash-kpi-hours-meta">—</div>
         </div>
         <div class="dash-kpi">
-          <div class="dash-kpi-icon blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          </div>
           <div class="dash-kpi-label">До закрытия периода</div>
           <div class="dash-kpi-value" id="dash-kpi-days">—</div>
           <div class="dash-kpi-meta" id="dash-kpi-days-meta">—</div>
@@ -284,50 +301,73 @@
       </div>
 
       <div class="dash-grid-2">
-        <div class="dash-card">
+        <section class="dash-card">
           <div class="dash-card-header">
-            <div class="dash-card-title">Часы по дням</div>
+            <h2 class="dash-card-title">Часы команды по дням</h2>
             <div class="dash-card-meta" id="dash-chart-month">—</div>
           </div>
           <div class="dash-card-body">
             <div class="dash-chart" id="dash-chart"></div>
             <div class="dash-chart-axis" id="dash-chart-axis"></div>
+            <div class="dash-chart-legend">
+              <span><i style="opacity: .85;"></i>Будни</span>
+              <span><i style="opacity: .35;"></i>Выходные</span>
+              <span><i style="background: var(--s3);"></i>Без часов</span>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div class="dash-card">
+        <section class="dash-card">
           <div class="dash-card-header">
-            <div class="dash-card-title">Топ переводчиков</div>
+            <h2 class="dash-card-title">Топ переводчиков</h2>
             <div class="dash-card-meta">за месяц</div>
           </div>
           <div class="dash-card-body">
             <div class="dash-leaderboard" id="dash-leaderboard">
               <div class="dash-empty">Загрузка…</div>
             </div>
+            <button class="btn btn-text" type="button" style="margin-top: 16px; font-size: 15px;" onclick="goToPage('translators')">Все переводчики ›</button>
           </div>
-        </div>
+        </section>
       </div>
 
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <div class="dash-card-title">Распределение часов по парам</div>
-          <div class="dash-card-meta">за месяц</div>
-        </div>
-        <div class="dash-card-body">
-          <div class="dash-pairs" id="dash-pairs">
+      <div class="dash-grid-2">
+        <section class="dash-card">
+          <div class="dash-card-header">
+            <h2 class="dash-card-title">Часы по языковым парам</h2>
+            <div class="dash-card-meta">за месяц</div>
+          </div>
+          <div class="dash-card-body">
+            <div class="dash-pairs" id="dash-pairs">
+              <div class="dash-empty">Загрузка…</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="dash-card">
+          <div class="dash-card-header">
+            <h2 class="dash-card-title">Требует внимания</h2>
+          </div>
+          <div class="dash-card-body" id="dash-attention">
             <div class="dash-empty">Загрузка…</div>
           </div>
-        </div>
+        </section>
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         МЕНЕДЖЕРЫ
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-managers" class="page hidden">
+      <div class="lnav">
+        <div class="lnav-title">Менеджеры</div>
+        <div class="lnav-actions" id="managers-actions-wrap"></div>
+      </div>
       <div class="page-header">
         <div>
-          <div class="page-title">Менеджеры</div>
+          <h1 class="page-title">Менеджеры.</h1>
           <div class="page-subtitle" id="managers-subtitle">Загрузка…</div>
         </div>
-        <div id="managers-actions-wrap"></div>
       </div>
       <div id="managers-error" class="error hidden"></div>
       <div id="managers-content">
@@ -335,19 +375,25 @@
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         ЗАПРОСЫ НА ИЗМЕНЕНИЕ СМЕНЫ
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-requests" class="page hidden">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Запросы на изменение смены</div>
-          <div class="page-subtitle" id="req-subtitle">Загрузка…</div>
-        </div>
-        <div>
-          <select class="select" id="req-filter" style="width: auto;">
+      <div class="lnav">
+        <div class="lnav-title">Запросы</div>
+        <div class="lnav-actions">
+          <select class="select" id="req-filter" aria-label="Фильтр запросов">
             <option value="pending">Ожидают решения</option>
             <option value="all">Все запросы</option>
             <option value="approved">Одобренные</option>
             <option value="rejected">Отклонённые</option>
           </select>
+        </div>
+      </div>
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Запросы на смену.</h1>
+          <div class="page-subtitle" id="req-subtitle">Загрузка…</div>
         </div>
       </div>
       <div id="req-error" class="error hidden"></div>
@@ -356,28 +402,36 @@
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         ЗАРПЛАТА
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-payroll" class="page hidden">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Зарплата</div>
-          <div class="page-subtitle" id="payroll-subtitle">—</div>
-        </div>
-        <div class="payroll-toolbar">
-          <select class="payroll-month-select" id="payroll-month-select"></select>
+      <div class="lnav">
+        <div class="lnav-title">Зарплата</div>
+        <div class="lnav-actions payroll-toolbar">
+          <select class="payroll-month-select" id="payroll-month-select" aria-label="Месяц"></select>
           <button id="btn-export-excel" class="btn btn-ghost hidden" onclick="exportPayrollExcel()">
-            📊 Excel
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19.5h14"/></svg>Excel
           </button>
           <button id="btn-export-pdf" class="btn btn-ghost hidden" onclick="exportPayrollPDF()">
-            📄 PDF
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19.5h14"/></svg>PDF
           </button>
-          <button id="btn-close-period" class="btn hidden" onclick="closePeriod()">Закрыть период</button>
+          <button id="btn-close-period" class="btn hidden" onclick="closePeriod()">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>Закрыть период
+          </button>
           <button id="btn-reopen-period" class="btn btn-ghost hidden" onclick="reopenPeriod()">Открыть период</button>
+        </div>
+      </div>
+
+      <div class="page-header">
+        <div>
+          <h1 class="page-title"><span id="payroll-title">Зарплата</span><span id="payroll-status-block" class="payroll-status hidden"></span></h1>
+          <div class="page-subtitle" id="payroll-subtitle">—</div>
         </div>
       </div>
 
       <div id="payroll-error" class="error hidden"></div>
 
-      <div id="payroll-status-block" class="payroll-status hidden"></div>
       <div id="payroll-snapshot-note" class="payroll-snapshot-note hidden">
         Период закрыт — показаны зафиксированные данные. Изменения часов или ставок после закрытия не учитываются в этой ведомости.
       </div>
@@ -391,16 +445,16 @@
         <div class="kpi">
           <div class="kpi-label">Всего часов</div>
           <div class="kpi-value" id="payroll-kpi-hours">—</div>
-          <div class="kpi-meta">чистого времени</div>
+          <div class="kpi-meta">чистого времени, без перерывов</div>
         </div>
-        <div class="kpi kpi-green">
+        <div class="kpi kpi-featured">
           <div class="kpi-label">К выплате</div>
           <div class="kpi-value" id="payroll-kpi-amount">—</div>
           <div class="kpi-meta">по всей команде</div>
         </div>
       </div>
 
-      <div class="section">
+      <div class="section flush">
         <div id="payroll-content">
           <div class="loading-state">Загрузка…</div>
         </div>
@@ -408,46 +462,49 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════
-         СТРАНИЦА: КЛИЕНТЫ — список
+         КЛИЕНТЫ — список
          ══════════════════════════════════════════════════════════ -->
     <div id="page-clients" class="page hidden">
+      <div class="lnav">
+        <div class="lnav-title">Клиенты</div>
+        <div class="lnav-actions">
+          <select class="select" id="clients-month-select" aria-label="Месяц"></select>
+          <button class="btn" onclick="openAddClientModal()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Добавить клиента</button>
+        </div>
+      </div>
       <div class="page-header">
         <div>
-          <div class="page-title">Клиенты</div>
+          <h1 class="page-title">Клиенты.</h1>
           <div class="page-subtitle" id="clients-subtitle">Загрузка…</div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <select class="select" id="clients-month-select" style="width: auto;"></select>
-          <button class="btn" onclick="openAddClientModal()">+ Добавить клиента</button>
         </div>
       </div>
 
       <div id="clients-error" class="error hidden"></div>
 
       <div class="kpi-grid">
-        <div class="kpi kpi-blue">
-          <div class="kpi-label">Доход (месяц)</div>
+        <div class="kpi">
+          <div class="kpi-label">Доход за месяц</div>
           <div class="kpi-value" id="clients-kpi-revenue">—</div>
           <div class="kpi-meta">по всем клиентам</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label">Расход (зарплата)</div>
+          <div class="kpi-label">Расход на зарплату</div>
           <div class="kpi-value" id="clients-kpi-cost">—</div>
           <div class="kpi-meta">переводчикам</div>
         </div>
-        <div class="kpi kpi-green">
+        <div class="kpi kpi-good">
           <div class="kpi-label">Прибыль</div>
           <div class="kpi-value" id="clients-kpi-profit">—</div>
           <div class="kpi-meta" id="clients-kpi-margin">маржа —</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label">Резерв (осталось)</div>
+          <div class="kpi-label">Резерв</div>
           <div class="kpi-value" id="clients-kpi-reserve">—</div>
           <div class="kpi-meta" id="clients-kpi-reserve-meta">из — куплено</div>
         </div>
       </div>
 
-      <div class="section">
+      <div class="section flush">
         <div id="clients-content">
           <div class="loading-state">Загрузка…</div>
         </div>
@@ -455,157 +512,152 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════
-         СТРАНИЦА: КЛИЕНТ — детальная карточка
+         КЛИЕНТ — детальная карточка
          ══════════════════════════════════════════════════════════ -->
     <div id="page-client-detail" class="page hidden">
-      <button class="back-link" onclick="backToClients()">← Назад к клиентам</button>
+      <div class="lnav">
+        <div class="lnav-title">
+          <button class="lnav-crumb" type="button" onclick="backToClients()">Клиенты</button>
+          <span class="lnav-sep"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></span>
+          <span id="cd-crumb">—</span>
+        </div>
+        <div class="lnav-actions">
+          <select class="select" id="cd-month-select" aria-label="Месяц"></select>
+          <button class="btn btn-ghost" onclick="openEditClientModal()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5.5l3 3L9 18H6v-3z"/></svg>Редактировать</button>
+          <button class="btn" onclick="openAttachTranslatorModal()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Добавить переводчика</button>
+        </div>
+      </div>
 
-      <div class="page-header" style="align-items: flex-start;">
+      <div class="page-header">
         <div class="emp-detail-header">
           <div class="emp-detail-avatar" id="cd-avatar">??</div>
           <div>
-            <div class="emp-detail-name" id="cd-name">—</div>
+            <h1 class="emp-detail-name" id="cd-name">—</h1>
             <div class="emp-detail-email" id="cd-email">—</div>
-            <div style="margin-top: 6px;" id="cd-meta"></div>
-            <div class="edit-actions">
-              <button class="btn btn-ghost btn-sm" onclick="openAttachTranslatorModal()">+ Переводчик</button>
-              <button class="btn btn-ghost btn-sm" onclick="openEditClientModal()">✎ Редактировать</button>
-            </div>
+            <div class="emp-detail-pairs" id="cd-meta"></div>
           </div>
-        </div>
-        <div>
-          <select class="select" id="cd-month-select" style="width: auto;"></select>
         </div>
       </div>
 
       <div id="cd-error" class="error hidden"></div>
 
-      <!-- Предупреждение о малом резерве -->
-      <div id="cd-reserve-alert" class="hidden" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #FEF3C7; border-left: 3px solid #B45309; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #92400E;">
-        <span>⚠</span>
+      <!-- Предупреждение о малом резерве / убытке -->
+      <div id="cd-reserve-alert" class="alert hidden" role="status">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 4.6a2 2 0 0 1 3.4 0l7.4 12.8a2 2 0 0 1-1.7 3H4.6a2 2 0 0 1-1.7-3z"/><path d="M12 9.5v4.5"/><path d="M12 17.3v.2"/></svg>
         <span id="cd-reserve-alert-text">Остаток резерва менее 20 часов — уведомите клиента о пополнении.</span>
       </div>
 
-      <div id="cd-training-alert" class="hidden" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #FEF3C7; border-left: 3px solid #B45309; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #92400E;">
-        <span>🎓</span>
+      <div id="cd-training-alert" class="alert hidden" role="status">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-4.5L21 9l-9 4.5z"/><path d="M7 11v4.5c1.5 1.3 3.2 2 5 2s3.5-.7 5-2V11"/></svg>
         <span id="cd-training-alert-text"></span>
       </div>
 
       <div class="kpi-grid">
-        <div class="kpi kpi-blue">
-          <div class="kpi-label">Доход (месяц)</div>
+        <div class="kpi">
+          <div class="kpi-label">Доход за месяц</div>
           <div class="kpi-value" id="cd-kpi-revenue">—</div>
           <div class="kpi-meta" id="cd-kpi-revenue-meta">—</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label">Расход (зарплата)</div>
+          <div class="kpi-label">Расход на зарплату</div>
           <div class="kpi-value" id="cd-kpi-cost">—</div>
           <div class="kpi-meta" id="cd-kpi-cost-meta">—</div>
         </div>
-        <div class="kpi kpi-green">
+        <div class="kpi kpi-good">
           <div class="kpi-label">Прибыль</div>
           <div class="kpi-value" id="cd-kpi-profit">—</div>
           <div class="kpi-meta" id="cd-kpi-margin">маржа —</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label">Резерв (осталось)</div>
+          <div class="kpi-label">Резерв</div>
           <div class="kpi-value" id="cd-kpi-reserve">—</div>
           <div class="kpi-meta" id="cd-kpi-reserve-meta">—</div>
         </div>
       </div>
 
-      <!-- Двухколоночный блок: резерв + тарифы -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-
-        <!-- Резерв предоплаты -->
-        <div class="section">
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #E5E7EB;">
-            <div style="font-size: 14px; font-weight: 600;">Резерв предоплаты</div>
+      <!-- Резерв + тарифы -->
+      <div class="grid-2">
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Резерв предоплаты</h2>
             <span id="cd-reserve-mode-badge" class="badge badge-neutral">—</span>
           </div>
-          <div style="padding: 16px 18px;">
-            <!-- Прогресс-бар резерва -->
-            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
-              <span style="font-size: 12px; color: #475569;">Использовано</span>
-              <span style="font-size: 13px; font-weight: 500;" id="cd-reserve-used-label">— из —</span>
+          <div class="reserve-summary">
+            <div class="reserve-ring-wrap">
+              <div class="reserve-ring" id="cd-reserve-ring"></div>
+              <div class="reserve-ring-center"><b id="cd-reserve-ring-value">—</b><span>осталось</span></div>
             </div>
-            <div style="width: 100%; height: 10px; background: #F1F5F9; border-radius: 100px; overflow: hidden; margin: 8px 0; border: 1px solid #E5E7EB;">
-              <div id="cd-reserve-bar" style="height: 100%; border-radius: 100px; background: #16A34A; width: 0%; transition: width 0.3s;"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8;">
-              <span>0 ч</span>
-              <span id="cd-reserve-remaining-label" style="font-weight: 500; color: #16A34A;">— ч осталось</span>
-              <span id="cd-reserve-total-label">— ч</span>
-            </div>
-
-            <!-- История предоплат -->
-            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #E5E7EB;">
-              <div style="font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 500;">История предоплат</div>
-              <div id="cd-prepay-history">
-                <div class="loading-state" style="padding: 20px 0;">Загрузка…</div>
-              </div>
+            <div class="reserve-stats">
+              <div><div class="reserve-stat-label">Использовано</div><div class="reserve-stat-value" id="cd-reserve-used-label">— из —</div></div>
+              <div><div class="reserve-stat-label">Осталось</div><div class="reserve-stat-value" id="cd-reserve-remaining-label">— ч осталось</div></div>
+              <div><div class="reserve-stat-label">Куплено всего</div><div class="reserve-stat-value" id="cd-reserve-total-label">— ч</div></div>
             </div>
           </div>
-        </div>
-
-        <!-- Тарифы по парам -->
-        <div class="section">
-          <div style="padding: 14px 18px; border-bottom: 1px solid #E5E7EB;">
-            <div style="font-size: 14px; font-weight: 600;">Тарифы по парам</div>
+          <div class="sub-head">Переводчики и предоплаты</div>
+          <div id="cd-prepay-history">
+            <div class="loading-state" style="padding: 20px 0;">Загрузка…</div>
           </div>
-          <div style="padding: 12px 18px;">
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94A3B8; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #E5E7EB; font-family: 'JetBrains Mono', monospace;">
-              <span>Пара</span>
-              <span>Переводчик → Клиент</span>
-            </div>
-            <div id="cd-rates-by-pair">
-              <div class="loading-state" style="padding: 20px 0;">Загрузка…</div>
-            </div>
-          </div>
-        </div>
+        </section>
 
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Тарифы по парам</h2>
+            <span class="card-meta">тариф клиента за час</span>
+          </div>
+          <div id="cd-rates-by-pair">
+            <div class="loading-state" style="padding: 20px 0;">Загрузка…</div>
+          </div>
+        </section>
       </div>
 
       <!-- Разбивка по парам за месяц -->
-      <div class="section">
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #E5E7EB;">
-          <div style="font-size: 14px; font-weight: 600;">Разбивка по парам</div>
-          <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.05em;" id="cd-breakdown-month">—</div>
+      <section class="section flush">
+        <div class="card-head">
+          <h2 class="section-title">Разбивка по парам</h2>
+          <span class="card-meta" id="cd-breakdown-month">—</span>
         </div>
         <div id="cd-breakdown">
           <div class="loading-state">Загрузка…</div>
         </div>
-      </div>
+      </section>
 
       <!-- Тренинги (отдельная статья, вне месячной маржи) -->
-      <div class="section">
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #E5E7EB;">
-          <div style="font-size: 14px; font-weight: 600;">Тренинги</div>
-          <div id="cd-training-summary" style="font-size: 12px; color: #475569;">—</div>
+      <section class="section flush">
+        <div class="card-head">
+          <h2 class="section-title">Тренинги</h2>
+          <span class="card-meta" id="cd-training-summary">—</span>
         </div>
         <div id="cd-training">
           <div class="loading-state">Загрузка…</div>
         </div>
-      </div>
+      </section>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         ПЕРЕВОДЧИК — карточка для менеджера
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-translator-detail" class="page hidden">
-      <button class="back-link" onclick="backToTranslators()">← Назад к списку</button>
-      <div class="page-header" style="align-items: flex-start;">
+      <div class="lnav">
+        <div class="lnav-title">
+          <button class="lnav-crumb" type="button" onclick="backToTranslators()">Переводчики</button>
+          <span class="lnav-sep"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></span>
+          <span id="td-crumb">—</span>
+        </div>
+        <div class="lnav-actions">
+          <select class="select" id="td-month-select" aria-label="Месяц"></select>
+          <button class="btn btn-ghost" onclick="openEditModal()"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5.5l3 3L9 18H6v-3z"/></svg>Редактировать</button>
+          <button id="btn-toggle-active" class="btn btn-ghost" onclick="toggleActive()">Деактивировать</button>
+        </div>
+      </div>
+
+      <div class="page-header">
         <div class="emp-detail-header">
           <div class="emp-detail-avatar" id="td-avatar">??</div>
           <div>
-            <div class="emp-detail-name" id="td-name">—</div>
+            <h1 class="emp-detail-name" id="td-name">—</h1>
             <div class="emp-detail-email" id="td-email">—</div>
             <div class="emp-detail-pairs" id="td-pairs"></div>
-            <div class="edit-actions">
-              <button class="btn btn-ghost btn-sm" onclick="openEditModal()">✎ Редактировать</button>
-              <button id="btn-toggle-active" class="btn btn-ghost btn-sm" onclick="toggleActive()">Деактивировать</button>
-            </div>
           </div>
-        </div>
-        <div>
-          <select class="select" id="td-month-select" style="width: auto;"></select>
         </div>
       </div>
 
@@ -622,12 +674,12 @@
           <div class="kpi-value" id="td-overtime">—</div>
           <div class="kpi-meta" id="td-overtime-meta">—</div>
         </div>
-        <div class="kpi kpi-blue">
+        <div class="kpi">
           <div class="kpi-label">Отгулов</div>
           <div class="kpi-value" id="td-absent">—<span class="kpi-unit">дней</span></div>
           <div class="kpi-meta">не оплачивается</div>
         </div>
-        <div class="kpi kpi-green">
+        <div class="kpi kpi-featured">
           <div class="kpi-label">К выплате</div>
           <div class="kpi-value" id="td-amount">—</div>
           <div class="kpi-meta">предварительно</div>
@@ -636,42 +688,43 @@
 
       <div class="section">
         <div class="cal-toolbar">
-          <button class="cal-nav-btn" id="td-cal-prev">← Назад</button>
           <div class="cal-toolbar-title" id="td-cal-month-label">—</div>
-          <button class="cal-nav-btn" id="td-cal-next">Вперёд →</button>
+          <div style="display: flex; gap: 10px;">
+            <button class="cal-nav-btn" id="td-cal-prev" type="button" aria-label="Предыдущий месяц"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+            <button class="cal-nav-btn" id="td-cal-next" type="button" aria-label="Следующий месяц"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
+          </div>
         </div>
         <div class="calendar" id="td-calendar-grid"></div>
         <div class="cal-legend">
-          <span><span class="legend-dot" style="background: #DCFCE7; border: 1px solid #16A34A;"></span>Отработано</span>
-          <span><span class="legend-dot" style="background: #DBEAFE; border: 1px solid #1E40AF;"></span>Отгул</span>
-          <span><span class="legend-dot" style="background: #FAFAFA; border: 1px solid #E5E7EB;"></span>Выходной</span>
+          <span><span class="legend-dot" style="background: var(--gnb);"></span>Отработано</span>
+          <span><span class="legend-dot" style="background: var(--acb);"></span>Отгул</span>
+          <span><span class="legend-dot" style="background: var(--s2); box-shadow: inset 0 0 0 1px var(--b2);"></span>Выходной</span>
         </div>
       </div>
 
       <!-- История запросов на изменение графика -->
       <div class="section" id="td-shift-history-section" style="display: none;">
-        <h3 style="margin-bottom: 12px; font-size: 14px; color: #0F1B3D; font-weight: 600;">
-          История запросов на изменение графика
-        </h3>
+        <h3 style="margin-bottom: 16px;">История запросов на изменение графика</h3>
         <div id="td-shift-history-list"></div>
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         МОЙ ПРОФИЛЬ (переводчик)
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-my-profile" class="page hidden">
       <div class="page-header">
         <div>
-          <div class="page-title">Мой профиль</div>
-          <div class="page-subtitle">Языковые пары, ставки и график</div>
+          <h1 class="page-title">Мой профиль.</h1>
+          <div class="page-subtitle">Языковые пары, ставки и график.</div>
         </div>
       </div>
 
       <!-- Блок графика -->
       <div class="section">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-          <h3 style="margin: 0; font-size: 14px; color: #0F1B3D; font-weight: 600;">Мой стандартный график</h3>
-          <button class="btn btn-ghost btn-sm" onclick="openShiftRequestModal()" id="btn-request-shift">
-            ✎ Запросить изменение
-          </button>
+        <div class="section-head">
+          <h3>Мой стандартный график</h3>
+          <button class="btn btn-ghost btn-sm" onclick="openShiftRequestModal()" id="btn-request-shift">Запросить изменение</button>
         </div>
         <div id="my-shift-content">
           <div class="loading-state">Загрузка…</div>
@@ -680,22 +733,23 @@
 
       <!-- Блок ставок и пар -->
       <div class="section">
-        <h3 style="margin-bottom: 12px; font-size: 14px; color: #0F1B3D; font-weight: 600;">Языковые пары и ставки</h3>
+        <div class="section-head">
+          <h3>Языковые пары и ставки</h3>
+        </div>
         <div id="my-profile-content">
           <div class="loading-state">Загрузка…</div>
         </div>
       </div>
     </div>
 
-
+    <!-- ══════════════════════════════════════════════════════════
+         ОБМЕНЫ ГРАФИКОВ (менеджер)
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-swaps" class="page hidden">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Обмены графиков</div>
-          <div class="page-subtitle" id="swaps-subtitle">Загрузка…</div>
-        </div>
-        <div>
-          <select class="select" id="swaps-filter" style="width: auto;">
+      <div class="lnav">
+        <div class="lnav-title">Обмены графиков</div>
+        <div class="lnav-actions">
+          <select class="select" id="swaps-filter" aria-label="Фильтр обменов">
             <option value="active">В работе</option>
             <option value="all">Все</option>
             <option value="approved">Выполненные</option>
@@ -703,29 +757,38 @@
           </select>
         </div>
       </div>
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Обмены графиков.</h1>
+          <div class="page-subtitle" id="swaps-subtitle">Загрузка…</div>
+        </div>
+      </div>
       <div id="swaps-error" class="error hidden"></div>
       <div id="swaps-list"><div class="loading-state">Загрузка…</div></div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════
+         БИРЖА ОБМЕНОВ (переводчик)
+         ══════════════════════════════════════════════════════════ -->
     <div id="page-swap-market" class="page hidden">
       <div class="page-header">
         <div>
-          <div class="page-title">Биржа обменов</div>
-          <div class="page-subtitle">Обмен постоянными графиками с коллегой вашей языковой пары</div>
+          <h1 class="page-title">Биржа обменов.</h1>
+          <div class="page-subtitle">Обмен постоянными графиками с коллегой вашей языковой пары.</div>
         </div>
       </div>
       <div id="swap-error" class="error hidden"></div>
 
       <div class="section">
-        <div style="font-size: 14px; color: #0F1B3D; font-weight: 600; margin-bottom: 12px;">Мой график на бирже</div>
+        <div class="section-head"><h3>Мой график на бирже</h3></div>
         <div id="swap-my-listing"><div class="loading-state">Загрузка…</div></div>
       </div>
 
       <div id="swap-incoming"></div>
 
       <div class="section">
-        <div style="font-size: 14px; color: #0F1B3D; font-weight: 600; margin-bottom: 4px;">Доступные графики</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-bottom: 12px;">Выставленные окна коллег вашей пары. Имена скрыты. Предложить обмен можно, если у вас нет активной заявки.</div>
+        <div class="section-head" style="margin-bottom: 4px;"><h3>Доступные графики</h3></div>
+        <p class="section-note">Выставленные окна коллег вашей пары. Имена скрыты. Предложить обмен можно, если у вас нет активной заявки.</p>
         <div id="swap-market-list"><div class="loading-state">Загрузка…</div></div>
         <div id="swap-outgoing"></div>
       </div>
@@ -766,7 +829,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title">Новый менеджер</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Создаёт новый аккаунт с правами менеджера</div>
+        <div class="modal-sub">Создаёт новый аккаунт с правами менеджера</div>
       </div>
       <button class="modal-close" onclick="closeAddManagerModal()">×</button>
     </div>
@@ -774,17 +837,17 @@
       <div id="add-manager-error" class="error hidden"></div>
 
       <div class="field">
-        <label class="field-label">Имя <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Имя <span style="color: var(--rd);">*</span></label>
         <input type="text" id="mgr-name" class="input" placeholder="Например: Иван Иванов">
       </div>
       <div class="field">
-        <label class="field-label">Email <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Email <span style="color: var(--rd);">*</span></label>
         <input type="email" id="mgr-email" class="input" placeholder="ivan@example.com">
       </div>
       <div class="field">
-        <label class="field-label">Пароль <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Пароль <span style="color: var(--rd);">*</span></label>
         <input type="text" id="mgr-password" class="input" placeholder="Минимум 6 символов">
-        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+        <div style="font-size: 13px; color: var(--t2); margin-top: 4px;">
           Передайте менеджеру этот пароль вручную. При первом входе он сможет его сменить.
         </div>
       </div>
@@ -831,7 +894,7 @@
         <div class="field">
           <label class="field-label">Ставка действует с</label>
           <input type="date" id="new-effective-from" class="input">
-          <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+          <div style="font-size: 13px; color: var(--t2); margin-top: 4px;">
             С этой даты ставка будет применяться при расчёте зарплаты.
             По умолчанию — 1-е число текущего месяца.
           </div>
@@ -843,7 +906,7 @@
         <button class="btn btn-ghost btn-sm" onclick="addPairRow()">+ Пара</button>
       </div>
       <div id="pairs-list"></div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
+      <div style="font-size: 13px; color: var(--t2); margin-top: 6px;">
         Ровно одна пара должна быть основной. Ставка от $0.50 до $500.00 в час.
       </div>
     </div>
@@ -859,7 +922,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="day-modal-title">Внести часы</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="day-modal-subtitle">—</div>
+        <div class="modal-sub" id="day-modal-subtitle">—</div>
       </div>
       <button class="modal-close" onclick="closeDayModal()">×</button>
     </div>
@@ -878,8 +941,7 @@
       </div>
 
       <!-- Тип дня -->
-      <div class="field-label" style="margin-bottom: 6px;">Тип дня</div>
-      <div class="day-type-chips">
+            <div class="day-type-chips">
         <button class="day-chip active" id="chip-working" onclick="setDayType('working')">Рабочий</button>
         <button class="day-chip" id="chip-absent" onclick="setDayType('absent')">Отгул</button>
       </div>
@@ -896,8 +958,8 @@
 
         <!-- Брейки -->
         <div class="section-block">
-          <h3>Брейки (перерывы)</h3>
-          <button class="btn btn-ghost btn-sm" onclick="addBreakRow()">+ Брейк</button>
+          <h3>Перерывы</h3>
+          <button class="btn btn-ghost btn-sm" onclick="addBreakRow()">+ Перерыв</button>
         </div>
         <div id="breaks-list"></div>
         <div class="modal-hint">Перерывы автоматически вычитаются из рабочего времени. Заметка не обязательна.</div>
@@ -909,7 +971,7 @@
             <div class="day-summary-value" id="sum-gross">0ч 00м</div>
           </div>
           <div class="day-summary-cell">
-            <div class="day-summary-label">Брейки</div>
+            <div class="day-summary-label">Перерывы</div>
             <div class="day-summary-value" id="sum-breaks">−0ч 00м</div>
           </div>
           <div class="day-summary-cell">
@@ -927,14 +989,14 @@
 
       <!-- Содержимое для отгула -->
       <div id="absent-content" class="hidden">
-        <div style="padding: 24px; text-align: center; color: #475569; background: #DBEAFE; border-radius: 8px; margin-top: 8px;">
-          <div style="font-size: 14px; font-weight: 500; color: #1E40AF; margin-bottom: 4px;">Отгул</div>
-          <div style="font-size: 12px;">Этот день будет помечен как отгул. Часы и оплата не начисляются.</div>
+        <div style="padding: 24px; text-align: center; color: var(--t2); background: var(--acb); border-radius: 14px; margin-top: 12px;">
+          <div style="font-size: 17px; font-weight: 600; color: var(--ac-t); margin-bottom: 4px;">Отгул</div>
+          <div style="font-size: 14px;">Этот день будет помечен как отгул. Часы и оплата не начисляются.</div>
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button id="btn-delete-day" class="btn btn-ghost hidden" onclick="deleteDay()" style="color: #DC2626; margin-right: auto;">Удалить запись</button>
+      <button id="btn-delete-day" class="btn btn-danger hidden" onclick="deleteDay()" style="margin-right: auto;">Удалить запись</button>
       <button class="btn btn-ghost" onclick="closeDayModal()">Отмена</button>
       <button id="btn-save-day" class="btn" onclick="saveDay()">Сохранить</button>
     </div>
@@ -946,15 +1008,15 @@
     <div class="modal-header">
       <div>
         <div class="modal-title">Запрос на изменение графика</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Меняет ваш стандартный график. Требует одобрения менеджера.</div>
+        <div class="modal-sub">Меняет ваш стандартный график. Требует одобрения менеджера.</div>
       </div>
       <button class="modal-close" onclick="closeShiftRequestModal()">×</button>
     </div>
     <div class="modal-body">
       <div id="shift-req-error" class="error hidden"></div>
 
-      <div style="background: #FAFAFA; padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
-        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 4px;">Текущий график</div>
+      <div style="background: var(--s2); padding: 12px 14px; border-radius: 12px; margin-bottom: 16px; font-variant-numeric: tabular-nums; font-size: 13px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--t3); margin-bottom: 4px;">Текущий график</div>
         <div id="shift-req-current">—</div>
       </div>
 
@@ -969,20 +1031,20 @@
         </div>
         <div class="field">
           <label class="field-label">Длительность</label>
-          <div id="shift-req-duration" style="padding: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #16A34A; font-weight: 600;">—</div>
+          <div id="shift-req-duration" style="padding: 8px 0; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--gn); font-weight: 600;">—</div>
         </div>
       </div>
 
       <div class="field" style="margin-top: 12px;">
-        <label class="field-label">Действует с <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Действует с <span style="color: var(--rd);">*</span></label>
         <input type="date" id="shift-req-effective" class="input">
-        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+        <div style="font-size: 13px; color: var(--t2); margin-top: 4px;">
           С этой даты новый график станет вашим стандартным.
         </div>
       </div>
 
       <div class="field" style="margin-top: 12px;">
-        <label class="field-label">Причина <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Причина <span style="color: var(--rd);">*</span></label>
         <textarea id="shift-req-reason" class="input" rows="3" placeholder="Например: изменился личный график, новая работа во второй половине дня, и т.д."></textarea>
       </div>
     </div>
@@ -998,14 +1060,14 @@
     <div class="modal-header">
       <div>
         <div class="modal-title">Предложить обмен</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Вы предлагаете поменяться постоянными графиками. Согласует менеджер, утверждает I-Call.</div>
+        <div class="modal-sub">Вы предлагаете поменяться постоянными графиками. Согласует менеджер, утверждает I-Call.</div>
       </div>
       <button class="modal-close" onclick="closeApplyModal()">×</button>
     </div>
     <div class="modal-body">
       <div id="apply-error" class="error hidden"></div>
-      <div style="background: #FAFAFA; padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
-        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 4px;">Окно, которое вы получите</div>
+      <div style="background: var(--s2); padding: 12px 14px; border-radius: 12px; margin-bottom: 16px; font-variant-numeric: tabular-nums; font-size: 13px;">
+        <div style="font-size: 13px; font-weight: 600; color: var(--t3); margin-bottom: 4px;">Окно, которое вы получите</div>
         <div id="apply-target-window">—</div>
       </div>
       <div class="field" style="margin-bottom: 0;">
@@ -1025,14 +1087,14 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="shift-modal-title">Назначить смену</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="shift-modal-subtitle">—</div>
+        <div class="modal-sub" id="shift-modal-subtitle">—</div>
       </div>
       <button class="modal-close" onclick="closeShiftModal()">×</button>
     </div>
     <div class="modal-body">
       <div id="shift-modal-error" class="error hidden"></div>
 
-      <div style="font-size: 12px; color: #94A3B8; margin-bottom: 12px;">
+      <div style="font-size: 14px; color: var(--t2); margin-bottom: 14px;">
         Особая смена для одного дня. Перекрывает дефолтную смену переводчика для расчёта овертайма.
       </div>
 
@@ -1047,7 +1109,7 @@
         </div>
         <div class="field">
           <label class="field-label">Длительность</label>
-          <div id="shift-duration" style="padding: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #16A34A; font-weight: 600;">—</div>
+          <div id="shift-duration" style="padding: 8px 0; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--gn); font-weight: 600;">—</div>
         </div>
       </div>
 
@@ -1085,7 +1147,7 @@
 
       <div style="margin-top: 16px; margin-bottom: 8px;">
         <div class="field-label">Стандартная смена</div>
-        <div style="font-size: 11px; color: #94A3B8; margin-bottom: 8px;">
+        <div style="font-size: 13px; color: var(--t2); margin-bottom: 8px;">
           Дефолтный график переводчика. Используется для расчёта овертайма, если на конкретный день не назначена смена.
         </div>
       </div>
@@ -1100,7 +1162,7 @@
         </div>
         <div class="field">
           <label class="field-label">Длительность</label>
-          <div id="edit-shift-duration" style="padding: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #16A34A; font-weight: 600;">
+          <div id="edit-shift-duration" style="padding: 8px 0; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--gn); font-weight: 600;">
             8ч 00м
           </div>
         </div>
@@ -1111,7 +1173,7 @@
         <button class="btn btn-ghost btn-sm" onclick="addEditPairRow()">+ Пара</button>
       </div>
       <div id="edit-pairs-list"></div>
-      <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
+      <div style="font-size: 13px; color: var(--t2); margin-top: 6px;">
         Изменение ставки требует даты вступления в силу (по умолчанию — сегодня). Удаление пары — мягкое: историческая ставка сохраняется в rate_history.
       </div>
 
@@ -1123,12 +1185,12 @@
       </div>
 
       <!-- ── Привязка к клиенту ──────────────────────────────────────── -->
-      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #E5E7EB;">
+      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--b1);">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
           <div class="field-label" style="margin: 0;">Клиент</div>
           <span id="edit-client-current-badge" class="badge badge-neutral hidden"></span>
         </div>
-        <div style="font-size: 11px; color: #94A3B8; margin-bottom: 10px;">
+        <div style="font-size: 13px; color: var(--t2); margin-bottom: 10px;">
           Один переводчик — один клиент. Тарифы клиента по парам задаются отдельно на странице «Клиенты».
         </div>
         <select id="edit-translator-client" class="select">
@@ -1148,7 +1210,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="day-view-title">—</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="day-view-subtitle">—</div>
+        <div class="modal-sub" id="day-view-subtitle">—</div>
       </div>
       <button class="modal-close" onclick="closeDayViewModal()">×</button>
     </div>
@@ -1157,7 +1219,7 @@
     </div>
     <div class="modal-footer">
       <button id="btn-manager-fill-day" class="btn hidden" onclick="openDayModalAsManager()">+ Заполнить за переводчика</button>
-      <button id="btn-manager-edit-day" class="btn hidden" onclick="openDayModalAsManager()">✎ Редактировать</button>
+      <button id="btn-manager-edit-day" class="btn hidden" onclick="openDayModalAsManager()">Редактировать</button>
       <button class="btn btn-ghost" onclick="closeDayViewModal()" style="margin-left: auto;">Закрыть</button>
     </div>
   </div>
@@ -1171,7 +1233,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="add-client-modal-title">Новый клиент</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">Тариф задаётся на клиента по языковым парам. Переводчики привязываются в их профиле.</div>
+        <div class="modal-sub">Тариф задаётся на клиента по языковым парам. Переводчики привязываются в их профиле.</div>
       </div>
       <button class="modal-close" onclick="closeAddClientModal()">×</button>
     </div>
@@ -1179,7 +1241,7 @@
       <div id="add-client-error" class="error hidden"></div>
 
       <div class="field">
-        <label class="field-label">Название клиента <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Название клиента <span style="color: var(--rd);">*</span></label>
         <input type="text" id="client-name" class="input" placeholder="Например: Samsung Korea">
       </div>
 
@@ -1196,11 +1258,11 @@
       <!-- Тарифы клиента по языковым парам -->
       <div id="client-rates-wrap">
         <div style="display: flex; align-items: center; justify-content: space-between; margin: 16px 0 8px;">
-          <div class="field-label" style="margin: 0;">Тарифы по парам <span style="color: #DC2626;">*</span></div>
+          <div class="field-label" style="margin: 0;">Тарифы по парам <span style="color: var(--rd);">*</span></div>
           <button class="btn btn-ghost btn-sm" onclick="addClientRateRow()">+ Пара</button>
         </div>
         <div id="client-rates-list"></div>
-        <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
+        <div style="font-size: 13px; color: var(--t2); margin-top: 6px;">
           Тариф клиента за час работы в этой паре — единый для всех переводчиков клиента.
         </div>
       </div>
@@ -1227,7 +1289,7 @@
       <div id="edit-client-error" class="error hidden"></div>
 
       <div class="field">
-        <label class="field-label">Название клиента <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Название клиента <span style="color: var(--rd);">*</span></label>
         <input type="text" id="edit-client-name" class="input">
       </div>
 
@@ -1246,7 +1308,7 @@
         <div class="field-label" style="margin: 0;">Тарифы по парам</div>
       </div>
       <div id="edit-client-rates-list"></div>
-      <div id="edit-client-rates-hint" style="font-size: 11px; color: #94A3B8; margin-top: 6px;">
+      <div id="edit-client-rates-hint" style="font-size: 13px; color: var(--t2); margin-top: 6px;">
         Тариф клиента за час работы в этой паре — единый для всех переводчиков клиента.
       </div>
     </div>
@@ -1265,7 +1327,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title">Добавить переводчика</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="attach-translator-subtitle">—</div>
+        <div class="modal-sub" id="attach-translator-subtitle">—</div>
       </div>
       <button class="modal-close" onclick="closeAttachTranslatorModal()">×</button>
     </div>
@@ -1273,17 +1335,17 @@
       <div id="attach-translator-error" class="error hidden"></div>
 
       <div class="field">
-        <label class="field-label">Свободный переводчик <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Свободный переводчик <span style="color: var(--rd);">*</span></label>
         <select id="attach-translator-select" class="select">
           <option value="">— выберите переводчика —</option>
         </select>
-        <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">
+        <div style="font-size: 13px; color: var(--t2); margin-top: 4px;">
           Показаны только переводчики без привязанного клиента.
         </div>
       </div>
 
       <!-- Предупреждение о недостающих тарифах -->
-      <div id="attach-translator-rates-warn" class="hidden" style="background: #FEF3C7; border-left: 3px solid #B45309; border-radius: 8px; padding: 10px 14px; margin-top: 12px; font-size: 12px; color: #92400E;">
+      <div id="attach-translator-rates-warn" class="hidden" style="background: var(--amb); border-radius: 8px; padding: 10px 14px; margin-top: 12px; font-size: 12px; color: var(--am);">
         <span id="attach-translator-rates-warn-text"></span>
       </div>
     </div>
@@ -1302,7 +1364,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title">Внести предоплату</div>
-        <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;" id="prepay-modal-subtitle">—</div>
+        <div class="modal-sub" id="prepay-modal-subtitle">—</div>
       </div>
       <button class="modal-close" onclick="closeAddPrepaymentModal()">×</button>
     </div>
@@ -1310,33 +1372,33 @@
       <div id="add-prepayment-error" class="error hidden"></div>
 
       <!-- Текущий резерв (readonly) -->
-      <div style="background: #FAFAFA; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; border-left: 3px solid #1E40AF;">
-        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #94A3B8; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace;">Текущий остаток резерва</div>
-        <div style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: #1E40AF;" id="prepay-current-reserve">— ч</div>
-        <div style="font-size: 11px; color: #475569; margin-top: 2px;" id="prepay-reserve-meta">—</div>
+      <div style="background: var(--s2); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; ">
+        <div style="font-size: 13px; font-weight: 600; color: var(--t3); margin-bottom: 4px; font-variant-numeric: tabular-nums;">Текущий остаток резерва</div>
+        <div style="font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; color: var(--ac);" id="prepay-current-reserve">— ч</div>
+        <div style="font-size: 11px; color: var(--t2); margin-top: 2px;" id="prepay-reserve-meta">—</div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label class="field-label">Часов куплено <span style="color: #DC2626;">*</span></label>
+          <label class="field-label">Часов куплено <span style="color: var(--rd);">*</span></label>
           <input type="number" id="prepay-hours" class="input" min="1" step="0.5" placeholder="160">
-          <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Стандартно — 160 ч</div>
+          <div style="font-size: 13px; color: var(--t2); margin-top: 4px;">Стандартно — 160 ч</div>
         </div>
         <div class="field">
-          <label class="field-label">Средний тариф ($/ч) <span style="color: #DC2626;">*</span></label>
+          <label class="field-label">Средний тариф ($/ч) <span style="color: var(--rd);">*</span></label>
           <input type="number" id="prepay-rate" class="input" min="0.5" step="0.5" placeholder="40.00">
-          <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">Для расчёта суммы</div>
+          <div style="font-size: 13px; color: var(--t2); margin-top: 4px;">Для расчёта суммы</div>
         </div>
       </div>
 
       <!-- Автоподсчёт суммы -->
-      <div style="background: #DCFCE7; border-radius: 8px; padding: 12px 14px; margin: 4px 0 14px; display: flex; align-items: center; justify-content: space-between;">
-        <span style="font-size: 13px; color: #475569;">Итого к оплате:</span>
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: #16A34A;" id="prepay-total-amount">$0.00</span>
+      <div style="background: var(--gnb); border-radius: 8px; padding: 12px 14px; margin: 4px 0 14px; display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 13px; color: var(--t2);">Итого к оплате:</span>
+        <span style="font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; color: var(--gn);" id="prepay-total-amount">$0.00</span>
       </div>
 
       <div class="field">
-        <label class="field-label">Дата оплаты <span style="color: #DC2626;">*</span></label>
+        <label class="field-label">Дата оплаты <span style="color: var(--rd);">*</span></label>
         <input type="date" id="prepay-paid-at" class="input">
       </div>
 
