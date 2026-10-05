@@ -218,7 +218,7 @@
       <div class="page-header">
         <div>
           <div class="page-eyebrow" id="cal-eyebrow">Моё время</div>
-          <h1 class="page-title" id="cal-page-title">Календарь</h1>
+          <h1 class="page-title" id="cal-page-title" data-fx-blur>Календарь</h1>
           <div class="page-subtitle">Нажмите на день, чтобы внести часы или отметить отгул.</div>
         </div>
         <div class="page-actions">
@@ -233,17 +233,17 @@
       <div class="kpi-grid">
         <div class="kpi">
           <div class="kpi-label">Отработано</div>
-          <div class="kpi-value" id="kpi-hours">—<span class="kpi-unit"></span></div>
+          <div class="kpi-value" id="kpi-hours" data-fx-count>—<span class="kpi-unit"></span></div>
           <div class="kpi-meta" id="kpi-hours-meta">—</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Отгулов</div>
-          <div class="kpi-value" id="kpi-absent">—<span class="kpi-unit">дней</span></div>
+          <div class="kpi-value" id="kpi-absent" data-fx-count>—<span class="kpi-unit">дней</span></div>
           <div class="kpi-meta">не оплачивается</div>
         </div>
         <div class="kpi kpi-featured">
           <div class="kpi-label">К выплате</div>
-          <div class="kpi-value" id="kpi-amount">—</div>
+          <div class="kpi-value" id="kpi-amount" data-fx-count>—</div>
           <div class="kpi-meta">предварительно, до закрытия периода</div>
         </div>
       </div>
@@ -266,7 +266,7 @@
     <div id="page-dashboard" class="page hidden">
       <div class="dash-hero">
         <div class="dash-hero-left">
-          <h1 class="dash-hero-title" id="dash-title">—</h1>
+          <h1 class="dash-hero-title" id="dash-title" data-fx-blur>—</h1>
           <div class="dash-hero-summary" id="dash-summary">—</div>
         </div>
         <div class="dash-hero-meta" id="dash-date">—</div>
@@ -280,22 +280,22 @@
       <div class="dash-kpi-grid">
         <div class="dash-kpi featured">
           <div class="dash-kpi-label">К выплате за месяц</div>
-          <div class="dash-kpi-value" id="dash-kpi-amount">—</div>
+          <div class="dash-kpi-value" id="dash-kpi-amount" data-fx-count>—</div>
           <div class="dash-kpi-meta" id="dash-kpi-amount-meta">предварительно</div>
         </div>
         <div class="dash-kpi">
           <div class="dash-kpi-label">Овертайм команды</div>
-          <div class="dash-kpi-value" id="dash-kpi-overtime">—</div>
+          <div class="dash-kpi-value" id="dash-kpi-overtime" data-fx-count>—</div>
           <div class="dash-kpi-meta" id="dash-kpi-overtime-meta">за этот месяц</div>
         </div>
         <div class="dash-kpi">
           <div class="dash-kpi-label">Часов в этом месяце</div>
-          <div class="dash-kpi-value" id="dash-kpi-hours">—</div>
+          <div class="dash-kpi-value" id="dash-kpi-hours" data-fx-count>—</div>
           <div class="dash-kpi-meta" id="dash-kpi-hours-meta">—</div>
         </div>
         <div class="dash-kpi">
           <div class="dash-kpi-label">До закрытия периода</div>
-          <div class="dash-kpi-value" id="dash-kpi-days">—</div>
+          <div class="dash-kpi-value" id="dash-kpi-days" data-fx-count>—</div>
           <div class="dash-kpi-meta" id="dash-kpi-days-meta">—</div>
         </div>
       </div>
@@ -307,7 +307,7 @@
             <div class="dash-card-meta" id="dash-chart-month">—</div>
           </div>
           <div class="dash-card-body">
-            <div class="dash-chart" id="dash-chart"></div>
+            <div class="dash-chart" id="dash-chart" data-fx-bars></div>
             <div class="dash-chart-axis" id="dash-chart-axis"></div>
             <div class="dash-chart-legend">
               <span><i style="opacity: .85;"></i>Будни</span>
@@ -323,7 +323,7 @@
             <div class="dash-card-meta">за месяц</div>
           </div>
           <div class="dash-card-body">
-            <div class="dash-leaderboard" id="dash-leaderboard">
+            <div class="dash-leaderboard" id="dash-leaderboard" data-fx-list>
               <div class="dash-empty">Загрузка…</div>
             </div>
             <button class="btn btn-text" type="button" style="margin-top: 16px; font-size: 15px;" onclick="goToPage('translators')">Все переводчики ›</button>
@@ -338,7 +338,7 @@
             <div class="dash-card-meta">за месяц</div>
           </div>
           <div class="dash-card-body">
-            <div class="dash-pairs" id="dash-pairs">
+            <div class="dash-pairs" id="dash-pairs" data-fx-list>
               <div class="dash-empty">Загрузка…</div>
             </div>
           </div>
@@ -348,7 +348,7 @@
           <div class="dash-card-header">
             <h2 class="dash-card-title">Требует внимания</h2>
           </div>
-          <div class="dash-card-body" id="dash-attention">
+          <div class="dash-card-body" id="dash-attention" data-fx-list>
             <div class="dash-empty">Загрузка…</div>
           </div>
         </section>
@@ -397,7 +397,7 @@
         </div>
       </div>
       <div id="req-error" class="error hidden"></div>
-      <div id="req-list">
+      <div id="req-list" data-fx-list>
         <div class="loading-state">Загрузка…</div>
       </div>
     </div>
@@ -439,17 +439,17 @@
       <div class="kpi-grid">
         <div class="kpi">
           <div class="kpi-label">Переводчиков</div>
-          <div class="kpi-value" id="payroll-kpi-count">—</div>
+          <div class="kpi-value" id="payroll-kpi-count" data-fx-count>—</div>
           <div class="kpi-meta">с активностью в этом месяце</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Всего часов</div>
-          <div class="kpi-value" id="payroll-kpi-hours">—</div>
+          <div class="kpi-value" id="payroll-kpi-hours" data-fx-count>—</div>
           <div class="kpi-meta">чистого времени, без перерывов</div>
         </div>
         <div class="kpi kpi-featured">
           <div class="kpi-label">К выплате</div>
-          <div class="kpi-value" id="payroll-kpi-amount">—</div>
+          <div class="kpi-value" id="payroll-kpi-amount" data-fx-count>—</div>
           <div class="kpi-meta">по всей команде</div>
         </div>
       </div>
@@ -666,22 +666,22 @@
       <div class="kpi-grid">
         <div class="kpi">
           <div class="kpi-label">Отработано</div>
-          <div class="kpi-value" id="td-hours">—</div>
+          <div class="kpi-value" id="td-hours" data-fx-count>—</div>
           <div class="kpi-meta" id="td-hours-meta">—</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Овертайм</div>
-          <div class="kpi-value" id="td-overtime">—</div>
+          <div class="kpi-value" id="td-overtime" data-fx-count>—</div>
           <div class="kpi-meta" id="td-overtime-meta">—</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Отгулов</div>
-          <div class="kpi-value" id="td-absent">—<span class="kpi-unit">дней</span></div>
+          <div class="kpi-value" id="td-absent" data-fx-count>—<span class="kpi-unit">дней</span></div>
           <div class="kpi-meta">не оплачивается</div>
         </div>
         <div class="kpi kpi-featured">
           <div class="kpi-label">К выплате</div>
-          <div class="kpi-value" id="td-amount">—</div>
+          <div class="kpi-value" id="td-amount" data-fx-count>—</div>
           <div class="kpi-meta">предварительно</div>
         </div>
       </div>
@@ -764,7 +764,7 @@
         </div>
       </div>
       <div id="swaps-error" class="error hidden"></div>
-      <div id="swaps-list"><div class="loading-state">Загрузка…</div></div>
+      <div id="swaps-list" data-fx-list><div class="loading-state">Загрузка…</div></div>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════
@@ -789,7 +789,7 @@
       <div class="section">
         <div class="section-head" style="margin-bottom: 4px;"><h3>Доступные графики</h3></div>
         <p class="section-note">Выставленные окна коллег вашей пары. Имена скрыты. Предложить обмен можно, если у вас нет активной заявки.</p>
-        <div id="swap-market-list"><div class="loading-state">Загрузка…</div></div>
+        <div id="swap-market-list" data-fx-list><div class="loading-state">Загрузка…</div></div>
         <div id="swap-outgoing"></div>
       </div>
     </div>
@@ -1416,6 +1416,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- XLSX и jsPDF подгружаются лениво при первом клике на экспорт (см. ensureXlsx / ensureJspdf в app.js) -->
+<!-- Анимации интерфейса — порты React Bits by David Haz (MIT + Commons Clause).
+     До app.js: наблюдатели должны встать раньше, чем app.js начнёт заполнять экраны -->
+<script src="effects.js"></script>
 <script src="app.js"></script>
 <div class="mobile-backdrop" id="mobile-backdrop"></div>
 </body>

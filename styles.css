@@ -848,3 +848,56 @@ tr:nth-child(8n+8) .emp-avatar, .req-card:nth-child(8n+8) .req-avatar { backgrou
   .mobile-bottom-nav-item svg { width: 25px; height: 25px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .mobile-bottom-nav-item.active { color: var(--ac); }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   Анимации интерфейса (логика — effects.js).
+   Based on React Bits by David Haz (MIT + Commons Clause).
+   Сдержанно: короткие появления, никаких эффектов на таблицах и формах.
+   prefers-reduced-motion выключает всё правилом в начале файла и в effects.js.
+   ══════════════════════════════════════════════════════════════════ */
+:root { --fx-spot: rgba(0, 113, 227, .07); --fx-spot-feat: rgba(255, 255, 255, .13); }
+@media (prefers-color-scheme: dark) {
+  :root { --fx-spot: rgba(255, 255, 255, .07); --fx-spot-feat: rgba(0, 113, 227, .12); }
+}
+
+/* FadeContent — раздел мягко проявляется при открытии (только opacity и сдвиг, без blur — дёшево) */
+@keyframes fxPageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.page:not(.hidden) { animation: fxPageIn .32s var(--ease-out); }
+.auth-card { position: relative; z-index: 1; animation: fxPageIn .5s var(--ease-out); }
+
+/* SpotlightCard — свет под курсором; градиент в фоне плитки, под текстом.
+   Двойной класс — чтобы перебить shorthand background у .kpi-featured */
+@property --fx-o { syntax: '<number>'; inherits: false; initial-value: 0; }
+.kpi.kpi, .dash-kpi.dash-kpi, .dash-card.dash-card {
+  --fx-c: var(--fx-spot);
+  background-image: radial-gradient(circle 360px at var(--fx-mx, 50%) var(--fx-my, 50%),
+    color-mix(in srgb, var(--fx-c) calc(var(--fx-o) * 100%), transparent), transparent 80%);
+  transition: --fx-o .5s ease;
+}
+.kpi.kpi-featured, .dash-kpi.featured { --fx-c: var(--fx-spot-feat); }
+@media (hover: hover) and (pointer: fine) {
+  .kpi.kpi:hover, .dash-kpi.dash-kpi:hover, .dash-card.dash-card:hover { --fx-o: 1; }
+}
+
+/* AnimatedList — новые строки появляются каскадом */
+@keyframes fxItemIn { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fxGrowX { from { transform: scaleX(0); } to { transform: none; } }
+@keyframes fxGrowY { from { transform: scaleY(0); } to { transform: none; } }
+.fx-item { animation: fxItemIn .34s var(--ease-out) var(--fx-d, 0ms) both; }
+.fx-item .dash-leader-bar-fill { transform-origin: left; animation: fxGrowX .7s var(--ease-out) calc(var(--fx-d, 0ms) + 80ms) both; }
+.fx-grow > .dash-chart-bar { transform-origin: bottom; animation: fxGrowY .55s var(--ease-out) calc(var(--fx-i, 0) * 10ms) both; }
+
+/* BlurText — слова заголовка проявляются из размытия */
+@keyframes fxBlurIn {
+  from { opacity: 0; filter: blur(10px); transform: translateY(.3em); }
+  60% { opacity: .6; filter: blur(4px); }
+  to { opacity: 1; filter: none; transform: none; }
+}
+.fx-word { display: inline-block; animation: fxBlurIn .6s var(--ease-out) var(--fx-d, 0ms) both; }
+
+/* Aurora — фон экрана входа (WebGL2), сверху экрана, под карточкой входа */
+.auth-wrap { position: relative; isolation: isolate; overflow: hidden; }
+.fx-aurora { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .45; animation: fxFade 1.2s ease both; }
+.fx-aurora canvas { display: block; width: 100%; height: 100%; }
+@media (prefers-color-scheme: dark) { .fx-aurora { opacity: .5; } }
+@keyframes fxFade { from { opacity: 0; } }
