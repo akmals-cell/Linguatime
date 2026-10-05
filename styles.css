@@ -737,9 +737,10 @@ tr:nth-child(8n+8) .emp-avatar, .req-card:nth-child(8n+8) .req-avatar { backgrou
     position: fixed; top: 0; left: 0; z-index: 100; width: 300px; height: 100vh; height: 100dvh;
     flex-direction: column; align-items: stretch; gap: 0; padding: 24px 16px; overflow-y: auto;
     background: var(--s1); -webkit-backdrop-filter: none; backdrop-filter: none; border: none;
-    transform: translateX(-100%); transition: transform .25s var(--ease); box-shadow: var(--sh-modal);
+    transform: translateX(-100%); transition: transform .25s var(--ease), box-shadow .25s var(--ease); box-shadow: none;
   }
-  .sidebar.mobile-open { transform: translateX(0); }
+  /* Тень только у открытой панели — у спрятанной она торчала полосой у левого края */
+  .sidebar.mobile-open { transform: translateX(0); box-shadow: var(--sh-modal); }
   .sb-brand { width: auto; margin: 0 12px 24px; font-size: 21px; }
   .sb-brand span { display: inline; }
   .sb-brand svg { width: 32px; height: 32px; }
