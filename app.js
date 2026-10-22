@@ -1804,11 +1804,13 @@
     sel.innerHTML = '<option value="">— без клиента —</option>';
     sel.disabled = false;
 
-    const { data: clients, error } = await sb
-      .from('clients')
-      .select('id, name')
-      .eq('is_active', true)
-      .order('name');
+    // Активные клиенты + текущий клиент переводчика, даже если он деактивирован:
+    // иначе неактивный текущий клиент неотличим от «нет доступа к списку».
+    let clientsQuery = sb.from('clients').select('id, name, is_active');
+    clientsQuery = tdUser.client_id
+      ? clientsQuery.or(`is_active.eq.true,id.eq.${tdUser.client_id}`)
+      : clientsQuery.eq('is_active', true);
+    const { data: clients, error } = await clientsQuery.order('name');
 
     // Список не загрузился или текущего клиента в нём нет (менеджеру без доступа
     // к «Клиентам» RLS отдаёт пустой список) — поле блокируем. Иначе в нём стоит
@@ -1831,7 +1833,7 @@
     for (const c of (clients || [])) {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.name;
+      opt.textContent = c.is_active ? c.name : c.name + ' (неактивен)';
       sel.appendChild(opt);
     }
 
@@ -1839,7 +1841,7 @@
 
     // Бейдж текущего клиента
     if (current) {
-      badge.textContent = current.name;
+      badge.textContent = current.is_active ? current.name : current.name + ' (неактивен)';
       badge.classList.remove('hidden');
     } else {
       badge.classList.add('hidden');
