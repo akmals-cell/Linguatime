@@ -1802,12 +1802,31 @@
     const sel = document.getElementById('edit-translator-client');
     const badge = document.getElementById('edit-client-current-badge');
     sel.innerHTML = '<option value="">— без клиента —</option>';
+    sel.disabled = false;
 
-    const { data: clients } = await sb
+    const { data: clients, error } = await sb
       .from('clients')
       .select('id, name')
       .eq('is_active', true)
       .order('name');
+
+    // Список не загрузился или текущего клиента в нём нет (менеджеру без доступа
+    // к «Клиентам» RLS отдаёт пустой список) — поле блокируем. Иначе в нём стоит
+    // «— без клиента —», и любое сохранение карточки молча отвязывает переводчика.
+    const current = tdUser.client_id ? (clients || []).find(c => c.id === tdUser.client_id) : null;
+    if (error || (tdUser.client_id && !current)) {
+      if (tdUser.client_id) {
+        sel.innerHTML = '';
+        sel.appendChild(new Option('Привязан к клиенту (недоступен для выбора)', tdUser.client_id));
+        sel.value = tdUser.client_id;
+        badge.textContent = 'привязан';
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+      sel.disabled = true;
+      return;
+    }
 
     for (const c of (clients || [])) {
       const opt = document.createElement('option');
@@ -1819,9 +1838,8 @@
     sel.value = tdUser.client_id || '';
 
     // Бейдж текущего клиента
-    if (tdUser.client_id) {
-      const current = (clients || []).find(c => c.id === tdUser.client_id);
-      badge.textContent = current ? current.name : 'привязан';
+    if (current) {
+      badge.textContent = current.name;
       badge.classList.remove('hidden');
     } else {
       badge.classList.add('hidden');
@@ -2055,8 +2073,9 @@
       }
 
       // 1b) Привязка к клиенту (если изменилась)
-      const newClientId = document.getElementById('edit-translator-client').value || null;
-      if (newClientId !== (tdUser.client_id || null)) {
+      const clientSel = document.getElementById('edit-translator-client');
+      const newClientId = clientSel.value || null;
+      if (!clientSel.disabled && newClientId !== (tdUser.client_id || null)) {
         const { error: clientLinkErr } = await sb
           .from('users')
           .update({ client_id: newClientId })
